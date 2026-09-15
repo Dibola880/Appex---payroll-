@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Appex Payroll{% endblock %}
+
+{% block heading %}Payroll Dashboard{% endblock %}
+
+{% block content %}
+
+<div class="grid">
+
+    <div class="card">
+        <small>Company</small>
+        <strong>{{ company.name }}</strong>
+    </div>
+
+    <div class="card">
+        <small>Employees</small>
+        <strong>{{ employees|length }}</strong>
+    </div>
+
+    <div class="card">
+        <small>Monthly Payroll</small>
+        <strong>R {{ "%.2f"|format(total_salary) }}</strong>
+    </div>
+
+</div>
+
+<div class="card">
+    <h2>Employee Financial Services</h2>
+
+    <p class="muted">
+        Manage employees, payroll information and future employee
+        financial services through the Appex platform.
+    </p>
+
+    <a class="button"
+       href="{{ url_for('main.employees') }}">
+       View Employees
+    </a>
+
+    <a class="button"
+       href="{{ url_for('main.payroll') }}">
+       Payroll Preview
+    </a>
+</div>
+
+{% endblock %}
