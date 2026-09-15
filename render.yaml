@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: appex-payroll
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn run:app
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: appex-payroll-db
+          property: connectionString
+      - key: DEEL_AUTH_URL
+        sync: false
+      - key: DEEL_API_URL
+        sync: false
+      - key: DEEL_CLIENT_ID
+        sync: false
+      - key: DEEL_CLIENT_SECRET
+        sync: false
+
+databases:
+  - name: appex-payroll-db
+    plan: free
