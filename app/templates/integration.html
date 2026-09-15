@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Deel Integration - Appex Payroll{% endblock %}
+
+{% block heading %}Deel Local Payroll Integration{% endblock %}
+
+{% block content %}
+
+<div class="card">
+
+    {% if configured %}
+
+        <div class="status ok">
+            <strong>Integration configured</strong>
+            <p>
+                Deel Local Payroll credentials have been configured.
+            </p>
+        </div>
+
+    {% else %}
+
+        <div class="status">
+            <strong>Integration not configured</strong>
+            <p>
+                Add your Deel Local Payroll API credentials in
+                Render environment variables when you're ready.
+            </p>
+        </div>
+
+    {% endif %}
+
+</div>
+
+<div class="card">
+
+    <h2>Integration Settings</h2>
+
+    <p>
+        Appex Payroll is designed to connect with Deel Local Payroll
+        for employee and payroll processing.
+    </p>
+
+    <pre>DEEL_AUTH_URL
+DEEL_API_URL
+DEEL_CLIENT_ID
+DEEL_CLIENT_SECRET</pre>
+
+    <p class="muted">
+        Never put your Client Secret directly into GitHub.
+        Store it as a secret environment variable in Render.
+    </p>
+
+</div>
+
+{% endblock %}
