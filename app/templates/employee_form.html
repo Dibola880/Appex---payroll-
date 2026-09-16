@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Add Employee - Appex Payroll{% endblock %}
+
+{% block heading %}Add Employee{% endblock %}
+
+{% block content %}
+
+<div class="card form-card">
+
+<form method="POST">
+
+    <label>
+        Employee Number
+        <input name="employee_number"
+               placeholder="EMP003"
+               required>
+    </label>
+
+    <label>
+        First Name
+        <input name="first_name"
+               required>
+    </label>
+
+    <label>
+        Last Name
+        <input name="last_name"
+               required>
+    </label>
+
+    <label>
+        Email
+        <input type="email"
+               name="email">
+    </label>
+
+    <label>
+        Job Title
+        <input name="job_title">
+    </label>
+
+    <label>
+        Monthly Salary
+        <input type="number"
+               step="0.01"
+               name="monthly_salary"
+               required>
+    </label>
+
+    <button class="button"
+            type="submit">
+        Save Employee
+    </button>
+
+    <a class="button secondary"
+       href="{{ url_for('main.employees') }}">
+       Cancel
+    </a>
+
+</form>
+
+</div>
+
+{% endblock %}
