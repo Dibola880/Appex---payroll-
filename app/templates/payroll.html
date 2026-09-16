@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Payroll - Appex Payroll{% endblock %}
+
+{% block heading %}Payroll Preview{% endblock %}
+
+{% block content %}
+
+<div class="card">
+    <h2>Payroll Summary</h2>
+
+    <p>
+        Active employees:
+        <strong>{{ employees|length }}</strong>
+    </p>
+
+    <p>
+        Gross monthly payroll:
+        <strong>R {{ "%.2f"|format(gross) }}</strong>
+    </p>
+</div>
+
+<div class="card">
+
+<table>
+
+    <thead>
+        <tr>
+            <th>Employee</th>
+            <th>Salary</th>
+        </tr>
+    </thead>
+
+    <tbody>
+
+    {% for employee in employees %}
+
+        <tr>
+            <td>
+                {{ employee.first_name }}
+                {{ employee.last_name }}
+            </td>
+
+            <td>
+                R {{ "%.2f"|format(employee.monthly_salary or 0) }}
+            </td>
+        </tr>
+
+    {% endfor %}
+
+    </tbody>
+
+</table>
+
+</div>
+
+<div class="card">
+    <p class="muted">
+        This is currently a payroll preview. Statutory payroll
+        calculations and live Deel processing will be added in
+        later development phases.
+    </p>
+</div>
+
+{% endblock %}
