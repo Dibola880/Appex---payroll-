@@ -7,54 +7,98 @@
 {% block content %}
 
 <div class="toolbar">
-    <a class="button"
-       href="{{ url_for('main.new_employee') }}">
-       + Add Employee
+    <a class="button" href="{{ url_for('main.new_employee') }}">
+        + Add Employee
     </a>
 </div>
 
 <div class="card">
 
-{% if employees %}
+    <h2>Employee List</h2>
 
-<table>
-    <thead>
-        <tr>
-            <th>Employee No.</th>
-            <th>Name</th>
-            <th>Position</th>
-            <th>Salary</th>
-            <th>Status</th>
-        </tr>
-    </thead>
+    {% if employees %}
 
-    <tbody>
-    {% for employee in employees %}
-        <tr>
-            <td>{{ employee.employee_number }}</td>
+    <div class="table-container">
+        <table>
 
-            <td>
-                {{ employee.first_name }}
-                {{ employee.last_name }}
-            </td>
+            <thead>
+                <tr>
+                    <th>Employee No.</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Job Title</th>
+                    <th>Monthly Salary</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
 
-            <td>{{ employee.job_title or "-" }}</td>
+            <tbody>
 
-            <td>
-                R {{ "%.2f"|format(employee.monthly_salary or 0) }}
-            </td>
+                {% for employee in employees %}
 
-            <td>{{ employee.status }}</td>
-        </tr>
-    {% endfor %}
-    </tbody>
-</table>
+                <tr>
 
-{% else %}
+                    <td>
+                        {{ employee.employee_number }}
+                    </td>
 
-<p class="muted">No employees found.</p>
+                    <td>
+                        <strong>
+                            {{ employee.first_name }}
+                            {{ employee.last_name }}
+                        </strong>
+                    </td>
 
-{% endif %}
+                    <td>
+                        {{ employee.email or "-" }}
+                    </td>
+
+                    <td>
+                        {{ employee.job_title or "-" }}
+                    </td>
+
+                    <td>
+                        R {{ "%.2f"|format(employee.monthly_salary or 0) }}
+                    </td>
+
+                    <td>
+                        {% if employee.status == "Active" %}
+                            <span class="status-active">
+                                Active
+                            </span>
+                        {% else %}
+                            <span class="status-inactive">
+                                {{ employee.status }}
+                            </span>
+                        {% endif %}
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+    </div>
+
+    {% else %}
+
+    <div class="empty-state">
+
+        <h3>No employees yet</h3>
+
+        <p>
+            You haven't added any employees to your company.
+        </p>
+
+        <a class="button" href="{{ url_for('main.new_employee') }}">
+            Add Your First Employee
+        </a>
+
+    </div>
+
+    {% endif %}
 
 </div>
 
