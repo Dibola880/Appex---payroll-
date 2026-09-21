@@ -2,64 +2,144 @@
 
 {% block title %}Payroll - Appex Payroll{% endblock %}
 
-{% block heading %}Payroll Preview{% endblock %}
+{% block heading %}Payroll{% endblock %}
 
 {% block content %}
 
 <div class="card">
-    <h2>Payroll Summary</h2>
+
+    <h2>Payroll Overview</h2>
 
     <p>
-        Active employees:
-        <strong>{{ employees|length }}</strong>
+        Review your company's active employees and monthly payroll
+        information.
     </p>
 
-    <p>
-        Gross monthly payroll:
-        <strong>R {{ "%.2f"|format(gross) }}</strong>
-    </p>
+    {% if employees %}
+
+    <div class="summary-box">
+
+        <div>
+            <strong>Total Employees</strong>
+            <span>{{ employees|length }}</span>
+        </div>
+
+        <div>
+            <strong>Total Gross Payroll</strong>
+            <span>
+                R {{ "%.2f"|format(total_salary or 0) }}
+            </span>
+        </div>
+
+    </div>
+
+
+    <div class="table-container">
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Employee No.</th>
+                    <th>Employee</th>
+                    <th>Job Title</th>
+                    <th>Monthly Salary</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for employee in employees %}
+
+                <tr>
+
+                    <td>
+                        {{ employee.employee_number }}
+                    </td>
+
+                    <td>
+                        <strong>
+                            {{ employee.first_name }}
+                            {{ employee.last_name }}
+                        </strong>
+                    </td>
+
+                    <td>
+                        {{ employee.job_title or "-" }}
+                    </td>
+
+                    <td>
+                        R {{ "%.2f"|format(employee.monthly_salary or 0) }}
+                    </td>
+
+                    <td>
+
+                        {% if employee.status == "Active" %}
+
+                            <span class="status-active">
+                                Active
+                            </span>
+
+                        {% else %}
+
+                            <span class="status-inactive">
+                                {{ employee.status }}
+                            </span>
+
+                        {% endif %}
+
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    {% else %}
+
+    <div class="empty-state">
+
+        <h3>No Employees Available</h3>
+
+        <p>
+            Add employees before running payroll.
+        </p>
+
+        <a
+            href="{{ url_for('main.new_employee') }}"
+            class="button"
+        >
+            + Add Employee
+        </a>
+
+    </div>
+
+    {% endif %}
+
 </div>
+
 
 <div class="card">
 
-<table>
+    <h2>Payroll Processing</h2>
 
-    <thead>
-        <tr>
-            <th>Employee</th>
-            <th>Salary</th>
-        </tr>
-    </thead>
-
-    <tbody>
-
-    {% for employee in employees %}
-
-        <tr>
-            <td>
-                {{ employee.first_name }}
-                {{ employee.last_name }}
-            </td>
-
-            <td>
-                R {{ "%.2f"|format(employee.monthly_salary or 0) }}
-            </td>
-        </tr>
-
-    {% endfor %}
-
-    </tbody>
-
-</table>
-
-</div>
-
-<div class="card">
-    <p class="muted">
-        This is currently a payroll preview. Statutory payroll
-        calculations and live Deel processing will be added in
-        later development phases.
+    <p>
+        Payroll processing and payslip generation will be connected
+        to the Appex Payroll processing engine in the next development
+        stage.
     </p>
+
+    <div class="notice">
+        <strong>Current status:</strong>
+        Payroll calculation interface ready.
+    </div>
+
 </div>
 
 {% endblock %}
