@@ -2,46 +2,173 @@
 
 {% block title %}Dashboard - Appex Payroll{% endblock %}
 
-{% block heading %}Payroll Dashboard{% endblock %}
+{% block heading %}Employer Dashboard{% endblock %}
 
 {% block content %}
 
+<!-- Welcome section -->
+<div class="card">
+    <h2>Welcome to Appex Payroll</h2>
+
+    <p class="muted">
+        Manage your company, employees and payroll from one
+        secure platform.
+    </p>
+
+    {% if company %}
+        <p>
+            <strong>Company:</strong>
+            {{ company.name }}
+        </p>
+    {% endif %}
+</div>
+
+
+<!-- Dashboard statistics -->
 <div class="grid">
 
     <div class="card">
-        <small>Company</small>
-        <strong>{{ company.name }}</strong>
+        <small>Total Employees</small>
+
+        <strong>
+            {{ employees|length }}
+        </strong>
+
+        <p class="muted">
+            Employees registered
+        </p>
     </div>
 
-    <div class="card">
-        <small>Employees</small>
-        <strong>{{ employees|length }}</strong>
-    </div>
 
     <div class="card">
         <small>Monthly Payroll</small>
-        <strong>R {{ "%.2f"|format(total_salary) }}</strong>
+
+        <strong>
+            R {{ "%.2f"|format(total_salary or 0) }}
+        </strong>
+
+        <p class="muted">
+            Current active employee salaries
+        </p>
+    </div>
+
+
+    <div class="card">
+        <small>Payroll Provider</small>
+
+        <strong>
+            {% if company %}
+                {{ company.payroll_provider or "Appex Payroll" }}
+            {% else %}
+                Appex Payroll
+            {% endif %}
+        </strong>
+
+        <p class="muted">
+            Payroll integration
+        </p>
     </div>
 
 </div>
 
+
+<!-- Employee management -->
 <div class="card">
-    <h2>Employee Financial Services</h2>
+
+    <h2>Employee Management</h2>
 
     <p class="muted">
-        Manage employees, payroll information and future employee
-        financial services through the Appex platform.
+        Add employees, manage employee information and prepare
+        payroll.
     </p>
 
-    <a class="button"
-       href="{{ url_for('main.employees') }}">
-       View Employees
+    <a
+        class="button"
+        href="{{ url_for('main.employees') }}"
+    >
+        View Employees
     </a>
 
-    <a class="button"
-       href="{{ url_for('main.payroll') }}">
-       Payroll Preview
+    <a
+        class="button"
+        href="{{ url_for('main.new_employee') }}"
+    >
+        + Add Employee
     </a>
+
+</div>
+
+
+<!-- Payroll -->
+<div class="card">
+
+    <h2>Payroll</h2>
+
+    <p class="muted">
+        Review your current payroll information and employee
+        salary totals.
+    </p>
+
+    <a
+        class="button"
+        href="{{ url_for('main.payroll') }}"
+    >
+        View Payroll
+    </a>
+
+</div>
+
+
+<!-- Employee Financial Services -->
+<div class="card">
+
+    <h2>Appex Employee Financial Services</h2>
+
+    <p class="muted">
+        Provide employees with access to financial services
+        through the Appex platform.
+    </p>
+
+    <a
+        class="button"
+        href="#"
+    >
+        Financial Services
+    </a>
+
+</div>
+
+
+<!-- Deel integration -->
+<div class="card">
+
+    <h2>Deel Local Payroll</h2>
+
+    <p class="muted">
+        Connect your payroll environment with Deel Local Payroll
+        when your API credentials are ready.
+    </p>
+
+    <a
+        class="button"
+        href="{{ url_for('main.integration') }}"
+    >
+        Integration Settings
+    </a>
+
+</div>
+
+
+<!-- Security notice -->
+<div class="card">
+
+    <h3>Security</h3>
+
+    <p class="muted">
+        Keep employee and payroll information confidential.
+        Do not share passwords or API credentials.
+    </p>
+
 </div>
 
 {% endblock %}
