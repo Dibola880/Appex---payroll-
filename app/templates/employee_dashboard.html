@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Dashboard - Appex Payroll{% endblock %}
+
+{% block heading %}Employee Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- Welcome -->
+<div class="card">
+
+    <h2>
+        Welcome,
+        {{ employee.first_name if employee else "Employee" }}
+    </h2>
+
+    <p class="muted">
+        Welcome to your Appex Payroll employee portal.
+        Here you can view your employment and payroll information.
+    </p>
+
+</div>
+
+
+<!-- Employee information -->
+<div class="grid">
+
+    <div class="card">
+
+        <small>Employee</small>
+
+        <strong>
+            {% if employee %}
+                {{ employee.first_name }}
+                {{ employee.last_name }}
+            {% else %}
+                Employee
+            {% endif %}
+        </strong>
+
+    </div>
+
+
+    <div class="card">
+
+        <small>Employee Number</small>
+
+        <strong>
+            {% if employee %}
+                {{ employee.employee_number }}
+            {% else %}
+                -
+            {% endif %}
+        </strong>
+
+    </div>
+
+
+    <div class="card">
+
+        <small>Employment Status</small>
+
+        <strong>
+            {% if employee %}
+                {{ employee.status }}
+            {% else %}
+                Active
+            {% endif %}
+        </strong>
+
+    </div>
+
+</div>
+
+
+<!-- Employment information -->
+<div class="card">
+
+    <h2>Employment Information</h2>
+
+    {% if employee %}
+
+        <p>
+            <strong>Job Title:</strong>
+            {{ employee.job_title or "Not provided" }}
+        </p>
+
+        <p>
+            <strong>Email:</strong>
+            {{ employee.email or "Not provided" }}
+        </p>
+
+    {% else %}
+
+        <p class="muted">
+            Your employment information is not available yet.
+        </p>
+
+    {% endif %}
+
+</div>
+
+
+<!-- Payroll -->
+<div class="card">
+
+    <h2>Payroll Information</h2>
+
+    {% if employee %}
+
+        <p>
+            <strong>Monthly Salary:</strong>
+            R {{ "%.2f"|format(employee.monthly_salary or 0) }}
+        </p>
+
+        <p class="muted">
+            Your payroll information is provided by your employer.
+        </p>
+
+    {% else %}
+
+        <p class="muted">
+            Payroll information is not available yet.
+        </p>
+
+    {% endif %}
+
+    <a
+        class="button"
+        href="{{ url_for('main.my_payslips') }}"
+    >
+        View My Payslips
+    </a>
+
+</div>
+
+
+<!-- Financial services -->
+<div class="card">
+
+    <h2>Appex Employee Financial Services</h2>
+
+    <p class="muted">
+        Access financial services that may be made available
+        through your employer and Appex Financial Institute.
+    </p>
+
+    <a
+        class="button"
+        href="#"
+    >
+        View Financial Services
+    </a>
+
+</div>
+
+
+<!-- Support -->
+<div class="card">
+
+    <h2>Need Help?</h2>
+
+    <p class="muted">
+        If you have questions about your payroll, employment
+        information or available financial services, contact
+        your employer or Appex support.
+    </p>
+
+</div>
+
+{% endblock %}
