@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}My Payslips - Appex Payroll{% endblock %}
+
+{% block heading %}My Payslips{% endblock %}
+
+{% block content %}
+
+<div class="card">
+
+    <h2>Payslips</h2>
+
+    <p>
+        View your available payslips and payroll information below.
+    </p>
+
+    {% if payslips %}
+
+    <div class="table-container">
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Pay Period</th>
+                    <th>Pay Date</th>
+                    <th>Gross Pay</th>
+                    <th>Net Pay</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for payslip in payslips %}
+
+                <tr>
+
+                    <td>
+                        {{ payslip.pay_period or "-" }}
+                    </td>
+
+                    <td>
+                        {{ payslip.pay_date or "-" }}
+                    </td>
+
+                    <td>
+                        R {{ "%.2f"|format(payslip.gross_pay or 0) }}
+                    </td>
+
+                    <td>
+                        R {{ "%.2f"|format(payslip.net_pay or 0) }}
+                    </td>
+
+                    <td>
+
+                        {% if payslip.pdf_url %}
+
+                        <a
+                            href="{{ payslip.pdf_url }}"
+                            target="_blank"
+                            class="button"
+                        >
+                            View Payslip
+                        </a>
+
+                        {% else %}
+
+                        <span>
+                            Not Available
+                        </span>
+
+                        {% endif %}
+
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+    </div>
+
+    {% else %}
+
+    <div class="empty-state">
+
+        <h3>No Payslips Available</h3>
+
+        <p>
+            Your payslips will appear here once your employer
+            has processed payroll.
+        </p>
+
+        <a
+            href="{{ url_for('main.employee_dashboard') }}"
+            class="button"
+        >
+            Back to Employee Dashboard
+        </a>
+
+    </div>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}
