@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Appex Payroll{% endblock %}
+
+{% block heading %}Login{% endblock %}
+
+{% block content %}
+
+<div class="card form-card">
+
+    <h2>Welcome Back</h2>
+
+    <p class="muted">
+        Sign in to your Appex Payroll account.
+    </p>
+
+    <form method="POST">
+
+        <label>
+            Email Address
+
+            <input
+                type="email"
+                name="email"
+                placeholder="you@example.com"
+                autocomplete="email"
+                required
+            >
+        </label>
+
+        <label>
+            Password
+
+            <input
+                type="password"
+                name="password"
+                placeholder="Enter your password"
+                autocomplete="current-password"
+                required
+            >
+        </label>
+
+        <button
+            class="button"
+            type="submit"
+        >
+            Login
+        </button>
+
+    </form>
+
+    <hr>
+
+    <p class="muted">
+        Don't have an account?
+    </p>
+
+    <a
+        class="button secondary"
+        href="{{ url_for('main.register') }}"
+    >
+        Create Employer Account
+    </a>
+
+</div>
+
+{% endblock %}
