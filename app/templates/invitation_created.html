@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Invitation - Appex Payroll{% endblock %}
+
+{% block heading %}Employee Invitation Created{% endblock %}
+
+{% block content %}
+
+<div class="card">
+
+    <h2>Invitation Created Successfully</h2>
+
+    <p>
+        The employee invitation has been created successfully.
+        Share the invitation link with the employee so they can
+        create their account and access the Appex Payroll employee portal.
+    </p>
+
+    <div class="invitation-box">
+
+        <label for="invitation_link">
+            Employee Invitation Link
+        </label>
+
+        <input
+            type="text"
+            id="invitation_link"
+            value="{{ invitation_url }}"
+            readonly
+        >
+
+        <button
+            type="button"
+            class="button"
+            onclick="copyInvitationLink()"
+        >
+            Copy Invitation Link
+        </button>
+
+    </div>
+
+    <div class="notice">
+        <strong>Important:</strong>
+        This invitation link is temporary. Ask the employee to complete
+        their account setup as soon as possible.
+    </div>
+
+    <div class="form-actions">
+
+        <a
+            href="{{ url_for('main.employees') }}"
+            class="button"
+        >
+            Back to Employees
+        </a>
+
+        <a
+            href="{{ url_for('main.dashboard') }}"
+            class="button secondary"
+        >
+            Dashboard
+        </a>
+
+    </div>
+
+</div>
+
+
+<script>
+function copyInvitationLink() {
+
+    const link = document.getElementById("invitation_link");
+
+    navigator.clipboard.writeText(link.value)
+        .then(function() {
+            alert("Invitation link copied successfully.");
+        })
+        .catch(function() {
+            link.select();
+            document.execCommand("copy");
+            alert("Invitation link copied successfully.");
+        });
+
+}
+</script>
+
+{% endblock %}
