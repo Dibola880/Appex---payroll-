@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Create Account - Appex Payroll{% endblock %}
+
+{% block heading %}Create Employer Account{% endblock %}
+
+{% block content %}
+
+<div class="card form-card">
+
+    <h2>Welcome to Appex Payroll</h2>
+
+    <p class="muted">
+        Create your employer account to manage your company,
+        employees and payroll.
+    </p>
+
+    <form method="POST">
+
+        <label>
+            Company Name
+
+            <input
+                type="text"
+                name="company_name"
+                placeholder="Appex Financial Institute"
+                autocomplete="organization"
+                required
+            >
+        </label>
+
+        <label>
+            Your Full Name
+
+            <input
+                type="text"
+                name="name"
+                placeholder="John Doe"
+                autocomplete="name"
+                required
+            >
+        </label>
+
+        <label>
+            Email Address
+
+            <input
+                type="email"
+                name="email"
+                placeholder="you@example.com"
+                autocomplete="email"
+                required
+            >
+        </label>
+
+        <label>
+            Password
+
+            <input
+                type="password"
+                name="password"
+                placeholder="Create a password"
+                autocomplete="new-password"
+                minlength="8"
+                required
+            >
+
+            <small class="muted">
+                Password must contain at least 8 characters.
+            </small>
+        </label>
+
+        <label>
+            Confirm Password
+
+            <input
+                type="password"
+                name="confirm_password"
+                placeholder="Confirm your password"
+                autocomplete="new-password"
+                minlength="8"
+                required
+            >
+        </label>
+
+        <button
+            class="button"
+            type="submit"
+        >
+            Create Employer Account
+        </button>
+
+    </form>
+
+    <hr>
+
+    <p class="muted">
+        Already have an account?
+    </p>
+
+    <a
+        class="button secondary"
+        href="{{ url_for('main.login') }}"
+    >
+        Login
+    </a>
+
+</div>
+
+{% endblock %}
