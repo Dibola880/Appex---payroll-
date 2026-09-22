@@ -8,47 +8,139 @@
 
 <div class="card">
 
+    <h2>Deel Local Payroll API</h2>
+
+    <p>
+        Connect Appex Payroll to Deel Local Payroll to synchronize
+        employee and payroll information.
+    </p>
+
+    <div class="notice">
+        <strong>Security:</strong>
+        Deel API credentials must be stored in your Render environment
+        variables. Do not place client secrets directly in GitHub code.
+    </div>
+
+</div>
+
+
+<div class="card">
+
+    <h2>Integration Status</h2>
+
     {% if configured %}
 
-        <div class="status ok">
-            <strong>Integration configured</strong>
-            <p>
-                Deel Local Payroll credentials have been configured.
-            </p>
+        <div class="status-active">
+            Configuration detected
         </div>
+
+        <p>
+            The required Deel integration settings have been configured.
+        </p>
 
     {% else %}
 
-        <div class="status">
-            <strong>Integration not configured</strong>
-            <p>
-                Add your Deel Local Payroll API credentials in
-                Render environment variables when you're ready.
-            </p>
+        <div class="status-inactive">
+            Configuration incomplete
         </div>
+
+        <p>
+            Add the required Deel API settings to your Render environment
+            variables before connecting Appex Payroll to Deel.
+        </p>
 
     {% endif %}
 
 </div>
 
+
 <div class="card">
 
-    <h2>Integration Settings</h2>
+    <h2>Required Environment Variables</h2>
 
-    <p>
-        Appex Payroll is designed to connect with Deel Local Payroll
-        for employee and payroll processing.
-    </p>
+    <table>
 
-    <pre>DEEL_AUTH_URL
-DEEL_API_URL
-DEEL_CLIENT_ID
-DEEL_CLIENT_SECRET</pre>
+        <thead>
+            <tr>
+                <th>Variable</th>
+                <th>Purpose</th>
+            </tr>
+        </thead>
 
-    <p class="muted">
-        Never put your Client Secret directly into GitHub.
-        Store it as a secret environment variable in Render.
-    </p>
+        <tbody>
+
+            <tr>
+                <td>
+                    <code>DEEL_AUTH_URL</code>
+                </td>
+                <td>
+                    Deel authentication endpoint
+                </td>
+            </tr>
+
+            <tr>
+                <td>
+                    <code>DEEL_API_URL</code>
+                </td>
+                <td>
+                    Deel Local Payroll API endpoint
+                </td>
+            </tr>
+
+            <tr>
+                <td>
+                    <code>DEEL_CLIENT_ID</code>
+                </td>
+                <td>
+                    Appex API client ID
+                </td>
+            </tr>
+
+            <tr>
+                <td>
+                    <code>DEEL_CLIENT_SECRET</code>
+                </td>
+                <td>
+                    Private Deel API client secret
+                </td>
+            </tr>
+
+        </tbody>
+
+    </table>
+
+</div>
+
+
+<div class="card">
+
+    <h2>Planned Synchronization</h2>
+
+    <ul>
+
+        <li>Employee information</li>
+
+        <li>Company and payroll groups</li>
+
+        <li>Payroll inputs</li>
+
+        <li>Payroll results</li>
+
+        <li>Employee payslips</li>
+
+    </ul>
+
+</div>
+
+
+<div class="form-actions">
+
+    <a
+        href="{{ url_for('main.dashboard') }}"
+        class="button"
+    >
+        Back to Dashboard
+    </a>
 
 </div>
 
