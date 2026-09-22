@@ -1,70 +1,74 @@
 import os
+
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 
+
 db = SQLAlchemy()
 
+
 def create_app():
+
     app = Flask(__name__)
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-only-change-me")
 
-    db_url = os.getenv("DATABASE_URL", "sqlite:///appex.db")
+    # -----------------------------------------------------
+    # Application configuration
+    # -----------------------------------------------------
 
-    if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
-    elif db_url.startswith("postgresql://"):
-        db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    app.config["SECRET_KEY"] = os.getenv(
+        "SECRET_KEY",
+        "dev-secret-key-change-this"
+    )
 
-    app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+    database_url = os.getenv(
+        "DATABASE_URL",
+        "sqlite:///appex_payroll.db"
+    )
+
+    # Render/PostgreSQL compatibility
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace(
+            "postgres://",
+            "postgresql://",
+            1
+        )
+
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+    # Secure session settings
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+    # Enable secure cookies on HTTPS deployments
+    app.config["SESSION_COOKIE_SECURE"] = (
+        os.getenv("FLASK_ENV") == "production"
+    )
+
+    # -----------------------------------------------------
+    # Initialize database
+    # -----------------------------------------------------
 
     db.init_app(app)
 
+    # -----------------------------------------------------
+    # Register routes
+    # -----------------------------------------------------
+
     from .routes import bp
+
     app.register_blueprint(bp)
 
+    # -----------------------------------------------------
+    # Create missing database tables
+    # -----------------------------------------------------
+
     with app.app_context():
+
+        # Import models so SQLAlchemy knows about them
         from . import models
+
         db.create_all()
-        seed_demo_data()
 
     return app
-
-def seed_demo_data():
-    from .models import Company, Employee
-
-    if Company.query.count() == 0:
-        company = Company(
-            name="Appex Financial Institute",
-            registration_number="",
-            payroll_provider="Deel Local Payroll"
-        )
-
-        db.session.add(company)
-        db.session.flush()
-
-        demo = [
-            Employee(
-                company_id=company.id,
-                employee_number="EMP001",
-                first_name="Demo",
-                last_name="Employee",
-                email="employee@example.com",
-                job_title="Administrator",
-                monthly_salary=18500,
-                status="Active"
-            ),
-            Employee(
-                company_id=company.id,
-                employee_number="EMP002",
-                first_name="Sample",
-                last_name="Employee",
-                email="sample@example.com",
-                job_title="Finance Clerk",
-                monthly_salary=15000,
-                status="Active"
-            )
-        ]
-
-        db.session.add_all(demo)
-        db.session.commit()
