@@ -1,24 +1,15 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from . import db
 
 
 class Company(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-
-    name = db.Column(
-        db.String(200),
-        nullable=False
-    )
-
-    registration_number = db.Column(
-        db.String(100)
-    )
-
+    name = db.Column(db.String(200), nullable=False)
+    registration_number = db.Column(db.String(100))
     payroll_provider = db.Column(
         db.String(100),
         default="Deel Local Payroll"
     )
-
     created_at = db.Column(
         db.DateTime,
         default=datetime.utcnow
@@ -26,31 +17,28 @@ class Company(db.Model):
 
     users = db.relationship(
         "User",
-        backref="company",
+        back_populates="company",
         lazy=True,
         cascade="all, delete-orphan"
     )
 
     employees = db.relationship(
         "Employee",
-        backref="company",
+        back_populates="company",
         lazy=True,
         cascade="all, delete-orphan"
     )
 
     payroll_runs = db.relationship(
         "PayrollRun",
-        backref="company",
+        back_populates="company",
         lazy=True,
         cascade="all, delete-orphan"
     )
 
 
 class User(db.Model):
-    id = db.Column(
-        db.Integer,
-        primary_key=True
-    )
+    id = db.Column(db.Integer, primary_key=True)
 
     company_id = db.Column(
         db.Integer,
@@ -58,10 +46,7 @@ class User(db.Model):
         nullable=False
     )
 
-    name = db.Column(
-        db.String(200),
-        nullable=False
-    )
+    name = db.Column(db.String(200), nullable=False)
 
     email = db.Column(
         db.String(200),
@@ -90,18 +75,20 @@ class User(db.Model):
         default=datetime.utcnow
     )
 
+    company = db.relationship(
+        "Company",
+        back_populates="users"
+    )
+
     employee = db.relationship(
         "Employee",
-        backref="user",
+        back_populates="user",
         uselist=False
     )
 
 
 class Employee(db.Model):
-    id = db.Column(
-        db.Integer,
-        primary_key=True
-    )
+    id = db.Column(db.Integer, primary_key=True)
 
     company_id = db.Column(
         db.Integer,
@@ -112,7 +99,8 @@ class Employee(db.Model):
     user_id = db.Column(
         db.Integer,
         db.ForeignKey("user.id"),
-        nullable=True
+        nullable=True,
+        unique=True
     )
 
     employee_number = db.Column(
@@ -155,6 +143,16 @@ class Employee(db.Model):
     created_at = db.Column(
         db.DateTime,
         default=datetime.utcnow
+    )
+
+    company = db.relationship(
+        "Company",
+        back_populates="employees"
+    )
+
+    user = db.relationship(
+        "User",
+        back_populates="employee"
     )
 
     invitations = db.relationship(
@@ -255,6 +253,11 @@ class PayrollRun(db.Model):
     created_at = db.Column(
         db.DateTime,
         default=datetime.utcnow
+    )
+
+    company = db.relationship(
+        "Company",
+        back_populates="payroll_runs"
     )
 
     payslips = db.relationship(
