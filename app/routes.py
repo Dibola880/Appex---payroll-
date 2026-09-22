@@ -114,7 +114,7 @@ def payroll():
         "payroll.html",
         company=company,
         employees=rows,
-        gross=gross
+        total_salary=gross
     )
 
 
