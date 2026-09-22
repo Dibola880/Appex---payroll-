@@ -3,6 +3,7 @@ import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from sqlalchemy import text
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -21,7 +22,6 @@ def create_app():
         "sqlite:///appex_payroll.db"
     )
 
-    # Render/PostgreSQL compatibility
     if database_url.startswith("postgres://"):
         database_url = database_url.replace(
             "postgres://",
@@ -32,7 +32,6 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-    # Session security
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
@@ -44,6 +43,30 @@ def create_app():
 
     with app.app_context():
         from . import models
+
+        # Create new Phase 2 tables
         db.create_all()
+
+        # Update the existing Phase 1 employee table
+        if db.engine.dialect.name == "postgresql":
+            with db.engine.begin() as connection:
+
+                connection.execute(text("""
+                    ALTER TABLE employee
+                    ADD COLUMN IF NOT EXISTS user_id INTEGER
+                    REFERENCES "user"(id)
+                """))
+
+                connection.execute(text("""
+                    ALTER TABLE employee
+                    ADD COLUMN IF NOT EXISTS deel_employee_id VARCHAR(200)
+                """))
+
+                connection.execute(text("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS
+                    ix_employee_user_id_unique
+                    ON employee(user_id)
+                    WHERE user_id IS NOT NULL
+                """))
 
     return app
