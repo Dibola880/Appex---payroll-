@@ -1,83 +1,106 @@
-
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>
-        {% block title %}Appex Payroll{% endblock %}
-    </title>
+    <title>{% block title %}Appex Payroll{% endblock %}</title>
 
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='style.css') }}">
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
 </head>
 
 <body>
 
-<div class="layout">
+<div class="app-layout">
 
-    <aside>
+    <aside class="sidebar">
 
         <div class="brand">
-            APPEX
+            <h2>APPEX</h2>
             <span>PAYROLL</span>
         </div>
 
         <nav>
 
-            <a href="{{ url_for('main.dashboard') }}">
-                Dashboard
-            </a>
+            {% if current_user %}
 
-            <a href="{{ url_for('main.employees') }}">
-                Employees
-            </a>
+                {% if current_user.role in ["employer", "admin"] %}
 
-            <a href="{{ url_for('main.new_employee') }}">
-                Add Employee
-            </a>
+                    <a href="{{ url_for('main.dashboard') }}">
+                        Dashboard
+                    </a>
 
-            <a href="{{ url_for('main.payroll') }}">
-                Payroll
-            </a>
+                    <a href="{{ url_for('main.employees') }}">
+                        Employees
+                    </a>
 
-            <a href="{{ url_for('main.integration') }}">
-                Deel Integration
-            </a>
+                    <a href="{{ url_for('main.new_employee') }}">
+                        Add Employee
+                    </a>
+
+                    <a href="{{ url_for('main.payroll') }}">
+                        Payroll
+                    </a>
+
+                    <a href="{{ url_for('main.integration') }}">
+                        Deel Integration
+                    </a>
+
+                {% elif current_user.role == "employee" %}
+
+                    <a href="{{ url_for('main.employee_dashboard') }}">
+                        Employee Dashboard
+                    </a>
+
+                    <a href="{{ url_for('main.my_payslips') }}">
+                        My Payslips
+                    </a>
+
+                {% endif %}
+
+                <a href="{{ url_for('main.logout') }}" class="logout-link">
+                    Logout
+                </a>
+
+            {% else %}
+
+                <a href="{{ url_for('main.login') }}">
+                    Login
+                </a>
+
+                <a href="{{ url_for('main.register') }}">
+                    Register
+                </a>
+
+            {% endif %}
 
         </nav>
 
     </aside>
 
-    <main>
 
-        <header>
+    <main class="main-content">
 
-            <h1>
-                {% block heading %}
-                Appex Payroll
-                {% endblock %}
-            </h1>
+        {% with messages = get_flashed_messages(with_categories=true) %}
 
-            <span class="pill">
-                Appex Financial Institute
-            </span>
+            {% if messages %}
 
-        </header>
+                <div class="flash-container">
 
+                    {% for category, message in messages %}
 
-        {% with messages = get_flashed_messages(
-            with_categories=true
-        ) %}
+                        <div class="flash {{ category }}">
+                            {{ message }}
+                        </div>
 
-            {% for category, message in messages %}
+                    {% endfor %}
 
-                <div class="alert">
-                    {{ message }}
                 </div>
 
-            {% endfor %}
+            {% endif %}
 
         {% endwith %}
 
