@@ -1,13 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Employees - Appex Payroll{% endblock %}
-
-{% block heading %}Employees{% endblock %}
-
 {% block content %}
 
-<div class="toolbar">
-    <a class="button" href="{{ url_for('main.new_employee') }}">
+<div class="page-header">
+    <div>
+        <h1>Employees</h1>
+        <p>Manage your company's employees and employee accounts.</p>
+    </div>
+
+    <a class="btn" href="{{ url_for('main.new_employee') }}">
         + Add Employee
     </a>
 </div>
@@ -18,7 +19,7 @@
 
     {% if employees %}
 
-    <div class="table-container">
+    <div class="table-wrap">
         <table>
 
             <thead>
@@ -29,12 +30,14 @@
                     <th>Job Title</th>
                     <th>Monthly Salary</th>
                     <th>Status</th>
+                    <th>Account</th>
+                    <th>Action</th>
                 </tr>
             </thead>
 
             <tbody>
 
-                {% for employee in employees %}
+            {% for employee in employees %}
 
                 <tr>
 
@@ -43,10 +46,8 @@
                     </td>
 
                     <td>
-                        <strong>
-                            {{ employee.first_name }}
-                            {{ employee.last_name }}
-                        </strong>
+                        {{ employee.first_name }}
+                        {{ employee.last_name }}
                     </td>
 
                     <td>
@@ -62,20 +63,49 @@
                     </td>
 
                     <td>
-                        {% if employee.status == "Active" %}
-                            <span class="status-active">
-                                Active
+                        {{ employee.status }}
+                    </td>
+
+                    <td>
+
+                        {% if employee.user_id %}
+
+                            <span class="badge success">
+                                Account Created
                             </span>
+
                         {% else %}
-                            <span class="status-inactive">
-                                {{ employee.status }}
+
+                            <span class="badge warning">
+                                Not Activated
                             </span>
+
                         {% endif %}
+
+                    </td>
+
+                    <td>
+
+                        {% if employee.user_id %}
+
+                            <span>Invited</span>
+
+                        {% else %}
+
+                            <a
+                                class="btn small"
+                                href="{{ url_for('main.create_invitation', employee_id=employee.id) }}"
+                            >
+                                Invite
+                            </a>
+
+                        {% endif %}
+
                     </td>
 
                 </tr>
 
-                {% endfor %}
+            {% endfor %}
 
             </tbody>
 
@@ -84,19 +114,7 @@
 
     {% else %}
 
-    <div class="empty-state">
-
-        <h3>No employees yet</h3>
-
-        <p>
-            You haven't added any employees to your company.
-        </p>
-
-        <a class="button" href="{{ url_for('main.new_employee') }}">
-            Add Your First Employee
-        </a>
-
-    </div>
+        <p>No employees have been added yet.</p>
 
     {% endif %}
 
