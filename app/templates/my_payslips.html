@@ -1,108 +1,328 @@
 {% extends "base.html" %}
 
-{% block title %}My Payslips - Appex Payroll{% endblock %}
-
-{% block heading %}My Payslips{% endblock %}
+{% block title %}Payslip | Appex Payroll{% endblock %}
 
 {% block content %}
 
-<div class="card">
+<div class="page-header no-print">
 
-    <h2>Payslips</h2>
-
-    <p>
-        View your available payslips and payroll information below.
-    </p>
-
-    {% if payslips %}
-
-    <div class="table-container">
-        <table>
-
-            <thead>
-                <tr>
-                    <th>Pay Period</th>
-                    <th>Pay Date</th>
-                    <th>Gross Pay</th>
-                    <th>Net Pay</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-
-            <tbody>
-
-                {% for payslip in payslips %}
-
-                <tr>
-
-                    <td>
-                        {{ payslip.pay_period or "-" }}
-                    </td>
-
-                    <td>
-                        {{ payslip.pay_date or "-" }}
-                    </td>
-
-                    <td>
-                        R {{ "%.2f"|format(payslip.gross_pay or 0) }}
-                    </td>
-
-                    <td>
-                        R {{ "%.2f"|format(payslip.net_pay or 0) }}
-                    </td>
-
-                    <td>
-
-                        {% if payslip.pdf_url %}
-
-                        <a
-                            href="{{ payslip.pdf_url }}"
-                            target="_blank"
-                            class="button"
-                        >
-                            View Payslip
-                        </a>
-
-                        {% else %}
-
-                        <span>
-                            Not Available
-                        </span>
-
-                        {% endif %}
-
-                    </td>
-
-                </tr>
-
-                {% endfor %}
-
-            </tbody>
-
-        </table>
+    <div>
+        <h1>Payslip</h1>
+        <p>
+            {{ payslip.pay_period }}
+        </p>
     </div>
 
-    {% else %}
+    <div>
 
-    <div class="empty-state">
-
-        <h3>No Payslips Available</h3>
-
-        <p>
-            Your payslips will appear here once your employer
-            has processed payroll.
-        </p>
+        <button
+            type="button"
+            class="btn"
+            onclick="window.print()"
+        >
+            Print / Save PDF
+        </button>
 
         <a
-            href="{{ url_for('main.employee_dashboard') }}"
-            class="button"
+            class="btn"
+            href="{{ url_for('main.payroll') }}"
         >
-            Back to Employee Dashboard
+            Payroll
         </a>
 
     </div>
 
-    {% endif %}
+</div>
+
+
+<div class="payslip-container">
+
+    <!-- Header -->
+
+    <div class="payslip-header">
+
+        <div>
+
+            <h1>APPEX</h1>
+
+            <h2>PAYROLL</h2>
+
+            <p>
+                Employee Payroll Services
+            </p>
+
+        </div>
+
+        <div class="payslip-title">
+
+            <h1>PAYSLIP</h1>
+
+            <p>
+                Pay Period:
+                <strong>
+                    {{ payslip.pay_period }}
+                </strong>
+            </p>
+
+            <p>
+                Pay Date:
+                <strong>
+                    {{ payslip.pay_date }}
+                </strong>
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- Company / Employee Information -->
+
+    <div class="payslip-section">
+
+        <div class="payslip-info-grid">
+
+            <div>
+
+                <h3>Employer</h3>
+
+                <p>
+                    <strong>
+                        {{ payslip.employee.company.name }}
+                    </strong>
+                </p>
+
+                <p>
+                    Payroll Provider:
+                    {{ payslip.employee.company.payroll_provider }}
+                </p>
+
+            </div>
+
+
+            <div>
+
+                <h3>Employee</h3>
+
+                <p>
+                    <strong>
+                        {{ payslip.employee.first_name }}
+                        {{ payslip.employee.last_name }}
+                    </strong>
+                </p>
+
+                <p>
+                    Employee No:
+                    {{ payslip.employee.employee_number }}
+                </p>
+
+                <p>
+                    Job Title:
+                    {{ payslip.employee.job_title or "-" }}
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Earnings -->
+
+    <div class="payslip-section">
+
+        <h2>Earnings</h2>
+
+        <table class="payslip-table">
+
+            <thead>
+
+                <tr>
+                    <th>Description</th>
+                    <th class="amount">Amount</th>
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                <tr>
+
+                    <td>
+                        Basic Salary
+                    </td>
+
+                    <td class="amount">
+                        R {{ "%.2f"|format(
+                            payslip.basic_salary or 0
+                        ) }}
+                    </td>
+
+                </tr>
+
+
+                <tr>
+
+                    <td>
+                        Other Earnings
+                    </td>
+
+                    <td class="amount">
+                        R {{ "%.2f"|format(
+                            payslip.other_earnings or 0
+                        ) }}
+                    </td>
+
+                </tr>
+
+
+                <tr class="total-row">
+
+                    <td>
+                        <strong>
+                            Gross Pay
+                        </strong>
+                    </td>
+
+                    <td class="amount">
+                        <strong>
+                            R {{ "%.2f"|format(
+                                payslip.gross_pay or 0
+                            ) }}
+                        </strong>
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+    <!-- Deductions -->
+
+    <div class="payslip-section">
+
+        <h2>Deductions</h2>
+
+        <table class="payslip-table">
+
+            <thead>
+
+                <tr>
+                    <th>Description</th>
+                    <th class="amount">Amount</th>
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                <tr>
+
+                    <td>
+                        Tax / PAYE
+                    </td>
+
+                    <td class="amount">
+                        R {{ "%.2f"|format(
+                            payslip.tax_deductions or 0
+                        ) }}
+                    </td>
+
+                </tr>
+
+
+                <tr>
+
+                    <td>
+                        Other Deductions
+                    </td>
+
+                    <td class="amount">
+                        R {{ "%.2f"|format(
+                            payslip.other_deductions or 0
+                        ) }}
+                    </td>
+
+                </tr>
+
+
+                <tr class="total-row">
+
+                    <td>
+                        <strong>
+                            Total Deductions
+                        </strong>
+                    </td>
+
+                    <td class="amount">
+
+                        <strong>
+                            R {{ "%.2f"|format(
+                                payslip.total_deductions or 0
+                            ) }}
+                        </strong>
+
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+    <!-- Net Pay -->
+
+    <div class="net-pay-box">
+
+        <div>
+
+            <span>
+                NET PAY
+            </span>
+
+            <small>
+                Amount payable to employee
+            </small>
+
+        </div>
+
+        <strong>
+            R {{ "%.2f"|format(
+                payslip.net_pay or 0
+            ) }}
+        </strong>
+
+    </div>
+
+
+    <!-- Footer -->
+
+    <div class="payslip-footer">
+
+        <p>
+            This payslip was generated electronically by
+            Appex Payroll.
+        </p>
+
+        <p>
+            Pay Period:
+            {{ payslip.pay_period }}
+        </p>
+
+        <p>
+            Pay Date:
+            {{ payslip.pay_date }}
+        </p>
+
+    </div>
 
 </div>
 
