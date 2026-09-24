@@ -66,7 +66,10 @@ def employer_required(view):
             return redirect(url_for("main.login"))
 
         if user.role not in ["employer", "admin"]:
-            flash("You do not have permission to access this page.", "danger")
+            flash(
+                "You do not have permission to access this page.",
+                "danger"
+            )
             return redirect(url_for("main.employee_dashboard"))
 
         return view(*args, **kwargs)
@@ -100,6 +103,7 @@ def health():
 @bp.get("/")
 @login_required
 def dashboard():
+
     user = current_user()
 
     if user.role == "employee":
@@ -161,7 +165,10 @@ def register():
         )
 
         if not company_name or not name or not email:
-            flash("Please complete all required fields.", "danger")
+            flash(
+                "Please complete all required fields.",
+                "danger"
+            )
             return render_template("register.html")
 
         if len(password) < 8:
@@ -373,6 +380,10 @@ def new_employee():
             monthly_salary = float(
                 salary_text or 0
             )
+
+            if monthly_salary < 0:
+                raise ValueError
+
         except ValueError:
             flash(
                 "Please enter a valid monthly salary.",
@@ -657,7 +668,7 @@ def my_payslips():
 
 
 # ---------------------------------------------------------
-# Payroll
+# Payroll dashboard
 # ---------------------------------------------------------
 
 @bp.get("/payroll")
@@ -667,7 +678,7 @@ def payroll():
     user = current_user()
     company = user.company
 
-    rows = (
+    employees = (
         Employee.query
         .filter_by(
             company_id=company.id,
@@ -677,16 +688,262 @@ def payroll():
         .all()
     )
 
-    gross = sum(
+    total_basic_salary = sum(
         employee.monthly_salary or 0
-        for employee in rows
+        for employee in employees
     )
 
     return render_template(
         "payroll.html",
         company=company,
-        employees=rows,
-        total_salary=gross
+        employees=employees,
+        total_salary=total_basic_salary
+    )
+
+
+# ---------------------------------------------------------
+# Create payroll run
+# ---------------------------------------------------------
+
+@bp.route("/payroll/create", methods=["POST"])
+@employer_required
+def create_payroll():
+
+    user = current_user()
+    company = user.company
+
+    pay_period = request.form.get(
+        "pay_period", ""
+    ).strip()
+
+    pay_date_text = request.form.get(
+        "pay_date", ""
+    ).strip()
+
+    if not pay_period:
+        flash(
+            "Please enter a payroll period.",
+            "danger"
+        )
+        return redirect(url_for("main.payroll"))
+
+    if not pay_date_text:
+        flash(
+            "Please enter a pay date.",
+            "danger"
+        )
+        return redirect(url_for("main.payroll"))
+
+    try:
+        pay_date = datetime.strptime(
+            pay_date_text,
+            "%Y-%m-%d"
+        ).date()
+
+    except ValueError:
+        flash(
+            "Please enter a valid pay date.",
+            "danger"
+        )
+        return redirect(url_for("main.payroll"))
+
+    employees = (
+        Employee.query
+        .filter_by(
+            company_id=company.id,
+            status="Active"
+        )
+        .all()
+    )
+
+    if not employees:
+        flash(
+            "There are no active employees to process.",
+            "warning"
+        )
+        return redirect(url_for("main.payroll"))
+
+    # Prevent duplicate payroll runs
+    existing_run = PayrollRun.query.filter_by(
+        company_id=company.id,
+        pay_period=pay_period
+    ).first()
+
+    if existing_run:
+        flash(
+            "A payroll run already exists for this pay period.",
+            "warning"
+        )
+        return redirect(url_for("main.payroll"))
+
+    payroll_run = PayrollRun(
+        company_id=company.id,
+        pay_period=pay_period,
+        pay_date=pay_date,
+        status="Processing",
+        total_gross=0,
+        total_deductions=0,
+        total_net=0
+    )
+
+    db.session.add(payroll_run)
+    db.session.flush()
+
+    total_gross = 0
+    total_deductions = 0
+    total_net = 0
+
+    for employee in employees:
+
+        basic_salary = float(
+            employee.monthly_salary or 0
+        )
+
+        # Phase 3 Step 2:
+        # Other earnings and deductions can be
+        # expanded in later payroll versions.
+
+        other_earnings = 0.0
+        tax_deductions = 0.0
+        other_deductions = 0.0
+
+        gross_pay = (
+            basic_salary +
+            other_earnings
+        )
+
+        total_employee_deductions = (
+            tax_deductions +
+            other_deductions
+        )
+
+        net_pay = (
+            gross_pay -
+            total_employee_deductions
+        )
+
+        payslip = Payslip(
+            employee_id=employee.id,
+            payroll_run_id=payroll_run.id,
+            pay_period=pay_period,
+            pay_date=pay_date,
+
+            basic_salary=basic_salary,
+            other_earnings=other_earnings,
+            gross_pay=gross_pay,
+
+            tax_deductions=tax_deductions,
+            other_deductions=other_deductions,
+            total_deductions=total_employee_deductions,
+
+            net_pay=net_pay
+        )
+
+        db.session.add(payslip)
+
+        total_gross += gross_pay
+        total_deductions += total_employee_deductions
+        total_net += net_pay
+
+    payroll_run.total_gross = total_gross
+    payroll_run.total_deductions = total_deductions
+    payroll_run.total_net = total_net
+
+    payroll_run.status = "Completed"
+
+    db.session.commit()
+
+    flash(
+        f"Payroll processed successfully for {pay_period}.",
+        "success"
+    )
+
+    return redirect(
+        url_for(
+            "main.payroll_history"
+        )
+    )
+
+
+# ---------------------------------------------------------
+# Payroll history
+# ---------------------------------------------------------
+
+@bp.get("/payroll/history")
+@employer_required
+def payroll_history():
+
+    user = current_user()
+
+    payroll_runs = (
+        PayrollRun.query
+        .filter_by(company_id=user.company_id)
+        .order_by(PayrollRun.pay_date.desc())
+        .all()
+    )
+
+    return render_template(
+        "payroll_history.html",
+        payroll_runs=payroll_runs
+    )
+
+
+# ---------------------------------------------------------
+# View payroll run
+# ---------------------------------------------------------
+
+@bp.get("/payroll/<int:payroll_id>")
+@employer_required
+def view_payroll(payroll_id):
+
+    user = current_user()
+
+    payroll_run = PayrollRun.query.filter_by(
+        id=payroll_id,
+        company_id=user.company_id
+    ).first_or_404()
+
+    payslips = (
+        Payslip.query
+        .join(Employee)
+        .filter(
+            Payslip.payroll_run_id == payroll_run.id,
+            Employee.company_id == user.company_id
+        )
+        .order_by(Employee.last_name)
+        .all()
+    )
+
+    return render_template(
+        "payroll_run.html",
+        payroll_run=payroll_run,
+        payslips=payslips
+    )
+
+
+# ---------------------------------------------------------
+# View employee payslip
+# ---------------------------------------------------------
+
+@bp.get("/payroll/payslip/<int:payslip_id>")
+@employer_required
+def view_payslip(payslip_id):
+
+    user = current_user()
+
+    payslip = (
+        Payslip.query
+        .join(Employee)
+        .filter(
+            Payslip.id == payslip_id,
+            Employee.company_id == user.company_id
+        )
+        .first_or_404()
+    )
+
+    return render_template(
+        "payslip.html",
+        payslip=payslip
     )
 
 
@@ -711,4 +968,4 @@ def integration():
     return render_template(
         "integration.html",
         configured=configured
-        )
+    )
