@@ -1,24 +1,27 @@
 {% extends "base.html" %}
 
-{% block title %}Payroll | Appex Payroll{% endblock %}
+{% block title %}Payroll - Appex Payroll{% endblock %}
 
 {% block content %}
 
 <div class="page-header">
     <div>
-        <h1>Payroll Processing</h1>
-        <p>
-            Prepare and process monthly payroll for your active employees.
-        </p>
+        <h1>Payroll</h1>
+        <p>Prepare and process employee payroll.</p>
     </div>
 
-    <a class="btn" href="{{ url_for('main.payroll_history') }}">
+    <a
+        class="btn"
+        href="{{ url_for('main.payroll_history') }}"
+    >
         Payroll History
     </a>
 </div>
 
 
-<!-- Payroll Summary -->
+<!-- =========================================================
+     PAYROLL SUMMARY
+========================================================= -->
 
 <div class="dashboard-grid">
 
@@ -28,6 +31,10 @@
         <div class="stat-number">
             {{ employees|length }}
         </div>
+
+        <p class="muted">
+            Employees included in payroll
+        </p>
     </div>
 
 
@@ -37,6 +44,10 @@
         <div class="stat-number">
             R {{ "%.2f"|format(total_salary or 0) }}
         </div>
+
+        <p class="muted">
+            Monthly basic salary
+        </p>
     </div>
 
 
@@ -46,26 +57,43 @@
         <div class="stat-number">
             Ready
         </div>
+
+        <p class="muted">
+            Payroll is ready to process
+        </p>
     </div>
 
 </div>
 
 
-<!-- Create Payroll -->
+<!-- =========================================================
+     PAYROLL PROCESSING FORM
+========================================================= -->
 
 <div class="card">
 
-    <h2>Create Payroll Run</h2>
+    <div class="page-header">
+        <div>
+            <h2>Create Payroll Run</h2>
 
-    <p>
-        Enter the payroll period and pay date below.
-        Appex Payroll will automatically calculate the basic salary,
-        gross pay, deductions and net pay for all active employees.
-    </p>
+            <p class="muted">
+                Enter the payroll period, pay date and employee
+                payroll information below.
+            </p>
+        </div>
+    </div>
 
 
-    <form method="POST"
-          action="{{ url_for('main.create_payroll') }}">
+    {% if employees %}
+
+    <form
+        method="POST"
+        action="{{ url_for('main.create_payroll') }}"
+    >
+
+        <!-- =================================================
+             PAYROLL PERIOD
+        ================================================== -->
 
         <div class="form-grid">
 
@@ -83,6 +111,10 @@
                     required
                 >
 
+                <small class="muted">
+                    Example: September 2026
+                </small>
+
             </div>
 
 
@@ -99,17 +131,354 @@
                     required
                 >
 
+                <small class="muted">
+                    Date employees will be paid
+                </small>
+
             </div>
 
         </div>
 
 
+        <!-- =================================================
+             EMPLOYEE PAYROLL INPUTS
+        ================================================== -->
+
+        <h2 style="margin-top: 30px;">
+            Employee Payroll Inputs
+        </h2>
+
+        <p class="muted">
+            Enter earnings and deductions for each employee.
+            Basic salary is taken from the employee profile.
+        </p>
+
+
+        {% for employee in employees %}
+
+        <div class="payroll-employee-card">
+
+            <!-- =============================================
+                 EMPLOYEE HEADER
+            ============================================== -->
+
+            <div class="payroll-employee-header">
+
+                <div>
+
+                    <h3>
+                        {{ employee.first_name }}
+                        {{ employee.last_name }}
+                    </h3>
+
+                    <p class="muted">
+
+                        Employee No:
+                        <strong>
+                            {{ employee.employee_number }}
+                        </strong>
+
+                        {% if employee.job_title %}
+                            &nbsp; | &nbsp;
+
+                            {{ employee.job_title }}
+                        {% endif %}
+
+                    </p>
+
+                </div>
+
+
+                <div class="employee-basic-salary">
+
+                    <span>
+                        Basic Salary
+                    </span>
+
+                    <strong>
+                        R {{ "%.2f"|format(employee.monthly_salary or 0) }}
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <!-- =============================================
+                 EARNINGS
+            ============================================== -->
+
+            <div class="payroll-section">
+
+                <h4>
+                    Earnings
+                </h4>
+
+                <div class="form-grid">
+
+                    <!-- OVERTIME -->
+
+                    <div class="form-group">
+
+                        <label
+                            for="overtime_{{ employee.id }}"
+                        >
+                            Overtime
+                        </label>
+
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            id="overtime_{{ employee.id }}"
+                            name="overtime_{{ employee.id }}"
+                            value="0"
+                            placeholder="0.00"
+                        >
+
+                    </div>
+
+
+                    <!-- BONUS -->
+
+                    <div class="form-group">
+
+                        <label
+                            for="bonus_{{ employee.id }}"
+                        >
+                            Bonus
+                        </label>
+
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            id="bonus_{{ employee.id }}"
+                            name="bonus_{{ employee.id }}"
+                            value="0"
+                            placeholder="0.00"
+                        >
+
+                    </div>
+
+
+                    <!-- COMMISSION -->
+
+                    <div class="form-group">
+
+                        <label
+                            for="commission_{{ employee.id }}"
+                        >
+                            Commission
+                        </label>
+
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            id="commission_{{ employee.id }}"
+                            name="commission_{{ employee.id }}"
+                            value="0"
+                            placeholder="0.00"
+                        >
+
+                    </div>
+
+
+                    <!-- OTHER EARNINGS -->
+
+                    <div class="form-group">
+
+                        <label
+                            for="other_earnings_{{ employee.id }}"
+                        >
+                            Other Earnings
+                        </label>
+
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            id="other_earnings_{{ employee.id }}"
+                            name="other_earnings_{{ employee.id }}"
+                            value="0"
+                            placeholder="0.00"
+                        >
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =============================================
+                 DEDUCTIONS
+            ============================================== -->
+
+            <div class="payroll-section">
+
+                <h4>
+                    Deductions
+                </h4>
+
+                <div class="form-grid">
+
+                    <!-- PAYE -->
+
+                    <div class="form-group">
+
+                        <label
+                            for="paye_{{ employee.id }}"
+                        >
+                            PAYE
+                        </label>
+
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            id="paye_{{ employee.id }}"
+                            name="paye_{{ employee.id }}"
+                            value="0"
+                            placeholder="0.00"
+                        >
+
+                    </div>
+
+
+                    <!-- UIF -->
+
+                    <div class="form-group">
+
+                        <label
+                            for="uif_{{ employee.id }}"
+                        >
+                            UIF
+                        </label>
+
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            id="uif_{{ employee.id }}"
+                            name="uif_{{ employee.id }}"
+                            value="0"
+                            placeholder="0.00"
+                        >
+
+                    </div>
+
+
+                    <!-- OTHER DEDUCTIONS -->
+
+                    <div class="form-group">
+
+                        <label
+                            for="other_deductions_{{ employee.id }}"
+                        >
+                            Other Deductions
+                        </label>
+
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            id="other_deductions_{{ employee.id }}"
+                            name="other_deductions_{{ employee.id }}"
+                            value="0"
+                            placeholder="0.00"
+                        >
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =============================================
+                 CALCULATION INFORMATION
+            ============================================== -->
+
+            <div class="info-box">
+
+                <strong>
+                    Payroll calculation
+                </strong>
+
+                <p>
+                    Gross Pay =
+                    Basic Salary +
+                    Overtime +
+                    Bonus +
+                    Commission +
+                    Other Earnings
+                </p>
+
+                <p>
+                    Total Deductions =
+                    PAYE +
+                    UIF +
+                    Other Deductions
+                </p>
+
+                <p>
+                    Net Pay =
+                    Gross Pay -
+                    Total Deductions
+                </p>
+
+            </div>
+
+        </div>
+
+        {% endfor %}
+
+
+        <!-- =================================================
+             IMPORTANT PAYROLL NOTICE
+        ================================================== -->
+
+        <div class="info-box warning-box">
+
+            <strong>
+                Important payroll notice
+            </strong>
+
+            <p>
+                PAYE and UIF are currently entered manually.
+                The current version does not automatically calculate
+                South African statutory payroll deductions.
+            </p>
+
+            <p>
+                Please verify payroll deductions before processing
+                payroll.
+            </p>
+
+        </div>
+
+
+        <!-- =================================================
+             FORM ACTIONS
+        ================================================== -->
+
         <div class="form-actions">
+
+            <a
+                class="btn secondary"
+                href="{{ url_for('main.dashboard') }}"
+            >
+                Cancel
+            </a>
 
             <button
                 type="submit"
                 class="btn"
-                {% if not employees %}disabled{% endif %}
+                onclick="return confirm(
+                    'Are you sure you want to process this payroll run?'
+                );"
             >
                 Process Payroll
             </button>
@@ -118,156 +487,192 @@
 
     </form>
 
-</div>
-
-
-<!-- Employee Payroll Preview -->
-
-<div class="card">
-
-    <div class="page-header">
-
-        <div>
-            <h2>Employees Included</h2>
-
-            <p>
-                The following active employees will be included
-                in this payroll run.
-            </p>
-        </div>
-
-    </div>
-
-
-    {% if employees %}
-
-    <div class="table-wrap">
-
-        <table>
-
-            <thead>
-
-                <tr>
-
-                    <th>Employee No.</th>
-
-                    <th>Employee</th>
-
-                    <th>Job Title</th>
-
-                    <th>Basic Salary</th>
-
-                    <th>Gross Pay</th>
-
-                    <th>Deductions</th>
-
-                    <th>Estimated Net Pay</th>
-
-                </tr>
-
-            </thead>
-
-
-            <tbody>
-
-                {% for employee in employees %}
-
-                <tr>
-
-                    <td>
-                        {{ employee.employee_number }}
-                    </td>
-
-
-                    <td>
-                        {{ employee.first_name }}
-                        {{ employee.last_name }}
-                    </td>
-
-
-                    <td>
-                        {{ employee.job_title or "-" }}
-                    </td>
-
-
-                    <td>
-                        R {{ "%.2f"|format(employee.monthly_salary or 0) }}
-                    </td>
-
-
-                    <td>
-                        R {{ "%.2f"|format(employee.monthly_salary or 0) }}
-                    </td>
-
-
-                    <td>
-                        R 0.00
-                    </td>
-
-
-                    <td>
-                        <strong>
-                            R {{ "%.2f"|format(employee.monthly_salary or 0) }}
-                        </strong>
-                    </td>
-
-                </tr>
-
-                {% endfor %}
-
-            </tbody>
-
-        </table>
-
-    </div>
 
     {% else %}
 
-        <div class="flash warning">
-            There are currently no active employees.
-            Add an employee before processing payroll.
-        </div>
+    <!-- =================================================
+         NO EMPLOYEES
+    ================================================== -->
+
+    <div class="info-box">
+
+        <h3>
+            No active employees
+        </h3>
+
+        <p>
+            You need to add at least one active employee
+            before you can process payroll.
+        </p>
+
+        <a
+            class="btn"
+            href="{{ url_for('main.new_employee') }}"
+        >
+            + Add Employee
+        </a>
+
+    </div>
 
     {% endif %}
 
 </div>
 
 
-<!-- Payroll Calculation Information -->
+<!-- =========================================================
+     PAGE INFORMATION
+========================================================= -->
 
 <div class="card">
 
-    <h2>Payroll Calculation</h2>
+    <h2>
+        Payroll Processing
+    </h2>
 
-    <div class="info-box">
+    <p>
+        Appex Payroll uses the employee's monthly salary as
+        the basic salary and allows additional earnings and
+        deductions to be entered for each payroll run.
+    </p>
 
-        <p>
-            <strong>Gross Pay</strong>
-            =
-            Basic Salary + Other Earnings
-        </p>
+    <p>
+        After processing, the system creates a payroll run and
+        individual payslips for each active employee.
+    </p>
 
-        <p>
-            <strong>Total Deductions</strong>
-            =
-            Tax Deductions + Other Deductions
-        </p>
-
-        <p>
-            <strong>Net Pay</strong>
-            =
-            Gross Pay − Total Deductions
-        </p>
-
-    </div>
-
-    <p class="muted">
-        The current Phase 3 calculation uses the employee's
-        monthly salary as basic salary. Additional earnings,
-        PAYE, UIF and other statutory payroll calculations
-        will be added in subsequent payroll development steps.
+    <p>
+        Employees can then access their payslips from their
+        employee portal.
     </p>
 
 </div>
+
+
+<!-- =========================================================
+     PAGE-SPECIFIC STYLES
+========================================================= -->
+
+<style>
+
+.payroll-employee-card {
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 22px;
+    margin-top: 24px;
+    background: #ffffff;
+}
+
+
+.payroll-employee-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+
+.payroll-employee-header h3 {
+    margin: 0 0 6px 0;
+}
+
+
+.employee-basic-salary {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+
+.employee-basic-salary span {
+    font-size: 13px;
+    color: #777;
+}
+
+
+.employee-basic-salary strong {
+    font-size: 18px;
+}
+
+
+.payroll-section {
+    margin-top: 22px;
+}
+
+
+.payroll-section h4 {
+    margin-bottom: 15px;
+    font-size: 17px;
+}
+
+
+.info-box {
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 8px;
+    background: #f5f7fa;
+    border: 1px solid #e0e4e8;
+}
+
+
+.info-box p {
+    margin: 7px 0;
+}
+
+
+.warning-box {
+    margin-top: 30px;
+}
+
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    margin-top: 30px;
+}
+
+
+.btn.secondary {
+    background: #e5e7eb;
+    color: #222;
+}
+
+
+@media (max-width: 700px) {
+
+    .payroll-employee-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+
+    .employee-basic-salary {
+        text-align: left;
+    }
+
+
+    .form-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+
+    .form-actions .btn {
+        width: 100%;
+        text-align: center;
+    }
+
+
+    .payroll-employee-card {
+        padding: 16px;
+    }
+
+}
+
+</style>
 
 {% endblock %}
