@@ -1,15 +1,33 @@
 from datetime import datetime
+
 from . import db
 
 
+# ============================================================
+# COMPANY
+# ============================================================
+
 class Company(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(200), nullable=False)
-    registration_number = db.Column(db.String(100))
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
+
+    name = db.Column(
+        db.String(200),
+        nullable=False
+    )
+
+    registration_number = db.Column(
+        db.String(100)
+    )
+
     payroll_provider = db.Column(
         db.String(100),
         default="Deel Local Payroll"
     )
+
     created_at = db.Column(
         db.DateTime,
         default=datetime.utcnow
@@ -18,27 +36,32 @@ class Company(db.Model):
     users = db.relationship(
         "User",
         back_populates="company",
-        lazy=True,
         cascade="all, delete-orphan"
     )
 
     employees = db.relationship(
         "Employee",
         back_populates="company",
-        lazy=True,
         cascade="all, delete-orphan"
     )
 
     payroll_runs = db.relationship(
         "PayrollRun",
         back_populates="company",
-        lazy=True,
         cascade="all, delete-orphan"
     )
 
 
+# ============================================================
+# USER
+# ============================================================
+
 class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
 
     company_id = db.Column(
         db.Integer,
@@ -46,12 +69,15 @@ class User(db.Model):
         nullable=False
     )
 
-    name = db.Column(db.String(200), nullable=False)
+    name = db.Column(
+        db.String(200),
+        nullable=False
+    )
 
     email = db.Column(
         db.String(200),
-        nullable=False,
-        unique=True
+        unique=True,
+        nullable=False
     )
 
     password_hash = db.Column(
@@ -61,18 +87,13 @@ class User(db.Model):
 
     role = db.Column(
         db.String(50),
-        nullable=False,
-        default="employee"
+        default="employee",
+        nullable=False
     )
 
     is_active = db.Column(
         db.Boolean,
         default=True
-    )
-
-    created_at = db.Column(
-        db.DateTime,
-        default=datetime.utcnow
     )
 
     company = db.relationship(
@@ -87,8 +108,16 @@ class User(db.Model):
     )
 
 
+# ============================================================
+# EMPLOYEE
+# ============================================================
+
 class Employee(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
 
     company_id = db.Column(
         db.Integer,
@@ -99,8 +128,8 @@ class Employee(db.Model):
     user_id = db.Column(
         db.Integer,
         db.ForeignKey("user.id"),
-        nullable=True,
-        unique=True
+        unique=True,
+        nullable=True
     )
 
     employee_number = db.Column(
@@ -140,11 +169,6 @@ class Employee(db.Model):
         db.String(200)
     )
 
-    created_at = db.Column(
-        db.DateTime,
-        default=datetime.utcnow
-    )
-
     company = db.relationship(
         "Company",
         back_populates="employees"
@@ -158,19 +182,22 @@ class Employee(db.Model):
     invitations = db.relationship(
         "EmployeeInvitation",
         backref="employee",
-        lazy=True,
         cascade="all, delete-orphan"
     )
 
     payslips = db.relationship(
         "Payslip",
         backref="employee",
-        lazy=True,
         cascade="all, delete-orphan"
     )
 
 
+# ============================================================
+# EMPLOYEE INVITATION
+# ============================================================
+
 class EmployeeInvitation(db.Model):
+
     id = db.Column(
         db.Integer,
         primary_key=True
@@ -184,8 +211,8 @@ class EmployeeInvitation(db.Model):
 
     token = db.Column(
         db.String(255),
-        nullable=False,
-        unique=True
+        unique=True,
+        nullable=False
     )
 
     expires_at = db.Column(
@@ -198,19 +225,20 @@ class EmployeeInvitation(db.Model):
         default=False
     )
 
-    created_at = db.Column(
-        db.DateTime,
-        default=datetime.utcnow
-    )
-
     def is_valid(self):
+
         return (
             not self.used
             and datetime.utcnow() < self.expires_at
         )
 
 
+# ============================================================
+# PAYROLL RUN
+# ============================================================
+
 class PayrollRun(db.Model):
+
     id = db.Column(
         db.Integer,
         primary_key=True
@@ -223,17 +251,18 @@ class PayrollRun(db.Model):
     )
 
     pay_period = db.Column(
-        db.String(50),
+        db.String(100),
         nullable=False
     )
 
     pay_date = db.Column(
-        db.Date
+        db.Date,
+        nullable=False
     )
 
     status = db.Column(
         db.String(50),
-        default="Draft"
+        default="Processing"
     )
 
     total_gross = db.Column(
@@ -255,11 +284,6 @@ class PayrollRun(db.Model):
         db.String(200)
     )
 
-    created_at = db.Column(
-        db.DateTime,
-        default=datetime.utcnow
-    )
-
     company = db.relationship(
         "Company",
         back_populates="payroll_runs"
@@ -268,12 +292,16 @@ class PayrollRun(db.Model):
     payslips = db.relationship(
         "Payslip",
         backref="payroll_run",
-        lazy=True,
         cascade="all, delete-orphan"
     )
 
 
+# ============================================================
+# PAYSLIP
+# ============================================================
+
 class Payslip(db.Model):
+
     id = db.Column(
         db.Integer,
         primary_key=True
@@ -288,18 +316,40 @@ class Payslip(db.Model):
     payroll_run_id = db.Column(
         db.Integer,
         db.ForeignKey("payroll_run.id"),
-        nullable=True
+        nullable=False
     )
 
     pay_period = db.Column(
-        db.String(50)
+        db.String(100),
+        nullable=False
     )
 
     pay_date = db.Column(
-        db.Date
+        db.Date,
+        nullable=False
     )
 
+
+    # ========================================================
+    # EARNINGS
+    # ========================================================
+
     basic_salary = db.Column(
+        db.Float,
+        default=0
+    )
+
+    overtime = db.Column(
+        db.Float,
+        default=0
+    )
+
+    bonus = db.Column(
+        db.Float,
+        default=0
+    )
+
+    commission = db.Column(
         db.Float,
         default=0
     )
@@ -314,7 +364,17 @@ class Payslip(db.Model):
         default=0
     )
 
+
+    # ========================================================
+    # DEDUCTIONS
+    # ========================================================
+
     tax_deductions = db.Column(
+        db.Float,
+        default=0
+    )
+
+    uif = db.Column(
         db.Float,
         default=0
     )
@@ -329,20 +389,25 @@ class Payslip(db.Model):
         default=0
     )
 
+
+    # ========================================================
+    # NET PAY
+    # ========================================================
+
     net_pay = db.Column(
         db.Float,
         default=0
     )
 
-    pdf_url = db.Column(
-        db.String(500)
-    )
+
+    # ========================================================
+    # DEEL
+    # ========================================================
 
     deel_payslip_id = db.Column(
         db.String(200)
     )
 
-    created_at = db.Column(
-        db.DateTime,
-        default=datetime.utcnow
+    pdf_url = db.Column(
+        db.String(500)
     )
