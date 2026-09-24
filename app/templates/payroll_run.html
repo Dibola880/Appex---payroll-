@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}
+Payroll Run | Appex Payroll
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+
+    <div>
+
+        <h1>
+            Payroll: {{ payroll_run.pay_period }}
+        </h1>
+
+        <p>
+            Pay Date:
+            {{ payroll_run.pay_date }}
+        </p>
+
+    </div>
+
+    <a
+        class="btn"
+        href="{{ url_for('main.payroll_history') }}"
+    >
+        ← Payroll History
+    </a>
+
+</div>
+
+
+<!-- Payroll Summary -->
+
+<div class="dashboard-grid">
+
+    <div class="card">
+
+        <h3>Gross Pay</h3>
+
+        <div class="stat-number">
+            R {{ "%.2f"|format(
+                payroll_run.total_gross or 0
+            ) }}
+        </div>
+
+    </div>
+
+
+    <div class="card">
+
+        <h3>Total Deductions</h3>
+
+        <div class="stat-number">
+            R {{ "%.2f"|format(
+                payroll_run.total_deductions or 0
+            ) }}
+        </div>
+
+    </div>
+
+
+    <div class="card">
+
+        <h3>Net Pay</h3>
+
+        <div class="stat-number">
+            R {{ "%.2f"|format(
+                payroll_run.total_net or 0
+            ) }}
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- Payroll Status -->
+
+<div class="card">
+
+    <h2>Payroll Status</h2>
+
+    {% if payroll_run.status == "Completed" %}
+
+        <span class="badge success">
+            Completed
+        </span>
+
+    {% elif payroll_run.status == "Processing" %}
+
+        <span class="badge warning">
+            Processing
+        </span>
+
+    {% else %}
+
+        <span class="badge">
+            {{ payroll_run.status }}
+        </span>
+
+    {% endif %}
+
+</div>
+
+
+<!-- Employee Payslips -->
+
+<div class="card">
+
+    <h2>Employee Payslips</h2>
+
+    {% if payslips %}
+
+    <div class="table-wrap">
+
+        <table>
+
+            <thead>
+
+                <tr>
+                    <th>Employee</th>
+                    <th>Employee No.</th>
+                    <th>Basic Salary</th>
+                    <th>Gross Pay</th>
+                    <th>Deductions</th>
+                    <th>Net Pay</th>
+                    <th>Action</th>
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                {% for payslip in payslips %}
+
+                <tr>
+
+                    <td>
+                        {{ payslip.employee.first_name }}
+                        {{ payslip.employee.last_name }}
+                    </td>
+
+                    <td>
+                        {{ payslip.employee.employee_number }}
+                    </td>
+
+                    <td>
+                        R {{ "%.2f"|format(
+                            payslip.basic_salary or 0
+                        ) }}
+                    </td>
+
+                    <td>
+                        R {{ "%.2f"|format(
+                            payslip.gross_pay or 0
+                        ) }}
+                    </td>
+
+                    <td>
+                        R {{ "%.2f"|format(
+                            payslip.total_deductions or 0
+                        ) }}
+                    </td>
+
+                    <td>
+                        <strong>
+                            R {{ "%.2f"|format(
+                                payslip.net_pay or 0
+                            ) }}
+                        </strong>
+                    </td>
+
+                    <td>
+
+                        <a
+                            class="btn small"
+                            href="{{ url_for(
+                                'main.view_payslip',
+                                payslip_id=payslip.id
+                            ) }}"
+                        >
+                            View Payslip
+                        </a>
+
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    {% else %}
+
+        <p>
+            No payslips were generated for this payroll run.
+        </p>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}
