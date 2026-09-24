@@ -1346,6 +1346,7 @@ def integration():
         deel_api_url=os.getenv("DEEL_API_URL"),
         deel_client_id=os.getenv("DEEL_CLIENT_ID"),
     )
+    
 # ============================================================
 # PAYROLL CALCULATOR TEST
 # ============================================================
