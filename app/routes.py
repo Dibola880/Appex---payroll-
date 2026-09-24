@@ -1,7 +1,9 @@
 import os
 import secrets
+
 from datetime import datetime, timedelta
 from functools import wraps
+from io import BytesIO
 
 from flask import (
     Blueprint,
@@ -11,11 +13,34 @@ from flask import (
     url_for,
     flash,
     session,
+    send_file,
 )
 
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import (
+    generate_password_hash,
+    check_password_hash,
+)
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import (
+    getSampleStyleSheet,
+    ParagraphStyle,
+)
+from reportlab.lib.enums import (
+    TA_CENTER,
+    TA_RIGHT,
+)
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
 from . import db
+
 from .models import (
     Company,
     User,
@@ -49,7 +74,6 @@ def login_required(view):
         user = current_user()
 
         if not user:
-
             flash(
                 "Please log in to continue.",
                 "warning"
@@ -97,10 +121,6 @@ def employer_required(view):
     return wrapped_view
 
 
-# =========================================================
-# GLOBAL USER CONTEXT
-# =========================================================
-
 @bp.app_context_processor
 def inject_user():
 
@@ -132,7 +152,6 @@ def dashboard():
 
     user = current_user()
 
-    # Employees go to employee dashboard
     if user.role == "employee":
 
         return redirect(
@@ -274,10 +293,10 @@ def register():
         )
 
         db.session.add(user)
-
         db.session.commit()
 
         session.clear()
+
         session["user_id"] = user.id
 
         flash(
@@ -342,6 +361,7 @@ def login():
             )
 
         session.clear()
+
         session["user_id"] = user.id
 
         flash(
@@ -352,11 +372,15 @@ def login():
         if user.role == "employee":
 
             return redirect(
-                url_for("main.employee_dashboard")
+                url_for(
+                    "main.employee_dashboard"
+                )
             )
 
         return redirect(
-            url_for("main.dashboard")
+            url_for(
+                "main.dashboard"
+            )
         )
 
     return render_template(
@@ -539,10 +563,14 @@ def create_invitation(employee_id):
 
     user = current_user()
 
-    employee = Employee.query.filter_by(
-        id=employee_id,
-        company_id=user.company_id
-    ).first_or_404()
+    employee = (
+        Employee.query
+        .filter_by(
+            id=employee_id,
+            company_id=user.company_id
+        )
+        .first_or_404()
+    )
 
     if employee.user_id:
 
@@ -594,9 +622,13 @@ def create_invitation(employee_id):
 )
 def accept_invitation(token):
 
-    invitation = EmployeeInvitation.query.filter_by(
-        token=token
-    ).first()
+    invitation = (
+        EmployeeInvitation.query
+        .filter_by(
+            token=token
+        )
+        .first()
+    )
 
     if (
         not invitation
@@ -606,8 +638,8 @@ def accept_invitation(token):
         return """
         <h2>Invitation expired or invalid</h2>
         <p>
-            Please contact your employer and
-            request a new invitation.
+            Please contact your employer
+            and request a new invitation.
         </p>
         """
 
@@ -710,6 +742,7 @@ def accept_invitation(token):
         db.session.commit()
 
         session.clear()
+
         session["user_id"] = user.id
 
         flash(
@@ -744,10 +777,14 @@ def employee_dashboard():
             url_for("main.dashboard")
         )
 
-    employee = Employee.query.filter_by(
-        user_id=user.id,
-        company_id=user.company_id
-    ).first()
+    employee = (
+        Employee.query
+        .filter_by(
+            user_id=user.id,
+            company_id=user.company_id
+        )
+        .first()
+    )
 
     if not employee:
 
@@ -767,7 +804,7 @@ def employee_dashboard():
 
 
 # =========================================================
-# EMPLOYEE MY PAYSLIPS
+# EMPLOYEE PAYSLIPS
 # =========================================================
 
 @bp.get("/my-payslips")
@@ -782,10 +819,14 @@ def my_payslips():
             url_for("main.dashboard")
         )
 
-    employee = Employee.query.filter_by(
-        user_id=user.id,
-        company_id=user.company_id
-    ).first()
+    employee = (
+        Employee.query
+        .filter_by(
+            user_id=user.id,
+            company_id=user.company_id
+        )
+        .first()
+    )
 
     if not employee:
 
@@ -795,7 +836,9 @@ def my_payslips():
         )
 
         return redirect(
-            url_for("main.employee_dashboard")
+            url_for(
+                "main.employee_dashboard"
+            )
         )
 
     payslips = (
@@ -938,11 +981,14 @@ def create_payroll():
             url_for("main.payroll")
         )
 
-    # Prevent duplicate payroll runs
-    existing_run = PayrollRun.query.filter_by(
-        company_id=company.id,
-        pay_period=pay_period
-    ).first()
+    existing_run = (
+        PayrollRun.query
+        .filter_by(
+            company_id=company.id,
+            pay_period=pay_period
+        )
+        .first()
+    )
 
     if existing_run:
 
@@ -970,7 +1016,9 @@ def create_payroll():
     db.session.flush()
 
     total_gross = 0
+
     total_deductions = 0
+
     total_net = 0
 
     for employee in employees:
@@ -980,13 +1028,11 @@ def create_payroll():
         )
 
         # -------------------------------------------------
-        # Phase 3 basic payroll calculation
+        # CURRENT PHASE 3 CALCULATION
         # -------------------------------------------------
 
         other_earnings = 0.0
 
-        # PAYE/UIF calculations will be added
-        # in the statutory payroll phase.
         tax_deductions = 0.0
 
         other_deductions = 0.0
@@ -996,24 +1042,20 @@ def create_payroll():
             + other_earnings
         )
 
-        employee_total_deductions = (
+        total_employee_deductions = (
             tax_deductions
             + other_deductions
         )
 
         net_pay = (
             gross_pay
-            - employee_total_deductions
+            - total_employee_deductions
         )
 
         payslip = Payslip(
-
             employee_id=employee.id,
-
             payroll_run_id=payroll_run.id,
-
             pay_period=pay_period,
-
             pay_date=pay_date,
 
             basic_salary=basic_salary,
@@ -1027,7 +1069,7 @@ def create_payroll():
             other_deductions=other_deductions,
 
             total_deductions=(
-                employee_total_deductions
+                total_employee_deductions
             ),
 
             net_pay=net_pay
@@ -1038,7 +1080,7 @@ def create_payroll():
         total_gross += gross_pay
 
         total_deductions += (
-            employee_total_deductions
+            total_employee_deductions
         )
 
         total_net += net_pay
@@ -1106,10 +1148,14 @@ def view_payroll(payroll_id):
 
     user = current_user()
 
-    payroll_run = PayrollRun.query.filter_by(
-        id=payroll_id,
-        company_id=user.company_id
-    ).first_or_404()
+    payroll_run = (
+        PayrollRun.query
+        .filter_by(
+            id=payroll_id,
+            company_id=user.company_id
+        )
+        .first_or_404()
+    )
 
     payslips = (
         Payslip.query
@@ -1136,15 +1182,8 @@ def view_payroll(payroll_id):
 
 # =========================================================
 # VIEW INDIVIDUAL PAYSLIP
-# =========================================================
 #
-# IMPORTANT:
-# This route uses @login_required instead of
-# @employer_required so BOTH employers and employees
-# can view payslips.
-#
-# Employers can view their company's payslips.
-# Employees can ONLY view their own payslips.
+# Works for BOTH employer and employee.
 # =========================================================
 
 @bp.get(
@@ -1155,9 +1194,35 @@ def view_payslip(payslip_id):
 
     user = current_user()
 
-    payslip = Payslip.query.get_or_404(
-        payslip_id
+    payslip = (
+        Payslip.query
+        .join(Employee)
+        .filter(
+            Payslip.id == payslip_id
+        )
+        .first_or_404()
     )
+
+    employee = payslip.employee
+
+    if not employee:
+
+        flash(
+            "Employee record not found.",
+            "danger"
+        )
+
+        if user.role == "employee":
+
+            return redirect(
+                url_for(
+                    "main.my_payslips"
+                )
+            )
+
+        return redirect(
+            url_for("main.payroll")
+        )
 
     # -----------------------------------------------------
     # EMPLOYER / ADMIN ACCESS
@@ -1165,11 +1230,7 @@ def view_payslip(payslip_id):
 
     if user.role in ["employer", "admin"]:
 
-        if (
-            not payslip.employee
-            or payslip.employee.company_id
-            != user.company_id
-        ):
+        if employee.company_id != user.company_id:
 
             flash(
                 "You do not have permission to view this payslip.",
@@ -1186,21 +1247,7 @@ def view_payslip(payslip_id):
 
     elif user.role == "employee":
 
-        if not payslip.employee:
-
-            flash(
-                "Employee record not found.",
-                "danger"
-            )
-
-            return redirect(
-                url_for("main.employee_dashboard")
-            )
-
-        if (
-            payslip.employee.user_id
-            != user.id
-        ):
+        if employee.user_id != user.id:
 
             flash(
                 "You do not have permission to view this payslip.",
@@ -1208,7 +1255,9 @@ def view_payslip(payslip_id):
             )
 
             return redirect(
-                url_for("main.my_payslips")
+                url_for(
+                    "main.my_payslips"
+                )
             )
 
     # -----------------------------------------------------
@@ -1226,13 +1275,909 @@ def view_payslip(payslip_id):
             url_for("main.dashboard")
         )
 
-    # -----------------------------------------------------
-    # DISPLAY PAYSLIP
-    # -----------------------------------------------------
-
     return render_template(
         "payslip.html",
         payslip=payslip
+    )
+
+
+# =========================================================
+# DOWNLOAD PAYSLIP AS PDF
+#
+# Works for BOTH employer and employee.
+# =========================================================
+
+@bp.get(
+    "/payroll/payslip/<int:payslip_id>/pdf"
+)
+@login_required
+def download_payslip_pdf(payslip_id):
+
+    user = current_user()
+
+    payslip = (
+        Payslip.query
+        .join(Employee)
+        .filter(
+            Payslip.id == payslip_id
+        )
+        .first_or_404()
+    )
+
+    employee = payslip.employee
+
+    if not employee:
+
+        flash(
+            "Employee record not found.",
+            "danger"
+        )
+
+        if user.role == "employee":
+
+            return redirect(
+                url_for(
+                    "main.my_payslips"
+                )
+            )
+
+        return redirect(
+            url_for("main.payroll")
+        )
+
+    # -----------------------------------------------------
+    # EMPLOYER / ADMIN ACCESS
+    # -----------------------------------------------------
+
+    if user.role in ["employer", "admin"]:
+
+        if employee.company_id != user.company_id:
+
+            flash(
+                "You do not have permission to download this payslip.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.payroll")
+            )
+
+    # -----------------------------------------------------
+    # EMPLOYEE ACCESS
+    # -----------------------------------------------------
+
+    elif user.role == "employee":
+
+        if employee.user_id != user.id:
+
+            flash(
+                "You do not have permission to download this payslip.",
+                "danger"
+            )
+
+            return redirect(
+                url_for(
+                    "main.my_payslips"
+                )
+            )
+
+    # -----------------------------------------------------
+    # UNKNOWN ROLE
+    # -----------------------------------------------------
+
+    else:
+
+        flash(
+            "You do not have permission to download this payslip.",
+            "danger"
+        )
+
+        return redirect(
+            url_for("main.dashboard")
+        )
+
+    # =====================================================
+    # COMPANY / EMPLOYEE INFORMATION
+    # =====================================================
+
+    company = employee.company
+
+    company_name = (
+        company.name
+        if company
+        else "Appex Payroll"
+    )
+
+    employee_name = (
+        f"{employee.first_name} "
+        f"{employee.last_name}"
+    )
+
+    employee_number = (
+        employee.employee_number
+        or "-"
+    )
+
+    job_title = (
+        employee.job_title
+        or "-"
+    )
+
+    payroll_provider = (
+        company.payroll_provider
+        if company
+        else "Appex Payroll"
+    )
+
+    # =====================================================
+    # CREATE PDF
+    # =====================================================
+
+    pdf_buffer = BytesIO()
+
+    document = SimpleDocTemplate(
+        pdf_buffer,
+        pagesize=A4,
+        rightMargin=40,
+        leftMargin=40,
+        topMargin=40,
+        bottomMargin=40,
+    )
+
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        "PayslipTitle",
+        parent=styles["Title"],
+        fontSize=24,
+        leading=28,
+        alignment=TA_CENTER,
+        spaceAfter=8,
+    )
+
+    subtitle_style = ParagraphStyle(
+        "PayslipSubtitle",
+        parent=styles["Normal"],
+        fontSize=10,
+        leading=14,
+        alignment=TA_CENTER,
+        textColor=colors.grey,
+    )
+
+    section_style = ParagraphStyle(
+        "SectionTitle",
+        parent=styles["Heading2"],
+        fontSize=13,
+        leading=16,
+        spaceBefore=15,
+        spaceAfter=8,
+    )
+
+    normal_style = ParagraphStyle(
+        "NormalPayslip",
+        parent=styles["Normal"],
+        fontSize=9,
+        leading=13,
+    )
+
+    right_style = ParagraphStyle(
+        "RightPayslip",
+        parent=normal_style,
+        alignment=TA_RIGHT,
+    )
+
+    story = []
+
+    # =====================================================
+    # HEADER
+    # =====================================================
+
+    story.append(
+        Paragraph(
+            "APPEX",
+            title_style
+        )
+    )
+
+    story.append(
+        Paragraph(
+            "PAYROLL",
+            subtitle_style
+        )
+    )
+
+    story.append(
+        Paragraph(
+            "Employee Payroll Services",
+            subtitle_style
+        )
+    )
+
+    story.append(
+        Spacer(1, 15)
+    )
+
+    story.append(
+        Paragraph(
+            "PAYSLIP",
+            section_style
+        )
+    )
+
+    # =====================================================
+    # PAY PERIOD / PAY DATE
+    # =====================================================
+
+    period_data = [
+        [
+            Paragraph(
+                "<b>Pay Period</b>",
+                normal_style
+            ),
+
+            Paragraph(
+                str(
+                    payslip.pay_period
+                    or "-"
+                ),
+                normal_style
+            ),
+
+            Paragraph(
+                "<b>Pay Date</b>",
+                normal_style
+            ),
+
+            Paragraph(
+                str(
+                    payslip.pay_date
+                    or "-"
+                ),
+                normal_style
+            ),
+        ]
+    ]
+
+    period_table = Table(
+        period_data,
+        colWidths=[
+            80,
+            150,
+            70,
+            150
+        ]
+    )
+
+    period_table.setStyle(
+        TableStyle([
+            (
+                "BACKGROUND",
+                (0, 0),
+                (-1, -1),
+                colors.whitesmoke
+            ),
+
+            (
+                "BOX",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.lightgrey
+            ),
+
+            (
+                "INNERGRID",
+                (0, 0),
+                (-1, -1),
+                0.25,
+                colors.lightgrey
+            ),
+
+            (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "MIDDLE"
+            ),
+
+            (
+                "LEFTPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+
+            (
+                "RIGHTPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+        ])
+    )
+
+    story.append(
+        period_table
+    )
+
+    story.append(
+        Spacer(1, 15)
+    )
+
+    # =====================================================
+    # EMPLOYER / EMPLOYEE INFORMATION
+    # =====================================================
+
+    story.append(
+        Paragraph(
+            "Employer & Employee Information",
+            section_style
+        )
+    )
+
+    info_data = [
+
+        [
+            Paragraph(
+                "<b>Employer</b>",
+                normal_style
+            ),
+
+            Paragraph(
+                company_name,
+                normal_style
+            ),
+        ],
+
+        [
+            Paragraph(
+                "<b>Payroll Provider</b>",
+                normal_style
+            ),
+
+            Paragraph(
+                payroll_provider
+                or "-",
+                normal_style
+            ),
+        ],
+
+        [
+            Paragraph(
+                "<b>Employee</b>",
+                normal_style
+            ),
+
+            Paragraph(
+                employee_name,
+                normal_style
+            ),
+        ],
+
+        [
+            Paragraph(
+                "<b>Employee Number</b>",
+                normal_style
+            ),
+
+            Paragraph(
+                str(employee_number),
+                normal_style
+            ),
+        ],
+
+        [
+            Paragraph(
+                "<b>Job Title</b>",
+                normal_style
+            ),
+
+            Paragraph(
+                job_title,
+                normal_style
+            ),
+        ],
+    ]
+
+    info_table = Table(
+        info_data,
+        colWidths=[
+            140,
+            310
+        ]
+    )
+
+    info_table.setStyle(
+        TableStyle([
+            (
+                "BOX",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.lightgrey
+            ),
+
+            (
+                "INNERGRID",
+                (0, 0),
+                (-1, -1),
+                0.25,
+                colors.lightgrey
+            ),
+
+            (
+                "BACKGROUND",
+                (0, 0),
+                (0, -1),
+                colors.whitesmoke
+            ),
+
+            (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "TOP"
+            ),
+
+            (
+                "LEFTPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+
+            (
+                "RIGHTPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                7
+            ),
+
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                7
+            ),
+        ])
+    )
+
+    story.append(
+        info_table
+    )
+
+    # =====================================================
+    # EARNINGS
+    # =====================================================
+
+    story.append(
+        Paragraph(
+            "Earnings",
+            section_style
+        )
+    )
+
+    earnings_data = [
+
+        [
+            Paragraph(
+                "<b>Description</b>",
+                normal_style
+            ),
+
+            Paragraph(
+                "<b>Amount</b>",
+                right_style
+            ),
+        ],
+
+        [
+            Paragraph(
+                "Basic Salary",
+                normal_style
+            ),
+
+            Paragraph(
+                f"R {float(payslip.basic_salary or 0):,.2f}",
+                right_style
+            ),
+        ],
+
+        [
+            Paragraph(
+                "Other Earnings",
+                normal_style
+            ),
+
+            Paragraph(
+                f"R {float(payslip.other_earnings or 0):,.2f}",
+                right_style
+            ),
+        ],
+
+        [
+            Paragraph(
+                "<b>Gross Pay</b>",
+                normal_style
+            ),
+
+            Paragraph(
+                f"<b>R {float(payslip.gross_pay or 0):,.2f}</b>",
+                right_style
+            ),
+        ],
+    ]
+
+    earnings_table = Table(
+        earnings_data,
+        colWidths=[
+            310,
+            140
+        ]
+    )
+
+    earnings_table.setStyle(
+        TableStyle([
+            (
+                "BACKGROUND",
+                (0, 0),
+                (-1, 0),
+                colors.whitesmoke
+            ),
+
+            (
+                "LINEBELOW",
+                (0, -1),
+                (-1, -1),
+                1,
+                colors.black
+            ),
+
+            (
+                "LINEBELOW",
+                (0, 0),
+                (-1, 0),
+                0.5,
+                colors.grey
+            ),
+
+            (
+                "ALIGN",
+                (1, 0),
+                (1, -1),
+                "RIGHT"
+            ),
+
+            (
+                "LEFTPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+
+            (
+                "RIGHTPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+        ])
+    )
+
+    story.append(
+        earnings_table
+    )
+
+    # =====================================================
+    # DEDUCTIONS
+    # =====================================================
+
+    story.append(
+        Paragraph(
+            "Deductions",
+            section_style
+        )
+    )
+
+    deductions_data = [
+
+        [
+            Paragraph(
+                "<b>Description</b>",
+                normal_style
+            ),
+
+            Paragraph(
+                "<b>Amount</b>",
+                right_style
+            ),
+        ],
+
+        [
+            Paragraph(
+                "Tax / PAYE",
+                normal_style
+            ),
+
+            Paragraph(
+                f"R {float(payslip.tax_deductions or 0):,.2f}",
+                right_style
+            ),
+        ],
+
+        [
+            Paragraph(
+                "Other Deductions",
+                normal_style
+            ),
+
+            Paragraph(
+                f"R {float(payslip.other_deductions or 0):,.2f}",
+                right_style
+            ),
+        ],
+
+        [
+            Paragraph(
+                "<b>Total Deductions</b>",
+                normal_style
+            ),
+
+            Paragraph(
+                f"<b>R {float(payslip.total_deductions or 0):,.2f}</b>",
+                right_style
+            ),
+        ],
+    ]
+
+    deductions_table = Table(
+        deductions_data,
+        colWidths=[
+            310,
+            140
+        ]
+    )
+
+    deductions_table.setStyle(
+        TableStyle([
+            (
+                "BACKGROUND",
+                (0, 0),
+                (-1, 0),
+                colors.whitesmoke
+            ),
+
+            (
+                "LINEBELOW",
+                (0, -1),
+                (-1, -1),
+                1,
+                colors.black
+            ),
+
+            (
+                "LINEBELOW",
+                (0, 0),
+                (-1, 0),
+                0.5,
+                colors.grey
+            ),
+
+            (
+                "ALIGN",
+                (1, 0),
+                (1, -1),
+                "RIGHT"
+            ),
+
+            (
+                "LEFTPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+
+            (
+                "RIGHTPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+        ])
+    )
+
+    story.append(
+        deductions_table
+    )
+
+    # =====================================================
+    # NET PAY
+    # =====================================================
+
+    story.append(
+        Spacer(1, 20)
+    )
+
+    net_pay = float(
+        payslip.net_pay or 0
+    )
+
+    net_data = [
+
+        [
+            Paragraph(
+                "<b>NET PAY</b>",
+                normal_style
+            ),
+
+            Paragraph(
+                f"<b>R {net_pay:,.2f}</b>",
+                right_style
+            ),
+        ]
+    ]
+
+    net_table = Table(
+        net_data,
+        colWidths=[
+            310,
+            140
+        ]
+    )
+
+    net_table.setStyle(
+        TableStyle([
+            (
+                "BACKGROUND",
+                (0, 0),
+                (-1, -1),
+                colors.whitesmoke
+            ),
+
+            (
+                "BOX",
+                (0, 0),
+                (-1, -1),
+                1,
+                colors.black
+            ),
+
+            (
+                "LEFTPADDING",
+                (0, 0),
+                (-1, -1),
+                12
+            ),
+
+            (
+                "RIGHTPADDING",
+                (0, 0),
+                (-1, -1),
+                12
+            ),
+
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                12
+            ),
+
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                12
+            ),
+        ])
+    )
+
+    story.append(
+        net_table
+    )
+
+    story.append(
+        Spacer(1, 25)
+    )
+
+    story.append(
+        Paragraph(
+            "This payslip was generated electronically by Appex Payroll.",
+            subtitle_style
+        )
+    )
+
+    # =====================================================
+    # BUILD PDF
+    # =====================================================
+
+    document.build(
+        story
+    )
+
+    pdf_buffer.seek(0)
+
+    # =====================================================
+    # SAFE FILE NAME
+    # =====================================================
+
+    safe_employee_name = (
+        employee_name
+        .replace(" ", "_")
+        .replace("/", "_")
+        .replace("\\", "_")
+    )
+
+    safe_period = (
+        str(
+            payslip.pay_period
+            or "Payroll"
+        )
+        .replace(" ", "_")
+        .replace("/", "_")
+        .replace("\\", "_")
+    )
+
+    filename = (
+        f"Appex_Payslip_"
+        f"{safe_employee_name}_"
+        f"{safe_period}.pdf"
+    )
+
+    return send_file(
+        pdf_buffer,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=filename
     )
 
 
