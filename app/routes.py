@@ -29,9 +29,9 @@ from .models import (
 bp = Blueprint("main", __name__)
 
 
-# ---------------------------------------------------------
-# Authentication helpers
-# ---------------------------------------------------------
+# =========================================================
+# AUTHENTICATION HELPERS
+# =========================================================
 
 def current_user():
     user_id = session.get("user_id")
@@ -45,11 +45,19 @@ def current_user():
 def login_required(view):
     @wraps(view)
     def wrapped_view(*args, **kwargs):
+
         user = current_user()
 
         if not user:
-            flash("Please log in to continue.", "warning")
-            return redirect(url_for("main.login"))
+
+            flash(
+                "Please log in to continue.",
+                "warning"
+            )
+
+            return redirect(
+                url_for("main.login")
+            )
 
         return view(*args, **kwargs)
 
@@ -59,46 +67,64 @@ def login_required(view):
 def employer_required(view):
     @wraps(view)
     def wrapped_view(*args, **kwargs):
+
         user = current_user()
 
         if not user:
-            flash("Please log in to continue.", "warning")
-            return redirect(url_for("main.login"))
+
+            flash(
+                "Please log in to continue.",
+                "warning"
+            )
+
+            return redirect(
+                url_for("main.login")
+            )
 
         if user.role not in ["employer", "admin"]:
+
             flash(
                 "You do not have permission to access this page.",
                 "danger"
             )
-            return redirect(url_for("main.employee_dashboard"))
+
+            return redirect(
+                url_for("main.employee_dashboard")
+            )
 
         return view(*args, **kwargs)
 
     return wrapped_view
 
 
+# =========================================================
+# GLOBAL USER CONTEXT
+# =========================================================
+
 @bp.app_context_processor
 def inject_user():
+
     return {
         "current_user": current_user()
     }
 
 
-# ---------------------------------------------------------
-# Health check
-# ---------------------------------------------------------
+# =========================================================
+# HEALTH CHECK
+# =========================================================
 
 @bp.get("/health")
 def health():
+
     return {
         "status": "ok",
         "service": "appex-payroll"
     }
 
 
-# ---------------------------------------------------------
-# Home / Dashboard
-# ---------------------------------------------------------
+# =========================================================
+# HOME / DASHBOARD
+# =========================================================
 
 @bp.get("/")
 @login_required
@@ -106,15 +132,23 @@ def dashboard():
 
     user = current_user()
 
+    # Employees go to employee dashboard
     if user.role == "employee":
-        return redirect(url_for("main.employee_dashboard"))
+
+        return redirect(
+            url_for("main.employee_dashboard")
+        )
 
     company = user.company
 
     employees = (
         Employee.query
-        .filter_by(company_id=company.id)
-        .order_by(Employee.last_name)
+        .filter_by(
+            company_id=company.id
+        )
+        .order_by(
+            Employee.last_name
+        )
         .all()
     )
 
@@ -132,69 +166,93 @@ def dashboard():
     )
 
 
-# ---------------------------------------------------------
-# Registration
-# ---------------------------------------------------------
+# =========================================================
+# REGISTRATION
+# =========================================================
 
 @bp.route("/register", methods=["GET", "POST"])
 def register():
 
     if current_user():
-        return redirect(url_for("main.dashboard"))
+
+        return redirect(
+            url_for("main.dashboard")
+        )
 
     if request.method == "POST":
 
         company_name = request.form.get(
-            "company_name", ""
+            "company_name",
+            ""
         ).strip()
 
         name = request.form.get(
-            "name", ""
+            "name",
+            ""
         ).strip()
 
         email = request.form.get(
-            "email", ""
+            "email",
+            ""
         ).strip().lower()
 
         password = request.form.get(
-            "password", ""
+            "password",
+            ""
         )
 
         confirm_password = request.form.get(
-            "confirm_password", ""
+            "confirm_password",
+            ""
         )
 
         if not company_name or not name or not email:
+
             flash(
                 "Please complete all required fields.",
                 "danger"
             )
-            return render_template("register.html")
+
+            return render_template(
+                "register.html"
+            )
 
         if len(password) < 8:
+
             flash(
                 "Password must be at least 8 characters.",
                 "danger"
             )
-            return render_template("register.html")
+
+            return render_template(
+                "register.html"
+            )
 
         if password != confirm_password:
+
             flash(
                 "Passwords do not match.",
                 "danger"
             )
-            return render_template("register.html")
+
+            return render_template(
+                "register.html"
+            )
 
         existing_user = User.query.filter_by(
             email=email
         ).first()
 
         if existing_user:
+
             flash(
                 "An account with this email already exists.",
                 "danger"
             )
-            return render_template("register.html")
+
+            return render_template(
+                "register.html"
+            )
 
         company = Company(
             name=company_name,
@@ -208,12 +266,15 @@ def register():
             company_id=company.id,
             name=name,
             email=email,
-            password_hash=generate_password_hash(password),
+            password_hash=generate_password_hash(
+                password
+            ),
             role="employer",
             is_active=True
         )
 
         db.session.add(user)
+
         db.session.commit()
 
         session.clear()
@@ -224,29 +285,38 @@ def register():
             "success"
         )
 
-        return redirect(url_for("main.dashboard"))
+        return redirect(
+            url_for("main.dashboard")
+        )
 
-    return render_template("register.html")
+    return render_template(
+        "register.html"
+    )
 
 
-# ---------------------------------------------------------
-# Login
-# ---------------------------------------------------------
+# =========================================================
+# LOGIN
+# =========================================================
 
 @bp.route("/login", methods=["GET", "POST"])
 def login():
 
     if current_user():
-        return redirect(url_for("main.dashboard"))
+
+        return redirect(
+            url_for("main.dashboard")
+        )
 
     if request.method == "POST":
 
         email = request.form.get(
-            "email", ""
+            "email",
+            ""
         ).strip().lower()
 
         password = request.form.get(
-            "password", ""
+            "password",
+            ""
         )
 
         user = User.query.filter_by(
@@ -261,11 +331,15 @@ def login():
                 password
             )
         ):
+
             flash(
                 "Invalid email or password.",
                 "danger"
             )
-            return render_template("login.html")
+
+            return render_template(
+                "login.html"
+            )
 
         session.clear()
         session["user_id"] = user.id
@@ -276,6 +350,7 @@ def login():
         )
 
         if user.role == "employee":
+
             return redirect(
                 url_for("main.employee_dashboard")
             )
@@ -284,12 +359,14 @@ def login():
             url_for("main.dashboard")
         )
 
-    return render_template("login.html")
+    return render_template(
+        "login.html"
+    )
 
 
-# ---------------------------------------------------------
-# Logout
-# ---------------------------------------------------------
+# =========================================================
+# LOGOUT
+# =========================================================
 
 @bp.get("/logout")
 def logout():
@@ -301,24 +378,31 @@ def logout():
         "success"
     )
 
-    return redirect(url_for("main.login"))
+    return redirect(
+        url_for("main.login")
+    )
 
 
-# ---------------------------------------------------------
-# Employees
-# ---------------------------------------------------------
+# =========================================================
+# EMPLOYEES
+# =========================================================
 
 @bp.get("/employees")
 @employer_required
 def employees():
 
     user = current_user()
+
     company = user.company
 
     rows = (
         Employee.query
-        .filter_by(company_id=company.id)
-        .order_by(Employee.last_name)
+        .filter_by(
+            company_id=company.id
+        )
+        .order_by(
+            Employee.last_name
+        )
         .all()
     )
 
@@ -329,54 +413,71 @@ def employees():
     )
 
 
-# ---------------------------------------------------------
-# Add employee
-# ---------------------------------------------------------
+# =========================================================
+# ADD EMPLOYEE
+# =========================================================
 
-@bp.route("/employees/new", methods=["GET", "POST"])
+@bp.route(
+    "/employees/new",
+    methods=["GET", "POST"]
+)
 @employer_required
 def new_employee():
 
     user = current_user()
+
     company = user.company
 
     if request.method == "POST":
 
         employee_number = request.form.get(
-            "employee_number", ""
+            "employee_number",
+            ""
         ).strip()
 
         first_name = request.form.get(
-            "first_name", ""
+            "first_name",
+            ""
         ).strip()
 
         last_name = request.form.get(
-            "last_name", ""
+            "last_name",
+            ""
         ).strip()
 
         email = request.form.get(
-            "email", ""
+            "email",
+            ""
         ).strip().lower()
 
         job_title = request.form.get(
-            "job_title", ""
+            "job_title",
+            ""
         ).strip()
 
         salary_text = request.form.get(
-            "monthly_salary", "0"
+            "monthly_salary",
+            "0"
         ).strip()
 
-        if not employee_number or not first_name or not last_name:
+        if (
+            not employee_number
+            or not first_name
+            or not last_name
+        ):
+
             flash(
                 "Employee number, first name and last name are required.",
                 "danger"
             )
+
             return render_template(
                 "employee_form.html",
                 company=company
             )
 
         try:
+
             monthly_salary = float(
                 salary_text or 0
             )
@@ -385,10 +486,12 @@ def new_employee():
                 raise ValueError
 
         except ValueError:
+
             flash(
                 "Please enter a valid monthly salary.",
                 "danger"
             )
+
             return render_template(
                 "employee_form.html",
                 company=company
@@ -406,6 +509,7 @@ def new_employee():
         )
 
         db.session.add(employee)
+
         db.session.commit()
 
         flash(
@@ -423,11 +527,13 @@ def new_employee():
     )
 
 
-# ---------------------------------------------------------
-# Employee invitation
-# ---------------------------------------------------------
+# =========================================================
+# EMPLOYEE INVITATION
+# =========================================================
 
-@bp.get("/employees/<int:employee_id>/invite")
+@bp.get(
+    "/employees/<int:employee_id>/invite"
+)
 @employer_required
 def create_invitation(employee_id):
 
@@ -439,10 +545,12 @@ def create_invitation(employee_id):
     ).first_or_404()
 
     if employee.user_id:
+
         flash(
             "This employee already has an account.",
             "warning"
         )
+
         return redirect(
             url_for("main.employees")
         )
@@ -452,11 +560,15 @@ def create_invitation(employee_id):
     invitation = EmployeeInvitation(
         employee_id=employee.id,
         token=token,
-        expires_at=datetime.utcnow() + timedelta(hours=48),
+        expires_at=(
+            datetime.utcnow()
+            + timedelta(hours=48)
+        ),
         used=False
     )
 
     db.session.add(invitation)
+
     db.session.commit()
 
     invitation_url = url_for(
@@ -472,21 +584,31 @@ def create_invitation(employee_id):
     )
 
 
-# ---------------------------------------------------------
-# Accept employee invitation
-# ---------------------------------------------------------
+# =========================================================
+# ACCEPT EMPLOYEE INVITATION
+# =========================================================
 
-@bp.route("/invite/<token>", methods=["GET", "POST"])
+@bp.route(
+    "/invite/<token>",
+    methods=["GET", "POST"]
+)
 def accept_invitation(token):
 
     invitation = EmployeeInvitation.query.filter_by(
         token=token
     ).first()
 
-    if not invitation or not invitation.is_valid():
+    if (
+        not invitation
+        or not invitation.is_valid()
+    ):
+
         return """
         <h2>Invitation expired or invalid</h2>
-        <p>Please contact your employer and request a new invitation.</p>
+        <p>
+            Please contact your employer and
+            request a new invitation.
+        </p>
         """
 
     employee = invitation.employee
@@ -494,18 +616,22 @@ def accept_invitation(token):
     if request.method == "POST":
 
         password = request.form.get(
-            "password", ""
+            "password",
+            ""
         )
 
         confirm_password = request.form.get(
-            "confirm_password", ""
+            "confirm_password",
+            ""
         )
 
         if len(password) < 8:
+
             flash(
                 "Password must be at least 8 characters.",
                 "danger"
             )
+
             return render_template(
                 "accept_invitation.html",
                 invitation=invitation,
@@ -513,10 +639,12 @@ def accept_invitation(token):
             )
 
         if password != confirm_password:
+
             flash(
                 "Passwords do not match.",
                 "danger"
             )
+
             return render_template(
                 "accept_invitation.html",
                 invitation=invitation,
@@ -530,10 +658,12 @@ def accept_invitation(token):
         )
 
         if not email:
+
             flash(
                 "This employee does not have an email address.",
                 "danger"
             )
+
             return render_template(
                 "accept_invitation.html",
                 invitation=invitation,
@@ -545,27 +675,36 @@ def accept_invitation(token):
         ).first()
 
         if existing_user:
+
             flash(
                 "An account already exists with this email address.",
                 "danger"
             )
+
             return redirect(
                 url_for("main.login")
             )
 
         user = User(
             company_id=employee.company_id,
-            name=f"{employee.first_name} {employee.last_name}",
+            name=(
+                f"{employee.first_name} "
+                f"{employee.last_name}"
+            ),
             email=email,
-            password_hash=generate_password_hash(password),
+            password_hash=generate_password_hash(
+                password
+            ),
             role="employee",
             is_active=True
         )
 
         db.session.add(user)
+
         db.session.flush()
 
         employee.user_id = user.id
+
         invitation.used = True
 
         db.session.commit()
@@ -589,9 +728,9 @@ def accept_invitation(token):
     )
 
 
-# ---------------------------------------------------------
-# Employee dashboard
-# ---------------------------------------------------------
+# =========================================================
+# EMPLOYEE DASHBOARD
+# =========================================================
 
 @bp.get("/employee")
 @login_required
@@ -600,6 +739,7 @@ def employee_dashboard():
     user = current_user()
 
     if user.role != "employee":
+
         return redirect(
             url_for("main.dashboard")
         )
@@ -610,10 +750,12 @@ def employee_dashboard():
     ).first()
 
     if not employee:
+
         flash(
             "Your employee profile has not been linked yet.",
             "warning"
         )
+
         return redirect(
             url_for("main.logout")
         )
@@ -624,9 +766,9 @@ def employee_dashboard():
     )
 
 
-# ---------------------------------------------------------
-# Employee payslips
-# ---------------------------------------------------------
+# =========================================================
+# EMPLOYEE MY PAYSLIPS
+# =========================================================
 
 @bp.get("/my-payslips")
 @login_required
@@ -635,6 +777,7 @@ def my_payslips():
     user = current_user()
 
     if user.role != "employee":
+
         return redirect(
             url_for("main.dashboard")
         )
@@ -645,18 +788,24 @@ def my_payslips():
     ).first()
 
     if not employee:
+
         flash(
             "Employee profile not found.",
             "danger"
         )
+
         return redirect(
             url_for("main.employee_dashboard")
         )
 
     payslips = (
         Payslip.query
-        .filter_by(employee_id=employee.id)
-        .order_by(Payslip.pay_date.desc())
+        .filter_by(
+            employee_id=employee.id
+        )
+        .order_by(
+            Payslip.pay_date.desc()
+        )
         .all()
     )
 
@@ -667,15 +816,16 @@ def my_payslips():
     )
 
 
-# ---------------------------------------------------------
-# Payroll dashboard
-# ---------------------------------------------------------
+# =========================================================
+# PAYROLL DASHBOARD
+# =========================================================
 
 @bp.get("/payroll")
 @employer_required
 def payroll():
 
     user = current_user()
+
     company = user.company
 
     employees = (
@@ -684,7 +834,9 @@ def payroll():
             company_id=company.id,
             status="Active"
         )
-        .order_by(Employee.last_name)
+        .order_by(
+            Employee.last_name
+        )
         .all()
     )
 
@@ -701,51 +853,70 @@ def payroll():
     )
 
 
-# ---------------------------------------------------------
-# Create payroll run
-# ---------------------------------------------------------
+# =========================================================
+# CREATE PAYROLL RUN
+# =========================================================
 
-@bp.route("/payroll/create", methods=["POST"])
+@bp.route(
+    "/payroll/create",
+    methods=["POST"]
+)
 @employer_required
 def create_payroll():
 
     user = current_user()
+
     company = user.company
 
     pay_period = request.form.get(
-        "pay_period", ""
+        "pay_period",
+        ""
     ).strip()
 
     pay_date_text = request.form.get(
-        "pay_date", ""
+        "pay_date",
+        ""
     ).strip()
 
     if not pay_period:
+
         flash(
             "Please enter a payroll period.",
             "danger"
         )
-        return redirect(url_for("main.payroll"))
+
+        return redirect(
+            url_for("main.payroll")
+        )
 
     if not pay_date_text:
+
         flash(
             "Please enter a pay date.",
             "danger"
         )
-        return redirect(url_for("main.payroll"))
+
+        return redirect(
+            url_for("main.payroll")
+        )
 
     try:
+
         pay_date = datetime.strptime(
             pay_date_text,
             "%Y-%m-%d"
         ).date()
 
     except ValueError:
+
         flash(
             "Please enter a valid pay date.",
             "danger"
         )
-        return redirect(url_for("main.payroll"))
+
+        return redirect(
+            url_for("main.payroll")
+        )
 
     employees = (
         Employee.query
@@ -757,11 +928,15 @@ def create_payroll():
     )
 
     if not employees:
+
         flash(
             "There are no active employees to process.",
             "warning"
         )
-        return redirect(url_for("main.payroll"))
+
+        return redirect(
+            url_for("main.payroll")
+        )
 
     # Prevent duplicate payroll runs
     existing_run = PayrollRun.query.filter_by(
@@ -770,11 +945,15 @@ def create_payroll():
     ).first()
 
     if existing_run:
+
         flash(
             "A payroll run already exists for this pay period.",
             "warning"
         )
-        return redirect(url_for("main.payroll"))
+
+        return redirect(
+            url_for("main.payroll")
+        )
 
     payroll_run = PayrollRun(
         company_id=company.id,
@@ -787,6 +966,7 @@ def create_payroll():
     )
 
     db.session.add(payroll_run)
+
     db.session.flush()
 
     total_gross = 0
@@ -799,42 +979,56 @@ def create_payroll():
             employee.monthly_salary or 0
         )
 
-        # Phase 3 Step 2:
-        # Other earnings and deductions can be
-        # expanded in later payroll versions.
+        # -------------------------------------------------
+        # Phase 3 basic payroll calculation
+        # -------------------------------------------------
 
         other_earnings = 0.0
+
+        # PAYE/UIF calculations will be added
+        # in the statutory payroll phase.
         tax_deductions = 0.0
+
         other_deductions = 0.0
 
         gross_pay = (
-            basic_salary +
-            other_earnings
+            basic_salary
+            + other_earnings
         )
 
-        total_employee_deductions = (
-            tax_deductions +
-            other_deductions
+        employee_total_deductions = (
+            tax_deductions
+            + other_deductions
         )
 
         net_pay = (
-            gross_pay -
-            total_employee_deductions
+            gross_pay
+            - employee_total_deductions
         )
 
         payslip = Payslip(
+
             employee_id=employee.id,
+
             payroll_run_id=payroll_run.id,
+
             pay_period=pay_period,
+
             pay_date=pay_date,
 
             basic_salary=basic_salary,
+
             other_earnings=other_earnings,
+
             gross_pay=gross_pay,
 
             tax_deductions=tax_deductions,
+
             other_deductions=other_deductions,
-            total_deductions=total_employee_deductions,
+
+            total_deductions=(
+                employee_total_deductions
+            ),
 
             net_pay=net_pay
         )
@@ -842,11 +1036,19 @@ def create_payroll():
         db.session.add(payslip)
 
         total_gross += gross_pay
-        total_deductions += total_employee_deductions
+
+        total_deductions += (
+            employee_total_deductions
+        )
+
         total_net += net_pay
 
     payroll_run.total_gross = total_gross
-    payroll_run.total_deductions = total_deductions
+
+    payroll_run.total_deductions = (
+        total_deductions
+    )
+
     payroll_run.total_net = total_net
 
     payroll_run.status = "Completed"
@@ -865,9 +1067,9 @@ def create_payroll():
     )
 
 
-# ---------------------------------------------------------
-# Payroll history
-# ---------------------------------------------------------
+# =========================================================
+# PAYROLL HISTORY
+# =========================================================
 
 @bp.get("/payroll/history")
 @employer_required
@@ -877,8 +1079,12 @@ def payroll_history():
 
     payroll_runs = (
         PayrollRun.query
-        .filter_by(company_id=user.company_id)
-        .order_by(PayrollRun.pay_date.desc())
+        .filter_by(
+            company_id=user.company_id
+        )
+        .order_by(
+            PayrollRun.pay_date.desc()
+        )
         .all()
     )
 
@@ -888,11 +1094,13 @@ def payroll_history():
     )
 
 
-# ---------------------------------------------------------
-# View payroll run
-# ---------------------------------------------------------
+# =========================================================
+# VIEW PAYROLL RUN
+# =========================================================
 
-@bp.get("/payroll/<int:payroll_id>")
+@bp.get(
+    "/payroll/<int:payroll_id>"
+)
 @employer_required
 def view_payroll(payroll_id):
 
@@ -907,10 +1115,15 @@ def view_payroll(payroll_id):
         Payslip.query
         .join(Employee)
         .filter(
-            Payslip.payroll_run_id == payroll_run.id,
-            Employee.company_id == user.company_id
+            Payslip.payroll_run_id
+            == payroll_run.id,
+
+            Employee.company_id
+            == user.company_id
         )
-        .order_by(Employee.last_name)
+        .order_by(
+            Employee.last_name
+        )
         .all()
     )
 
@@ -921,25 +1134,101 @@ def view_payroll(payroll_id):
     )
 
 
-# ---------------------------------------------------------
-# View employee payslip
-# ---------------------------------------------------------
+# =========================================================
+# VIEW INDIVIDUAL PAYSLIP
+# =========================================================
+#
+# IMPORTANT:
+# This route uses @login_required instead of
+# @employer_required so BOTH employers and employees
+# can view payslips.
+#
+# Employers can view their company's payslips.
+# Employees can ONLY view their own payslips.
+# =========================================================
 
-@bp.get("/payroll/payslip/<int:payslip_id>")
-@employer_required
+@bp.get(
+    "/payroll/payslip/<int:payslip_id>"
+)
+@login_required
 def view_payslip(payslip_id):
 
     user = current_user()
 
-    payslip = (
-        Payslip.query
-        .join(Employee)
-        .filter(
-            Payslip.id == payslip_id,
-            Employee.company_id == user.company_id
-        )
-        .first_or_404()
+    payslip = Payslip.query.get_or_404(
+        payslip_id
     )
+
+    # -----------------------------------------------------
+    # EMPLOYER / ADMIN ACCESS
+    # -----------------------------------------------------
+
+    if user.role in ["employer", "admin"]:
+
+        if (
+            not payslip.employee
+            or payslip.employee.company_id
+            != user.company_id
+        ):
+
+            flash(
+                "You do not have permission to view this payslip.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.payroll")
+            )
+
+    # -----------------------------------------------------
+    # EMPLOYEE ACCESS
+    # -----------------------------------------------------
+
+    elif user.role == "employee":
+
+        if not payslip.employee:
+
+            flash(
+                "Employee record not found.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.employee_dashboard")
+            )
+
+        if (
+            payslip.employee.user_id
+            != user.id
+        ):
+
+            flash(
+                "You do not have permission to view this payslip.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.my_payslips")
+            )
+
+    # -----------------------------------------------------
+    # UNKNOWN ROLE
+    # -----------------------------------------------------
+
+    else:
+
+        flash(
+            "You do not have permission to view this payslip.",
+            "danger"
+        )
+
+        return redirect(
+            url_for("main.dashboard")
+        )
+
+    # -----------------------------------------------------
+    # DISPLAY PAYSLIP
+    # -----------------------------------------------------
 
     return render_template(
         "payslip.html",
@@ -947,9 +1236,9 @@ def view_payslip(payslip_id):
     )
 
 
-# ---------------------------------------------------------
-# Deel integration
-# ---------------------------------------------------------
+# =========================================================
+# DEEL INTEGRATION
+# =========================================================
 
 @bp.get("/integration")
 @employer_required
