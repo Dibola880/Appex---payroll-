@@ -31,3 +31,164 @@ aside{width:180px;padding:15px}
 main{padding:18px}
 table{font-size:13px}
 }
+/* =========================================================
+   PAYSLIP
+   ========================================================= */
+
+.payslip-container {
+    max-width: 900px;
+    margin: 30px auto;
+    background: #ffffff;
+    padding: 40px;
+    border: 1px solid #ddd;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.payslip-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #222;
+    padding-bottom: 25px;
+    margin-bottom: 25px;
+}
+
+.payslip-header h1 {
+    margin: 0;
+    font-size: 30px;
+}
+
+.payslip-header h2 {
+    margin: 2px 0;
+    font-size: 18px;
+    letter-spacing: 2px;
+}
+
+.payslip-header p {
+    margin: 8px 0 0;
+}
+
+.payslip-title {
+    text-align: right;
+}
+
+.payslip-title h1 {
+    font-size: 26px;
+    margin-bottom: 15px;
+}
+
+.payslip-title p {
+    margin: 5px 0;
+}
+
+.payslip-section {
+    margin-top: 30px;
+}
+
+.payslip-section h2 {
+    font-size: 18px;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+}
+
+.payslip-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+.payslip-info-grid h3 {
+    margin-bottom: 10px;
+}
+
+.payslip-info-grid p {
+    margin: 6px 0;
+}
+
+.payslip-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.payslip-table th,
+.payslip-table td {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+}
+
+.payslip-table th {
+    text-align: left;
+}
+
+.payslip-table .amount {
+    text-align: right;
+}
+
+.payslip-table .total-row {
+    border-top: 2px solid #222;
+}
+
+.net-pay-box {
+    margin-top: 35px;
+    padding: 25px;
+    border: 2px solid #222;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.net-pay-box span {
+    display: block;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.net-pay-box small {
+    display: block;
+    margin-top: 5px;
+}
+
+.net-pay-box strong {
+    font-size: 28px;
+}
+
+.payslip-footer {
+    margin-top: 35px;
+    padding-top: 20px;
+    border-top: 1px solid #ddd;
+    text-align: center;
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   PRINT
+   ========================================================= */
+
+@media print {
+
+    body {
+        background: #ffffff;
+    }
+
+    .sidebar,
+    .no-print,
+    .flash-container {
+        display: none !important;
+    }
+
+    .main-content {
+        margin: 0;
+        padding: 0;
+    }
+
+    .payslip-container {
+        margin: 0;
+        max-width: none;
+        border: none;
+        box-shadow: none;
+        padding: 20px;
+    }
+
+}
