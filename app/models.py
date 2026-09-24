@@ -241,6 +241,11 @@ class PayrollRun(db.Model):
         default=0
     )
 
+    total_deductions = db.Column(
+        db.Float,
+        default=0
+    )
+
     total_net = db.Column(
         db.Float,
         default=0
@@ -294,7 +299,32 @@ class Payslip(db.Model):
         db.Date
     )
 
+    basic_salary = db.Column(
+        db.Float,
+        default=0
+    )
+
+    other_earnings = db.Column(
+        db.Float,
+        default=0
+    )
+
     gross_pay = db.Column(
+        db.Float,
+        default=0
+    )
+
+    tax_deductions = db.Column(
+        db.Float,
+        default=0
+    )
+
+    other_deductions = db.Column(
+        db.Float,
+        default=0
+    )
+
+    total_deductions = db.Column(
         db.Float,
         default=0
     )
