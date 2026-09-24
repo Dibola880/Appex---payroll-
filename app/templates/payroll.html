@@ -1,52 +1,172 @@
 {% extends "base.html" %}
 
-{% block title %}Payroll - Appex Payroll{% endblock %}
-
-{% block heading %}Payroll{% endblock %}
+{% block title %}Payroll | Appex Payroll{% endblock %}
 
 {% block content %}
 
+<div class="page-header">
+    <div>
+        <h1>Payroll Processing</h1>
+        <p>
+            Prepare and process monthly payroll for your active employees.
+        </p>
+    </div>
+
+    <a class="btn" href="{{ url_for('main.payroll_history') }}">
+        Payroll History
+    </a>
+</div>
+
+
+<!-- Payroll Summary -->
+
+<div class="dashboard-grid">
+
+    <div class="card">
+        <h3>Active Employees</h3>
+
+        <div class="stat-number">
+            {{ employees|length }}
+        </div>
+    </div>
+
+
+    <div class="card">
+        <h3>Total Basic Salary</h3>
+
+        <div class="stat-number">
+            R {{ "%.2f"|format(total_salary or 0) }}
+        </div>
+    </div>
+
+
+    <div class="card">
+        <h3>Payroll Status</h3>
+
+        <div class="stat-number">
+            Ready
+        </div>
+    </div>
+
+</div>
+
+
+<!-- Create Payroll -->
+
 <div class="card">
 
-    <h2>Payroll Overview</h2>
+    <h2>Create Payroll Run</h2>
 
     <p>
-        Review your company's active employees and monthly payroll
-        information.
+        Enter the payroll period and pay date below.
+        Appex Payroll will automatically calculate the basic salary,
+        gross pay, deductions and net pay for all active employees.
     </p>
 
-    {% if employees %}
 
-    <div class="summary-box">
+    <form method="POST"
+          action="{{ url_for('main.create_payroll') }}">
 
-        <div>
-            <strong>Total Employees</strong>
-            <span>{{ employees|length }}</span>
+        <div class="form-grid">
+
+            <div class="form-group">
+
+                <label for="pay_period">
+                    Payroll Period
+                </label>
+
+                <input
+                    type="text"
+                    id="pay_period"
+                    name="pay_period"
+                    placeholder="e.g. September 2026"
+                    required
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="pay_date">
+                    Pay Date
+                </label>
+
+                <input
+                    type="date"
+                    id="pay_date"
+                    name="pay_date"
+                    required
+                >
+
+            </div>
+
         </div>
 
+
+        <div class="form-actions">
+
+            <button
+                type="submit"
+                class="btn"
+                {% if not employees %}disabled{% endif %}
+            >
+                Process Payroll
+            </button>
+
+        </div>
+
+    </form>
+
+</div>
+
+
+<!-- Employee Payroll Preview -->
+
+<div class="card">
+
+    <div class="page-header">
+
         <div>
-            <strong>Total Gross Payroll</strong>
-            <span>
-                R {{ "%.2f"|format(total_salary or 0) }}
-            </span>
+            <h2>Employees Included</h2>
+
+            <p>
+                The following active employees will be included
+                in this payroll run.
+            </p>
         </div>
 
     </div>
 
 
-    <div class="table-container">
+    {% if employees %}
+
+    <div class="table-wrap">
 
         <table>
 
             <thead>
+
                 <tr>
+
                     <th>Employee No.</th>
+
                     <th>Employee</th>
+
                     <th>Job Title</th>
-                    <th>Monthly Salary</th>
-                    <th>Status</th>
+
+                    <th>Basic Salary</th>
+
+                    <th>Gross Pay</th>
+
+                    <th>Deductions</th>
+
+                    <th>Estimated Net Pay</th>
+
                 </tr>
+
             </thead>
+
 
             <tbody>
 
@@ -58,37 +178,37 @@
                         {{ employee.employee_number }}
                     </td>
 
+
                     <td>
-                        <strong>
-                            {{ employee.first_name }}
-                            {{ employee.last_name }}
-                        </strong>
+                        {{ employee.first_name }}
+                        {{ employee.last_name }}
                     </td>
+
 
                     <td>
                         {{ employee.job_title or "-" }}
                     </td>
 
+
                     <td>
                         R {{ "%.2f"|format(employee.monthly_salary or 0) }}
                     </td>
 
+
                     <td>
+                        R {{ "%.2f"|format(employee.monthly_salary or 0) }}
+                    </td>
 
-                        {% if employee.status == "Active" %}
 
-                            <span class="status-active">
-                                Active
-                            </span>
+                    <td>
+                        R 0.00
+                    </td>
 
-                        {% else %}
 
-                            <span class="status-inactive">
-                                {{ employee.status }}
-                            </span>
-
-                        {% endif %}
-
+                    <td>
+                        <strong>
+                            R {{ "%.2f"|format(employee.monthly_salary or 0) }}
+                        </strong>
                     </td>
 
                 </tr>
@@ -103,42 +223,50 @@
 
     {% else %}
 
-    <div class="empty-state">
-
-        <h3>No Employees Available</h3>
-
-        <p>
-            Add employees before running payroll.
-        </p>
-
-        <a
-            href="{{ url_for('main.new_employee') }}"
-            class="button"
-        >
-            + Add Employee
-        </a>
-
-    </div>
+        <div class="flash warning">
+            There are currently no active employees.
+            Add an employee before processing payroll.
+        </div>
 
     {% endif %}
 
 </div>
 
 
+<!-- Payroll Calculation Information -->
+
 <div class="card">
 
-    <h2>Payroll Processing</h2>
+    <h2>Payroll Calculation</h2>
 
-    <p>
-        Payroll processing and payslip generation will be connected
-        to the Appex Payroll processing engine in the next development
-        stage.
-    </p>
+    <div class="info-box">
 
-    <div class="notice">
-        <strong>Current status:</strong>
-        Payroll calculation interface ready.
+        <p>
+            <strong>Gross Pay</strong>
+            =
+            Basic Salary + Other Earnings
+        </p>
+
+        <p>
+            <strong>Total Deductions</strong>
+            =
+            Tax Deductions + Other Deductions
+        </p>
+
+        <p>
+            <strong>Net Pay</strong>
+            =
+            Gross Pay − Total Deductions
+        </p>
+
     </div>
+
+    <p class="muted">
+        The current Phase 3 calculation uses the employee's
+        monthly salary as basic salary. Additional earnings,
+        PAYE, UIF and other statutory payroll calculations
+        will be added in subsequent payroll development steps.
+    </p>
 
 </div>
 
