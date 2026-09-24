@@ -1,167 +1,74 @@
 {% extends "base.html" %}
 
-{% block title %}Payslip | Appex Payroll{% endblock %}
+{% block title %}Payslip - Appex Payroll{% endblock %}
 
 {% block content %}
 
-<!-- Page Header -->
-<div class="page-header no-print">
-
-    <div>
-        <h1>Payslip</h1>
-
-        <p>
-            Pay Period:
-            {{ payslip.pay_period }}
-        </p>
-    </div>
-
-    <div>
-
-        <button
-            type="button"
-            class="btn"
-            onclick="window.print()">
-            Print / Save PDF
-        </button>
-
-        <a
-            class="btn secondary"
-            href="{{ url_for('main.payroll') }}">
-            Payroll
-        </a>
-
-    </div>
-
-</div>
-
-
-<!-- Payslip -->
 <div class="payslip-container">
 
-
-    <!-- =====================================================
-         PAYSLIP HEADER
-         ===================================================== -->
-
+    <!-- HEADER -->
     <div class="payslip-header">
 
-        <div class="payslip-brand">
+        <div>
+            <div class="payslip-brand">
+                <strong>APPEX</strong>
+                <span>PAYROLL</span>
+            </div>
 
-            <h1>APPEX</h1>
-
-            <p>
-                PAYROLL
+            <p class="muted">
+                {{ company.name }}
             </p>
-
-            <p>
-                Employee Payroll Services
-            </p>
-
         </div>
 
-
         <div class="payslip-title">
-
-            <h2>PAYSLIP</h2>
-
-            <p>
-                Pay Period:
-                <strong>
-                    {{ payslip.pay_period }}
-                </strong>
-            </p>
-
-            <p>
-                Pay Date:
-                <strong>
-                    {{ payslip.pay_date }}
-                </strong>
-            </p>
-
+            <h1>PAYSLIP</h1>
+            <p>{{ payslip.pay_period }}</p>
         </div>
 
     </div>
 
 
-    <!-- =====================================================
-         EMPLOYER / EMPLOYEE INFORMATION
-         ===================================================== -->
-
+    <!-- EMPLOYEE INFORMATION -->
     <div class="payslip-section">
+
+        <h2>Employee Information</h2>
 
         <div class="payslip-info-grid">
 
-
-            <!-- Employer -->
-
-            <div class="payslip-info-box">
-
-                <h3>Employer</h3>
-
-                {% if payslip.employee and payslip.employee.company %}
-
-                    <p>
-                        <strong>
-                            {{ payslip.employee.company.name }}
-                        </strong>
-                    </p>
-
-                    {% if payslip.employee.company.payroll_provider %}
-
-                        <p>
-                            Payroll Provider:
-                            {{ payslip.employee.company.payroll_provider }}
-                        </p>
-
-                    {% endif %}
-
-                {% else %}
-
-                    <p>
-                        <strong>
-                            Appex Payroll
-                        </strong>
-                    </p>
-
-                {% endif %}
-
+            <div>
+                <span>Employee Name</span>
+                <strong>
+                    {{ employee.first_name }}
+                    {{ employee.last_name }}
+                </strong>
             </div>
 
+            <div>
+                <span>Employee Number</span>
+                <strong>
+                    {{ employee.employee_number }}
+                </strong>
+            </div>
 
-            <!-- Employee -->
+            <div>
+                <span>Job Title</span>
+                <strong>
+                    {{ employee.job_title or "-" }}
+                </strong>
+            </div>
 
-            <div class="payslip-info-box">
+            <div>
+                <span>Pay Period</span>
+                <strong>
+                    {{ payslip.pay_period }}
+                </strong>
+            </div>
 
-                <h3>Employee</h3>
-
-                {% if payslip.employee %}
-
-                    <p>
-                        <strong>
-                            {{ payslip.employee.first_name }}
-                            {{ payslip.employee.last_name }}
-                        </strong>
-                    </p>
-
-                    <p>
-                        Employee No:
-                        {{ payslip.employee.employee_number }}
-                    </p>
-
-                    <p>
-                        Job Title:
-                        {{ payslip.employee.job_title or "-" }}
-                    </p>
-
-                {% else %}
-
-                    <p>
-                        Employee information unavailable.
-                    </p>
-
-                {% endif %}
-
+            <div>
+                <span>Pay Date</span>
+                <strong>
+                    {{ payslip.pay_date }}
+                </strong>
             </div>
 
         </div>
@@ -169,10 +76,7 @@
     </div>
 
 
-    <!-- =====================================================
-         EARNINGS
-         ===================================================== -->
-
+    <!-- EARNINGS -->
     <div class="payslip-section">
 
         <h2>Earnings</h2>
@@ -180,75 +84,59 @@
         <table class="payslip-table">
 
             <thead>
-
                 <tr>
                     <th>Description</th>
                     <th class="amount">Amount</th>
                 </tr>
-
             </thead>
 
             <tbody>
 
-
-                <!-- Basic Salary -->
-
                 <tr>
-
-                    <td>
-                        Basic Salary
-                    </td>
-
+                    <td>Basic Salary</td>
                     <td class="amount">
-
-                        R {{ "%.2f"|format(
-                            payslip.basic_salary or 0
-                        ) }}
-
+                        R {{ "%.2f"|format(payslip.basic_salary or 0) }}
                     </td>
-
                 </tr>
 
-
-                <!-- Other Earnings -->
-
                 <tr>
-
-                    <td>
-                        Other Earnings
-                    </td>
-
+                    <td>Overtime</td>
                     <td class="amount">
-
-                        R {{ "%.2f"|format(
-                            payslip.other_earnings or 0
-                        ) }}
-
+                        R {{ "%.2f"|format(payslip.overtime or 0) }}
                     </td>
-
                 </tr>
 
+                <tr>
+                    <td>Bonus</td>
+                    <td class="amount">
+                        R {{ "%.2f"|format(payslip.bonus or 0) }}
+                    </td>
+                </tr>
 
-                <!-- Gross Pay -->
+                <tr>
+                    <td>Commission</td>
+                    <td class="amount">
+                        R {{ "%.2f"|format(payslip.commission or 0) }}
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>Other Earnings</td>
+                    <td class="amount">
+                        R {{ "%.2f"|format(payslip.other_earnings or 0) }}
+                    </td>
+                </tr>
 
                 <tr class="total-row">
 
                     <td>
-                        <strong>
-                            Gross Pay
-                        </strong>
+                        <strong>Gross Pay</strong>
                     </td>
 
                     <td class="amount">
-
                         <strong>
-
-                            R {{ "%.2f"|format(
-                                payslip.gross_pay or 0
-                            ) }}
-
+                            R {{ "%.2f"|format(payslip.gross_pay or 0) }}
                         </strong>
-
                     </td>
 
                 </tr>
@@ -260,10 +148,7 @@
     </div>
 
 
-    <!-- =====================================================
-         DEDUCTIONS
-         ===================================================== -->
-
+    <!-- DEDUCTIONS -->
     <div class="payslip-section">
 
         <h2>Deductions</h2>
@@ -271,75 +156,45 @@
         <table class="payslip-table">
 
             <thead>
-
                 <tr>
                     <th>Description</th>
                     <th class="amount">Amount</th>
                 </tr>
-
             </thead>
 
             <tbody>
 
-
-                <!-- PAYE -->
-
                 <tr>
-
-                    <td>
-                        Tax / PAYE
-                    </td>
-
+                    <td>PAYE</td>
                     <td class="amount">
-
-                        R {{ "%.2f"|format(
-                            payslip.tax_deductions or 0
-                        ) }}
-
+                        R {{ "%.2f"|format(payslip.tax_deductions or 0) }}
                     </td>
-
                 </tr>
 
-
-                <!-- Other Deductions -->
-
                 <tr>
-
-                    <td>
-                        Other Deductions
-                    </td>
-
+                    <td>UIF</td>
                     <td class="amount">
-
-                        R {{ "%.2f"|format(
-                            payslip.other_deductions or 0
-                        ) }}
-
+                        R {{ "%.2f"|format(payslip.uif or 0) }}
                     </td>
-
                 </tr>
 
-
-                <!-- Total Deductions -->
+                <tr>
+                    <td>Other Deductions</td>
+                    <td class="amount">
+                        R {{ "%.2f"|format(payslip.other_deductions or 0) }}
+                    </td>
+                </tr>
 
                 <tr class="total-row">
 
                     <td>
-                        <strong>
-                            Total Deductions
-                        </strong>
+                        <strong>Total Deductions</strong>
                     </td>
 
                     <td class="amount">
-
                         <strong>
-
-                            R {{ "%.2f"|format(
-                                payslip.total_deductions or 0
-                            ) }}
-
+                            R {{ "%.2f"|format(payslip.total_deductions or 0) }}
                         </strong>
-
                     </td>
 
                 </tr>
@@ -351,59 +206,308 @@
     </div>
 
 
-    <!-- =====================================================
-         NET PAY
-         ===================================================== -->
-
+    <!-- NET PAY -->
     <div class="net-pay-box">
 
         <div>
-
-            <span>
-                NET PAY
-            </span>
-
+            <span>NET PAY</span>
             <small>
                 Amount payable to employee
             </small>
-
         </div>
 
         <strong>
-
-            R {{ "%.2f"|format(
-                payslip.net_pay or 0
-            ) }}
-
+            R {{ "%.2f"|format(payslip.net_pay or 0) }}
         </strong>
 
     </div>
 
 
-    <!-- =====================================================
-         FOOTER
-         ===================================================== -->
+    <!-- ACTIONS -->
+    <div class="payslip-actions no-print">
 
-    <div class="payslip-footer">
+        {% if current_user.role in ["employer", "admin"] %}
 
-        <p>
-            This payslip was generated electronically by
-            Appex Payroll.
-        </p>
+            <a
+                class="btn secondary"
+                href="{{ url_for('main.view_payroll', payroll_id=payslip.payroll_run_id) }}"
+            >
+                Back to Payroll
+            </a>
 
-        <p>
-            Pay Period:
-            {{ payslip.pay_period }}
-        </p>
+        {% else %}
 
-        <p>
-            Pay Date:
-            {{ payslip.pay_date }}
-        </p>
+            <a
+                class="btn secondary"
+                href="{{ url_for('main.my_payslips') }}"
+            >
+                Back to My Payslips
+            </a>
+
+        {% endif %}
+
+        <button
+            type="button"
+            class="btn"
+            onclick="window.print()"
+        >
+            Print Payslip
+        </button>
+
+        <a
+            class="btn"
+            href="{{ url_for('main.download_payslip_pdf', payslip_id=payslip.id) }}"
+        >
+            Save PDF
+        </a>
 
     </div>
 
 
+    <!-- FOOTER -->
+    <div class="payslip-footer">
+
+        <p>
+            This payslip was generated by Appex Payroll.
+        </p>
+
+        <p>
+            Please verify the payroll information before relying on
+            this document for statutory or financial purposes.
+        </p>
+
+    </div>
+
 </div>
+
+
+<style>
+
+.payslip-container {
+    max-width: 900px;
+    margin: 30px auto;
+    background: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 35px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+.payslip-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 30px;
+    padding-bottom: 25px;
+    border-bottom: 2px solid #222;
+}
+
+.payslip-brand {
+    display: flex;
+    flex-direction: column;
+}
+
+.payslip-brand strong {
+    font-size: 28px;
+    letter-spacing: 2px;
+}
+
+.payslip-brand span {
+    font-size: 12px;
+    letter-spacing: 3px;
+}
+
+.payslip-title {
+    text-align: right;
+}
+
+.payslip-title h1 {
+    margin: 0;
+    font-size: 30px;
+}
+
+.payslip-title p {
+    margin-top: 8px;
+    color: #666;
+}
+
+.payslip-section {
+    margin-top: 30px;
+}
+
+.payslip-section h2 {
+    margin-bottom: 18px;
+    font-size: 19px;
+}
+
+.payslip-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+}
+
+.payslip-info-grid div {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.payslip-info-grid span {
+    font-size: 13px;
+    color: #777;
+}
+
+.payslip-info-grid strong {
+    font-size: 15px;
+}
+
+.payslip-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.payslip-table th,
+.payslip-table td {
+    padding: 12px;
+    border-bottom: 1px solid #e5e5e5;
+    text-align: left;
+}
+
+.payslip-table th {
+    background: #f5f7fa;
+    font-size: 14px;
+}
+
+.payslip-table .amount {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.payslip-table .total-row td {
+    border-top: 2px solid #222;
+    background: #f8f9fa;
+}
+
+.net-pay-box {
+    margin-top: 35px;
+    padding: 22px;
+    border-radius: 10px;
+    border: 2px solid #222;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.net-pay-box div {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.net-pay-box span {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.net-pay-box small {
+    color: #777;
+}
+
+.net-pay-box > strong {
+    font-size: 26px;
+}
+
+.payslip-actions {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 30px;
+}
+
+.payslip-footer {
+    margin-top: 35px;
+    padding-top: 20px;
+    border-top: 1px solid #ddd;
+    text-align: center;
+    color: #777;
+    font-size: 12px;
+}
+
+@media print {
+
+    body {
+        background: #ffffff;
+    }
+
+    .sidebar,
+    .no-print,
+    .flash-container {
+        display: none !important;
+    }
+
+    .main-content {
+        margin: 0;
+        padding: 0;
+    }
+
+    .payslip-container {
+        margin: 0;
+        max-width: none;
+        border: none;
+        box-shadow: none;
+        padding: 20px;
+    }
+
+}
+
+@media (max-width: 700px) {
+
+    .payslip-container {
+        padding: 20px;
+        margin: 10px 0;
+    }
+
+    .payslip-header {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .payslip-title {
+        text-align: left;
+    }
+
+    .payslip-info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .net-pay-box {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .payslip-table {
+        font-size: 13px;
+    }
+
+    .payslip-table th,
+    .payslip-table td {
+        padding: 8px;
+    }
+
+    .payslip-actions {
+        flex-direction: column;
+    }
+
+    .payslip-actions .btn {
+        width: 100%;
+        text-align: center;
+    }
+
+}
+
+</style>
 
 {% endblock %}
