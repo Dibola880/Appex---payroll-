@@ -1346,3 +1346,38 @@ def integration():
         deel_api_url=os.getenv("DEEL_API_URL"),
         deel_client_id=os.getenv("DEEL_CLIENT_ID"),
     )
+# ============================================================
+# PAYROLL CALCULATOR TEST
+# ============================================================
+
+@bp.route("/payroll-calculator-test")
+@login_required
+def payroll_calculator_test():
+
+    from .payroll_calculator import calculate_payroll
+
+    result = calculate_payroll(
+        basic_salary=15000,
+        overtime=1000,
+        bonus=500,
+        commission=750,
+        other_earnings=250,
+        other_deductions=300,
+        age=30,
+    )
+
+    return jsonify({
+        "tax_year": result["tax_year"],
+        "basic_salary": str(result["basic_salary"]),
+        "overtime": str(result["overtime"]),
+        "bonus": str(result["bonus"]),
+        "commission": str(result["commission"]),
+        "other_earnings": str(result["other_earnings"]),
+        "gross_pay": str(result["gross_pay"]),
+        "paye": str(result["paye"]),
+        "uif": str(result["uif"]),
+        "other_deductions": str(result["other_deductions"]),
+        "total_deductions": str(result["total_deductions"]),
+        "net_pay": str(result["net_pay"]),
+        "employer_uif": str(result["employer_uif"]),
+    })
