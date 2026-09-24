@@ -44,10 +44,10 @@ def create_app():
     with app.app_context():
         from . import models
 
-        # Create new Phase 2 tables
+        # Create tables that do not already exist
         db.create_all()
 
-        # Update the existing Phase 1 employee table
+        # Update existing PostgreSQL database
         if db.engine.dialect.name == "postgresql":
             with db.engine.begin() as connection:
 
@@ -73,52 +73,39 @@ def create_app():
                 # PayrollRun table
                 connection.execute(text("""
                     ALTER TABLE payroll_run
-                    ADD COLUMN IF NOT EXISTS total_deductions DOUBLE PRECISION DEFAULT 0
+                    ADD COLUMN IF NOT EXISTS total_deductions
+                    DOUBLE PRECISION DEFAULT 0
                 """))
 
                 # Payslip table
                 connection.execute(text("""
                     ALTER TABLE payslip
-                    ADD COLUMN IF NOT EXISTS basic_salary DOUBLE PRECISION DEFAULT 0
+                    ADD COLUMN IF NOT EXISTS basic_salary
+                    DOUBLE PRECISION DEFAULT 0
                 """))
 
                 connection.execute(text("""
                     ALTER TABLE payslip
-                    ADD COLUMN IF NOT EXISTS other_earnings DOUBLE PRECISION DEFAULT 0
+                    ADD COLUMN IF NOT EXISTS other_earnings
+                    DOUBLE PRECISION DEFAULT 0
                 """))
 
                 connection.execute(text("""
                     ALTER TABLE payslip
-                    ADD COLUMN IF NOT EXISTS tax_deductions DOUBLE PRECISION DEFAULT 0
+                    ADD COLUMN IF NOT EXISTS tax_deductions
+                    DOUBLE PRECISION DEFAULT 0
                 """))
 
                 connection.execute(text("""
                     ALTER TABLE payslip
-                    ADD COLUMN IF NOT EXISTS other_deductions DOUBLE PRECISION DEFAULT 0
+                    ADD COLUMN IF NOT EXISTS other_deductions
+                    DOUBLE PRECISION DEFAULT 0
                 """))
 
                 connection.execute(text("""
                     ALTER TABLE payslip
-                    ADD COLUMN IF NOT EXISTS total_deductions DOUBLE PRECISION DEFAULT 0
-                """))
-            with db.engine.begin() as connection:
-
-                connection.execute(text("""
-                    ALTER TABLE employee
-                    ADD COLUMN IF NOT EXISTS user_id INTEGER
-                    REFERENCES "user"(id)
-                """))
-
-                connection.execute(text("""
-                    ALTER TABLE employee
-                    ADD COLUMN IF NOT EXISTS deel_employee_id VARCHAR(200)
-                """))
-
-                connection.execute(text("""
-                    CREATE UNIQUE INDEX IF NOT EXISTS
-                    ix_employee_user_id_unique
-                    ON employee(user_id)
-                    WHERE user_id IS NOT NULL
+                    ADD COLUMN IF NOT EXISTS total_deductions
+                    DOUBLE PRECISION DEFAULT 0
                 """))
 
     return app
