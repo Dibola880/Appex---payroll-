@@ -1,33 +1,15 @@
 from datetime import datetime
-
 from . import db
 
 
-# ============================================================
-# COMPANY
-# ============================================================
-
 class Company(db.Model):
-
-    id = db.Column(
-        db.Integer,
-        primary_key=True
-    )
-
-    name = db.Column(
-        db.String(200),
-        nullable=False
-    )
-
-    registration_number = db.Column(
-        db.String(100)
-    )
-
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    registration_number = db.Column(db.String(100))
     payroll_provider = db.Column(
         db.String(100),
         default="Deel Local Payroll"
     )
-
     created_at = db.Column(
         db.DateTime,
         default=datetime.utcnow
@@ -52,16 +34,8 @@ class Company(db.Model):
     )
 
 
-# ============================================================
-# USER
-# ============================================================
-
 class User(db.Model):
-
-    id = db.Column(
-        db.Integer,
-        primary_key=True
-    )
+    id = db.Column(db.Integer, primary_key=True)
 
     company_id = db.Column(
         db.Integer,
@@ -108,16 +82,8 @@ class User(db.Model):
     )
 
 
-# ============================================================
-# EMPLOYEE
-# ============================================================
-
 class Employee(db.Model):
-
-    id = db.Column(
-        db.Integer,
-        primary_key=True
-    )
+    id = db.Column(db.Integer, primary_key=True)
 
     company_id = db.Column(
         db.Integer,
@@ -125,7 +91,6 @@ class Employee(db.Model):
         nullable=False
     )
 
-    # Employee account
     user_id = db.Column(
         db.Integer,
         db.ForeignKey("user.id"),
@@ -133,7 +98,6 @@ class Employee(db.Model):
         nullable=True
     )
 
-    # Employee identification
     employee_number = db.Column(
         db.String(100),
         nullable=False
@@ -149,10 +113,7 @@ class Employee(db.Model):
         nullable=False
     )
 
-    # Payroll / personal information
-    date_of_birth = db.Column(
-        db.Date
-    )
+    date_of_birth = db.Column(db.Date)
 
     email = db.Column(
         db.String(200)
@@ -172,12 +133,10 @@ class Employee(db.Model):
         default="Active"
     )
 
-    # Deel integration
     deel_employee_id = db.Column(
         db.String(200)
     )
 
-    # Relationships
     company = db.relationship(
         "Company",
         back_populates="employees"
@@ -201,12 +160,7 @@ class Employee(db.Model):
     )
 
 
-# ============================================================
-# EMPLOYEE INVITATION
-# ============================================================
-
 class EmployeeInvitation(db.Model):
-
     id = db.Column(
         db.Integer,
         primary_key=True
@@ -235,19 +189,13 @@ class EmployeeInvitation(db.Model):
     )
 
     def is_valid(self):
-
         return (
             not self.used
             and datetime.utcnow() < self.expires_at
         )
 
 
-# ============================================================
-# PAYROLL RUN
-# ============================================================
-
 class PayrollRun(db.Model):
-
     id = db.Column(
         db.Integer,
         primary_key=True
@@ -289,7 +237,18 @@ class PayrollRun(db.Model):
         default=0
     )
 
-    # Deel payroll integration
+    # Employer statutory contribution
+    total_employer_uif = db.Column(
+        db.Float,
+        default=0
+    )
+
+    # Gross payroll + employer UIF
+    total_employer_cost = db.Column(
+        db.Float,
+        default=0
+    )
+
     deel_payroll_id = db.Column(
         db.String(200)
     )
@@ -306,12 +265,7 @@ class PayrollRun(db.Model):
     )
 
 
-# ============================================================
-# PAYSLIP
-# ============================================================
-
 class Payslip(db.Model):
-
     id = db.Column(
         db.Integer,
         primary_key=True
@@ -338,11 +292,6 @@ class Payslip(db.Model):
         db.Date,
         nullable=False
     )
-
-
-    # ========================================================
-    # EARNINGS
-    # ========================================================
 
     basic_salary = db.Column(
         db.Float,
@@ -374,11 +323,6 @@ class Payslip(db.Model):
         default=0
     )
 
-
-    # ========================================================
-    # DEDUCTIONS
-    # ========================================================
-
     tax_deductions = db.Column(
         db.Float,
         default=0
@@ -399,20 +343,22 @@ class Payslip(db.Model):
         default=0
     )
 
-
-    # ========================================================
-    # NET PAY
-    # ========================================================
-
     net_pay = db.Column(
         db.Float,
         default=0
     )
 
+    # Employer UIF contribution
+    employer_uif = db.Column(
+        db.Float,
+        default=0
+    )
 
-    # ========================================================
-    # DEEL
-    # ========================================================
+    # Employee + employer payroll cost information
+    employer_cost = db.Column(
+        db.Float,
+        default=0
+    )
 
     deel_payslip_id = db.Column(
         db.String(200)
