@@ -77,8 +77,14 @@ def employer_required(view):
             return redirect(url_for("main.login"))
 
         if user.role not in ["employer", "admin"]:
-            flash("Employer access is required.", "danger")
-            return redirect(url_for("main.employee_dashboard"))
+            flash(
+                "Employer access is required.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.employee_dashboard")
+            )
 
         return view(*args, **kwargs)
 
@@ -106,6 +112,37 @@ def safe_float(value, default=0.0):
     except (TypeError, ValueError):
 
         return default
+
+
+def calculate_age_from_dob(date_of_birth, reference_date=None):
+    """
+    Calculate an employee's age from their date of birth.
+
+    reference_date is normally the payroll pay date so that
+    age is calculated correctly for the payroll period.
+    """
+
+    if not date_of_birth:
+        return None
+
+    if reference_date is None:
+        reference_date = datetime.utcnow().date()
+
+    age = (
+        reference_date.year
+        - date_of_birth.year
+    )
+
+    if (
+        reference_date.month,
+        reference_date.day
+    ) < (
+        date_of_birth.month,
+        date_of_birth.day
+    ):
+        age -= 1
+
+    return age
 
 
 @bp.app_context_processor
@@ -140,7 +177,10 @@ def dashboard():
     user = current_user()
 
     if user.role == "employee":
-        return redirect(url_for("main.employee_dashboard"))
+
+        return redirect(
+            url_for("main.employee_dashboard")
+        )
 
     company = user.company
 
@@ -199,14 +239,21 @@ def register():
             ""
         )
 
-        if not company_name or not name or not email or not password:
+        if (
+            not company_name
+            or not name
+            or not email
+            or not password
+        ):
 
             flash(
                 "Please complete all required fields.",
                 "danger"
             )
 
-            return render_template("register.html")
+            return render_template(
+                "register.html"
+            )
 
         if password != confirm_password:
 
@@ -215,7 +262,9 @@ def register():
                 "danger"
             )
 
-            return render_template("register.html")
+            return render_template(
+                "register.html"
+            )
 
         if len(password) < 8:
 
@@ -224,7 +273,9 @@ def register():
                 "danger"
             )
 
-            return render_template("register.html")
+            return render_template(
+                "register.html"
+            )
 
         existing_user = User.query.filter_by(
             email=email
@@ -237,7 +288,9 @@ def register():
                 "danger"
             )
 
-            return render_template("register.html")
+            return render_template(
+                "register.html"
+            )
 
         company = Company(
             name=company_name,
@@ -245,18 +298,22 @@ def register():
         )
 
         db.session.add(company)
+
         db.session.flush()
 
         user = User(
             company_id=company.id,
             name=name,
             email=email,
-            password_hash=generate_password_hash(password),
+            password_hash=generate_password_hash(
+                password
+            ),
             role="employer",
             is_active=True,
         )
 
         db.session.add(user)
+
         db.session.commit()
 
         session.clear()
@@ -268,9 +325,13 @@ def register():
             "success"
         )
 
-        return redirect(url_for("main.dashboard"))
+        return redirect(
+            url_for("main.dashboard")
+        )
 
-    return render_template("register.html")
+    return render_template(
+        "register.html"
+    )
 
 
 # ============================================================
@@ -306,7 +367,9 @@ def login():
                 "danger"
             )
 
-            return render_template("login.html")
+            return render_template(
+                "login.html"
+            )
 
         if not user.is_active:
 
@@ -315,7 +378,9 @@ def login():
                 "danger"
             )
 
-            return render_template("login.html")
+            return render_template(
+                "login.html"
+            )
 
         session.clear()
 
@@ -329,14 +394,20 @@ def login():
         if user.role == "employee":
 
             return redirect(
-                url_for("main.employee_dashboard")
+                url_for(
+                    "main.employee_dashboard"
+                )
             )
 
         return redirect(
-            url_for("main.dashboard")
+            url_for(
+                "main.dashboard"
+            )
         )
 
-    return render_template("login.html")
+    return render_template(
+        "login.html"
+    )
 
 
 # ============================================================
@@ -370,8 +441,12 @@ def employees():
 
     employees = (
         Employee.query
-        .filter_by(company_id=user.company_id)
-        .order_by(Employee.last_name.asc())
+        .filter_by(
+            company_id=user.company_id
+        )
+        .order_by(
+            Employee.last_name.asc()
+        )
         .all()
     )
 
@@ -408,10 +483,6 @@ def new_employee():
             ""
         ).strip()
 
-        # ----------------------------------------------------
-        # DATE OF BIRTH
-        # ----------------------------------------------------
-
         date_of_birth = request.form.get(
             "date_of_birth",
             ""
@@ -428,14 +499,16 @@ def new_employee():
         ).strip()
 
         monthly_salary = safe_float(
-            request.form.get("monthly_salary")
+            request.form.get(
+                "monthly_salary"
+            )
         )
 
-        # ----------------------------------------------------
-        # REQUIRED FIELD VALIDATION
-        # ----------------------------------------------------
-
-        if not employee_number or not first_name or not last_name:
+        if (
+            not employee_number
+            or not first_name
+            or not last_name
+        ):
 
             flash(
                 "Employee number, first name and last name are required.",
@@ -465,6 +538,18 @@ def new_employee():
 
                 flash(
                     "Please enter a valid date of birth.",
+                    "danger"
+                )
+
+                return render_template(
+                    "employee_form.html"
+                )
+
+            # Prevent future dates of birth
+            if parsed_date_of_birth > datetime.utcnow().date():
+
+                flash(
+                    "Date of birth cannot be in the future.",
                     "danger"
                 )
 
@@ -510,7 +595,9 @@ def new_employee():
 # EMPLOYEE INVITATION
 # ============================================================
 
-@bp.route("/employees/<int:employee_id>/invite")
+@bp.route(
+    "/employees/<int:employee_id>/invite"
+)
 @employer_required
 def create_invitation(employee_id):
 
@@ -537,7 +624,10 @@ def create_invitation(employee_id):
     invitation = EmployeeInvitation(
         employee_id=employee.id,
         token=token,
-        expires_at=datetime.utcnow() + timedelta(hours=48),
+        expires_at=(
+            datetime.utcnow()
+            + timedelta(hours=48)
+        ),
         used=False,
     )
 
@@ -562,7 +652,10 @@ def create_invitation(employee_id):
 # ACCEPT EMPLOYEE INVITATION
 # ============================================================
 
-@bp.route("/invite/<token>", methods=["GET", "POST"])
+@bp.route(
+    "/invite/<token>",
+    methods=["GET", "POST"]
+)
 def accept_invitation(token):
 
     invitation = EmployeeInvitation.query.filter_by(
@@ -648,9 +741,14 @@ def accept_invitation(token):
 
         new_user = User(
             company_id=employee.company_id,
-            name=f"{employee.first_name} {employee.last_name}",
+            name=(
+                f"{employee.first_name} "
+                f"{employee.last_name}"
+            ),
             email=employee.email.lower(),
-            password_hash=generate_password_hash(password),
+            password_hash=generate_password_hash(
+                password
+            ),
             role="employee",
             is_active=True,
         )
@@ -751,8 +849,12 @@ def my_payslips():
 
     payslips = (
         Payslip.query
-        .filter_by(employee_id=employee.id)
-        .order_by(Payslip.pay_date.desc())
+        .filter_by(
+            employee_id=employee.id
+        )
+        .order_by(
+            Payslip.pay_date.desc()
+        )
         .all()
     )
 
@@ -779,7 +881,9 @@ def payroll():
             company_id=user.company_id,
             status="Active",
         )
-        .order_by(Employee.last_name.asc())
+        .order_by(
+            Employee.last_name.asc()
+        )
         .all()
     )
 
@@ -799,7 +903,10 @@ def payroll():
 # CREATE PAYROLL
 # ============================================================
 
-@bp.route("/payroll/create", methods=["POST"])
+@bp.route(
+    "/payroll/create",
+    methods=["POST"]
+)
 @employer_required
 def create_payroll():
 
@@ -826,6 +933,10 @@ def create_payroll():
             url_for("main.payroll")
         )
 
+    # --------------------------------------------------------
+    # CONVERT PAY DATE
+    # --------------------------------------------------------
+
     try:
 
         pay_date = datetime.strptime(
@@ -844,13 +955,19 @@ def create_payroll():
             url_for("main.payroll")
         )
 
+    # --------------------------------------------------------
+    # GET ACTIVE EMPLOYEES
+    # --------------------------------------------------------
+
     employees = (
         Employee.query
         .filter_by(
             company_id=user.company_id,
             status="Active",
         )
-        .order_by(Employee.last_name.asc())
+        .order_by(
+            Employee.last_name.asc()
+        )
         .all()
     )
 
@@ -864,6 +981,10 @@ def create_payroll():
         return redirect(
             url_for("main.payroll")
         )
+
+    # --------------------------------------------------------
+    # PREVENT DUPLICATE PAYROLL
+    # --------------------------------------------------------
 
     existing_payroll = PayrollRun.query.filter_by(
         company_id=user.company_id,
@@ -883,6 +1004,10 @@ def create_payroll():
                 payroll_id=existing_payroll.id,
             )
         )
+
+    # --------------------------------------------------------
+    # CREATE PAYROLL RUN
+    # --------------------------------------------------------
 
     payroll_run = PayrollRun(
         company_id=user.company_id,
@@ -917,7 +1042,7 @@ def create_payroll():
         )
 
         # ----------------------------------------------------
-        # EARNINGS
+        # ADDITIONAL EARNINGS
         # ----------------------------------------------------
 
         overtime = safe_float(
@@ -954,28 +1079,61 @@ def create_payroll():
             )
         )
 
-        # ----------------------------------------------------
-        # EMPLOYEE AGE
-        # ----------------------------------------------------
+        # ====================================================
+        # AUTOMATIC AGE CALCULATION
+        # ====================================================
+        #
+        # The employee's Date of Birth is now used instead
+        # of manually entering age_1, age_2, etc.
+        #
+        # Age is calculated as at the payroll PAY DATE.
+        #
+        # ====================================================
 
-        age_value = request.form.get(
-            f"age_{employee.id}",
-            "30"
+        age = calculate_age_from_dob(
+            employee.date_of_birth,
+            pay_date
         )
 
-        try:
+        # ----------------------------------------------------
+        # TEMPORARY FALLBACK
+        # ----------------------------------------------------
+        #
+        # Existing employees created before Date of Birth
+        # was added may have no DOB.
+        #
+        # For those existing records only, age 30 is used
+        # temporarily.
+        #
+        # New employees should have a Date of Birth.
+        #
+        # ----------------------------------------------------
 
-            age = int(age_value)
-
-            if age < 18 or age > 100:
-                age = 30
-
-        except (TypeError, ValueError):
+        if age is None:
 
             age = 30
 
+        # ----------------------------------------------------
+        # SAFETY CHECK
+        # ----------------------------------------------------
+
+        if age < 0 or age > 120:
+
+            flash(
+                f"Invalid Date of Birth for "
+                f"{employee.first_name} "
+                f"{employee.last_name}.",
+                "danger"
+            )
+
+            db.session.rollback()
+
+            return redirect(
+                url_for("main.payroll")
+            )
+
         # ====================================================
-        # PAYROLL CALCULATOR
+        # CALCULATE PAYROLL
         # ====================================================
 
         calculation = calculate_payroll(
@@ -1023,13 +1181,13 @@ def create_payroll():
             calculation["employer_uif"]
         )
 
-        # Prevent unused-variable issues while retaining
-        # the calculated employer UIF for future payroll totals.
+        # Keep employer UIF available for future employer
+        # cost calculations.
         _ = employer_uif
 
-        # ----------------------------------------------------
+        # ====================================================
         # CREATE PAYSLIP
-        # ----------------------------------------------------
+        # ====================================================
 
         payslip = Payslip(
 
@@ -1067,12 +1225,14 @@ def create_payroll():
         db.session.add(payslip)
 
         # ----------------------------------------------------
-        # UPDATE TOTALS
+        # UPDATE PAYROLL TOTALS
         # ----------------------------------------------------
 
         total_gross += gross_pay
 
-        total_deductions += total_employee_deductions
+        total_deductions += (
+            total_employee_deductions
+        )
 
         total_net += net_pay
 
@@ -1115,8 +1275,12 @@ def payroll_history():
 
     payroll_runs = (
         PayrollRun.query
-        .filter_by(company_id=user.company_id)
-        .order_by(PayrollRun.pay_date.desc())
+        .filter_by(
+            company_id=user.company_id
+        )
+        .order_by(
+            PayrollRun.pay_date.desc()
+        )
         .all()
     )
 
@@ -1130,7 +1294,9 @@ def payroll_history():
 # VIEW PAYROLL RUN
 # ============================================================
 
-@bp.route("/payroll/<int:payroll_id>")
+@bp.route(
+    "/payroll/<int:payroll_id>"
+)
 @employer_required
 def view_payroll(payroll_id):
 
@@ -1145,10 +1311,15 @@ def view_payroll(payroll_id):
         Payslip.query
         .join(Employee)
         .filter(
-            Payslip.payroll_run_id == payroll_run.id,
-            Employee.company_id == user.company_id,
+            Payslip.payroll_run_id
+            == payroll_run.id,
+
+            Employee.company_id
+            == user.company_id,
         )
-        .order_by(Employee.last_name.asc())
+        .order_by(
+            Employee.last_name.asc()
+        )
         .all()
     )
 
@@ -1163,7 +1334,9 @@ def view_payroll(payroll_id):
 # VIEW INDIVIDUAL PAYSLIP
 # ============================================================
 
-@bp.route("/payroll/payslip/<int:payslip_id>")
+@bp.route(
+    "/payroll/payslip/<int:payslip_id>"
+)
 @login_required
 def view_payslip(payslip_id):
 
@@ -1217,7 +1390,9 @@ def view_payslip(payslip_id):
             )
 
             return redirect(
-                url_for("main.employee_dashboard")
+                url_for(
+                    "main.employee_dashboard"
+                )
             )
 
     else:
@@ -1243,7 +1418,9 @@ def view_payslip(payslip_id):
 # PAYSLIP PDF
 # ============================================================
 
-@bp.route("/payroll/payslip/<int:payslip_id>/pdf")
+@bp.route(
+    "/payroll/payslip/<int:payslip_id>/pdf"
+)
 @login_required
 def download_payslip_pdf(payslip_id):
 
@@ -1293,7 +1470,9 @@ def download_payslip_pdf(payslip_id):
             )
 
             return redirect(
-                url_for("main.employee_dashboard")
+                url_for(
+                    "main.employee_dashboard"
+                )
             )
 
     else:
@@ -1397,7 +1576,8 @@ def download_payslip_pdf(payslip_id):
     pdf.drawString(
         120,
         y,
-        f"{employee.first_name} {employee.last_name}"
+        f"{employee.first_name} "
+        f"{employee.last_name}"
     )
 
     y -= 18
@@ -1727,7 +1907,8 @@ def download_payslip_pdf(payslip_id):
     pdf.drawString(
         50,
         y,
-        "PAYE and UIF values are calculated by the Appex payroll calculator."
+        "PAYE and UIF values are calculated by "
+        "the Appex payroll calculator."
     )
 
     pdf.save()
@@ -1766,9 +1947,15 @@ def integration():
     return render_template(
         "integration.html",
         configured=configured,
-        deel_auth_url=os.getenv("DEEL_AUTH_URL"),
-        deel_api_url=os.getenv("DEEL_API_URL"),
-        deel_client_id=os.getenv("DEEL_CLIENT_ID"),
+        deel_auth_url=os.getenv(
+            "DEEL_AUTH_URL"
+        ),
+        deel_api_url=os.getenv(
+            "DEEL_API_URL"
+        ),
+        deel_client_id=os.getenv(
+            "DEEL_CLIENT_ID"
+        ),
     )
 
 
@@ -1776,7 +1963,9 @@ def integration():
 # PAYROLL CALCULATOR TEST
 # ============================================================
 
-@bp.route("/payroll-calculator-test")
+@bp.route(
+    "/payroll-calculator-test"
+)
 @login_required
 def payroll_calculator_test():
 
@@ -1799,7 +1988,9 @@ def payroll_calculator_test():
 
     return jsonify({
 
-        "tax_year": result["tax_year"],
+        "tax_year": str(
+            result["tax_year"]
+        ),
 
         "basic_salary": str(
             result["basic_salary"]
