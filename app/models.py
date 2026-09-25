@@ -125,6 +125,7 @@ class Employee(db.Model):
         nullable=False
     )
 
+    # Employee account
     user_id = db.Column(
         db.Integer,
         db.ForeignKey("user.id"),
@@ -132,6 +133,7 @@ class Employee(db.Model):
         nullable=True
     )
 
+    # Employee identification
     employee_number = db.Column(
         db.String(100),
         nullable=False
@@ -145,6 +147,11 @@ class Employee(db.Model):
     last_name = db.Column(
         db.String(100),
         nullable=False
+    )
+
+    # Payroll / personal information
+    date_of_birth = db.Column(
+        db.Date
     )
 
     email = db.Column(
@@ -165,10 +172,12 @@ class Employee(db.Model):
         default="Active"
     )
 
+    # Deel integration
     deel_employee_id = db.Column(
         db.String(200)
     )
 
+    # Relationships
     company = db.relationship(
         "Company",
         back_populates="employees"
@@ -280,6 +289,7 @@ class PayrollRun(db.Model):
         default=0
     )
 
+    # Deel payroll integration
     deel_payroll_id = db.Column(
         db.String(200)
     )
