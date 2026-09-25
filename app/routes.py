@@ -545,7 +545,6 @@ def new_employee():
                     "employee_form.html"
                 )
 
-            # Prevent future dates of birth
             if parsed_date_of_birth > datetime.utcnow().date():
 
                 flash(
@@ -1017,15 +1016,23 @@ def create_payroll():
         total_gross=0,
         total_deductions=0,
         total_net=0,
+        total_employer_uif=0,
+        total_employer_cost=0,
     )
 
     db.session.add(payroll_run)
 
     db.session.flush()
 
+    # --------------------------------------------------------
+    # PAYROLL TOTALS
+    # --------------------------------------------------------
+
     total_gross = 0.0
     total_deductions = 0.0
     total_net = 0.0
+    total_employer_uif = 0.0
+    total_employer_cost = 0.0
 
     # ========================================================
     # PROCESS EACH EMPLOYEE
@@ -1082,13 +1089,6 @@ def create_payroll():
         # ====================================================
         # AUTOMATIC AGE CALCULATION
         # ====================================================
-        #
-        # The employee's Date of Birth is now used instead
-        # of manually entering age_1, age_2, etc.
-        #
-        # Age is calculated as at the payroll PAY DATE.
-        #
-        # ====================================================
 
         age = calculate_age_from_dob(
             employee.date_of_birth,
@@ -1096,17 +1096,7 @@ def create_payroll():
         )
 
         # ----------------------------------------------------
-        # TEMPORARY FALLBACK
-        # ----------------------------------------------------
-        #
-        # Existing employees created before Date of Birth
-        # was added may have no DOB.
-        #
-        # For those existing records only, age 30 is used
-        # temporarily.
-        #
-        # New employees should have a Date of Birth.
-        #
+        # TEMPORARY FALLBACK FOR OLD EMPLOYEES
         # ----------------------------------------------------
 
         if age is None:
@@ -1154,7 +1144,7 @@ def create_payroll():
         )
 
         # ----------------------------------------------------
-        # CALCULATED VALUES
+        # EMPLOYEE PAYROLL VALUES
         # ----------------------------------------------------
 
         gross_pay = float(
@@ -1177,13 +1167,27 @@ def create_payroll():
             calculation["net_pay"]
         )
 
+        # ----------------------------------------------------
+        # EMPLOYER UIF
+        # ----------------------------------------------------
+
         employer_uif = float(
-            calculation["employer_uif"]
+            calculation.get(
+                "employer_uif",
+                0
+            )
         )
 
-        # Keep employer UIF available for future employer
-        # cost calculations.
-        _ = employer_uif
+        # ----------------------------------------------------
+        # EMPLOYER PAYROLL COST
+        #
+        # Gross remuneration + employer UIF
+        # ----------------------------------------------------
+
+        employer_cost = (
+            gross_pay
+            + employer_uif
+        )
 
         # ====================================================
         # CREATE PAYSLIP
@@ -1220,6 +1224,10 @@ def create_payroll():
             total_deductions=total_employee_deductions,
 
             net_pay=net_pay,
+
+            employer_uif=employer_uif,
+
+            employer_cost=employer_cost,
         )
 
         db.session.add(payslip)
@@ -1236,15 +1244,42 @@ def create_payroll():
 
         total_net += net_pay
 
+        total_employer_uif += (
+            employer_uif
+        )
+
+        total_employer_cost += (
+            employer_cost
+        )
+
     # ========================================================
     # COMPLETE PAYROLL RUN
     # ========================================================
 
-    payroll_run.total_gross = total_gross
+    payroll_run.total_gross = round(
+        total_gross,
+        2
+    )
 
-    payroll_run.total_deductions = total_deductions
+    payroll_run.total_deductions = round(
+        total_deductions,
+        2
+    )
 
-    payroll_run.total_net = total_net
+    payroll_run.total_net = round(
+        total_net,
+        2
+    )
+
+    payroll_run.total_employer_uif = round(
+        total_employer_uif,
+        2
+    )
+
+    payroll_run.total_employer_cost = round(
+        total_employer_cost,
+        2
+    )
 
     payroll_run.status = "Completed"
 
@@ -1889,7 +1924,61 @@ def download_payslip_pdf(payslip_id):
         f"R {payslip.net_pay or 0:.2f}"
     )
 
-    y -= 40
+    y -= 35
+
+    # ========================================================
+    # EMPLOYER COST
+    # ========================================================
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        11
+    )
+
+    pdf.drawString(
+        50,
+        y,
+        "Employer Contributions"
+    )
+
+    y -= 20
+
+    pdf.setFont(
+        "Helvetica",
+        10
+    )
+
+    pdf.drawString(
+        60,
+        y,
+        "Employer UIF"
+    )
+
+    pdf.drawRightString(
+        width - 60,
+        y,
+        f"R {payslip.employer_uif or 0:.2f}"
+    )
+
+    y -= 18
+
+    pdf.drawString(
+        60,
+        y,
+        "Total Employer Cost"
+    )
+
+    pdf.drawRightString(
+        width - 60,
+        y,
+        f"R {payslip.employer_cost or 0:.2f}"
+    )
+
+    y -= 35
+
+    # ========================================================
+    # FOOTER
+    # ========================================================
 
     pdf.setFont(
         "Helvetica",
