@@ -2,23 +2,27 @@
 
 {% block title %}Add Employee - Appex Payroll{% endblock %}
 
-{% block heading %}Add Employee{% endblock %}
-
 {% block content %}
 
+<div class="page-header">
+    <div>
+        <h1>Add Employee</h1>
+        <p>Add an employee to your company's payroll.</p>
+    </div>
+
+    <a class="btn secondary" href="{{ url_for('main.employees') }}">
+        Back to Employees
+    </a>
+</div>
+
+
 <div class="card">
-
-    <h2>Employee Information</h2>
-
-    <p>
-        Enter the employee's details below to add them to your
-        Appex Payroll account.
-    </p>
 
     <form method="POST">
 
         <div class="form-grid">
 
+            <!-- Employee Number -->
             <div class="form-group">
                 <label for="employee_number">
                     Employee Number
@@ -34,6 +38,7 @@
             </div>
 
 
+            <!-- First Name -->
             <div class="form-group">
                 <label for="first_name">
                     First Name
@@ -43,12 +48,13 @@
                     type="text"
                     id="first_name"
                     name="first_name"
-                    placeholder="John"
+                    placeholder="First name"
                     required
                 >
             </div>
 
 
+            <!-- Last Name -->
             <div class="form-group">
                 <label for="last_name">
                     Last Name
@@ -58,12 +64,31 @@
                     type="text"
                     id="last_name"
                     name="last_name"
-                    placeholder="Doe"
+                    placeholder="Last name"
                     required
                 >
             </div>
 
 
+            <!-- Date of Birth -->
+            <div class="form-group">
+                <label for="date_of_birth">
+                    Date of Birth
+                </label>
+
+                <input
+                    type="date"
+                    id="date_of_birth"
+                    name="date_of_birth"
+                >
+
+                <small>
+                    Used for age-based PAYE rebate calculations.
+                </small>
+            </div>
+
+
+            <!-- Email -->
             <div class="form-group">
                 <label for="email">
                     Email Address
@@ -78,6 +103,7 @@
             </div>
 
 
+            <!-- Job Title -->
             <div class="form-group">
                 <label for="job_title">
                     Job Title
@@ -87,25 +113,47 @@
                     type="text"
                     id="job_title"
                     name="job_title"
-                    placeholder="Sales Consultant"
+                    placeholder="Job title"
                 >
             </div>
 
 
+            <!-- Monthly Salary -->
             <div class="form-group">
                 <label for="monthly_salary">
-                    Monthly Salary (R)
+                    Monthly Salary
                 </label>
 
                 <input
                     type="number"
                     id="monthly_salary"
                     name="monthly_salary"
-                    placeholder="15000.00"
-                    min="0"
                     step="0.01"
+                    min="0"
+                    placeholder="15000.00"
                     required
                 >
+            </div>
+
+
+            <!-- Status -->
+            <div class="form-group">
+                <label for="status">
+                    Employment Status
+                </label>
+
+                <select
+                    id="status"
+                    name="status"
+                >
+                    <option value="Active">
+                        Active
+                    </option>
+
+                    <option value="Inactive">
+                        Inactive
+                    </option>
+                </select>
             </div>
 
         </div>
@@ -115,14 +163,14 @@
 
             <button
                 type="submit"
-                class="button"
+                class="btn"
             >
                 Save Employee
             </button>
 
             <a
                 href="{{ url_for('main.employees') }}"
-                class="button secondary"
+                class="btn secondary"
             >
                 Cancel
             </a>
