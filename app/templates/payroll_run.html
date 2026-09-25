@@ -1,115 +1,103 @@
 {% extends "base.html" %}
 
-{% block title %}
-Payroll Run | Appex Payroll
-{% endblock %}
+{% block title %}Payroll Run - Appex Payroll{% endblock %}
 
 {% block content %}
 
 <div class="page-header">
-
     <div>
-
-        <h1>
-            Payroll: {{ payroll_run.pay_period }}
-        </h1>
-
+        <h1>Payroll Run</h1>
         <p>
-            Pay Date:
-            {{ payroll_run.pay_date }}
+            {{ payroll_run.pay_period }}
+            · Pay date: {{ payroll_run.pay_date }}
         </p>
-
     </div>
 
-    <a
-        class="btn"
-        href="{{ url_for('main.payroll_history') }}"
-    >
-        ← Payroll History
-    </a>
+    <div>
+        <a class="btn" href="{{ url_for('main.payroll') }}">
+            Back to Payroll
+        </a>
 
+        <a class="btn" href="{{ url_for('main.payroll_history') }}">
+            Payroll History
+        </a>
+    </div>
 </div>
 
 
-<!-- Payroll Summary -->
+<!-- ============================================================
+     PAYROLL SUMMARY
+============================================================ -->
 
 <div class="dashboard-grid">
 
-    <div class="card">
-
-        <h3>Gross Pay</h3>
-
-        <div class="stat-number">
-            R {{ "%.2f"|format(
-                payroll_run.total_gross or 0
-            ) }}
-        </div>
-
+    <div class="stat-card">
+        <span>Total Gross</span>
+        <strong>
+            R {{ "%.2f"|format(payroll_run.total_gross or 0) }}
+        </strong>
     </div>
 
-
-    <div class="card">
-
-        <h3>Total Deductions</h3>
-
-        <div class="stat-number">
-            R {{ "%.2f"|format(
-                payroll_run.total_deductions or 0
-            ) }}
-        </div>
-
+    <div class="stat-card">
+        <span>Total Deductions</span>
+        <strong>
+            R {{ "%.2f"|format(payroll_run.total_deductions or 0) }}
+        </strong>
     </div>
 
+    <div class="stat-card">
+        <span>Total Net Pay</span>
+        <strong>
+            R {{ "%.2f"|format(payroll_run.total_net or 0) }}
+        </strong>
+    </div>
 
-    <div class="card">
+    <div class="stat-card">
+        <span>Employer UIF</span>
+        <strong>
+            R {{ "%.2f"|format(payroll_run.total_employer_uif or 0) }}
+        </strong>
+    </div>
 
-        <h3>Net Pay</h3>
+    <div class="stat-card">
+        <span>Employer Payroll Cost</span>
+        <strong>
+            R {{ "%.2f"|format(payroll_run.total_employer_cost or 0) }}
+        </strong>
+    </div>
 
-        <div class="stat-number">
-            R {{ "%.2f"|format(
-                payroll_run.total_net or 0
-            ) }}
-        </div>
+    <div class="stat-card">
+        <span>Status</span>
 
+        {% if payroll_run.status == "Completed" %}
+            <strong class="text-success">
+                Completed
+            </strong>
+        {% else %}
+            <strong>
+                {{ payroll_run.status }}
+            </strong>
+        {% endif %}
     </div>
 
 </div>
 
 
-<!-- Payroll Status -->
+<!-- ============================================================
+     PAYROLL DETAILS
+============================================================ -->
 
 <div class="card">
 
-    <h2>Payroll Status</h2>
+    <div class="page-header">
+        <div>
+            <h2>Employee Payroll</h2>
+            <p>
+                Individual payroll results for this payroll run.
+            </p>
+        </div>
+    </div>
 
-    {% if payroll_run.status == "Completed" %}
-
-        <span class="badge success">
-            Completed
-        </span>
-
-    {% elif payroll_run.status == "Processing" %}
-
-        <span class="badge warning">
-            Processing
-        </span>
-
-    {% else %}
-
-        <span class="badge">
-            {{ payroll_run.status }}
-        </span>
-
-    {% endif %}
-
-</div>
-
-
-<!-- Employee Payslips -->
-
-<div class="card">
-
-    <h2>Employee Payslips</h2>
 
     {% if payslips %}
 
@@ -122,18 +110,22 @@ Payroll Run | Appex Payroll
                 <tr>
                     <th>Employee</th>
                     <th>Employee No.</th>
-                    <th>Basic Salary</th>
                     <th>Gross Pay</th>
-                    <th>Deductions</th>
+                    <th>PAYE</th>
+                    <th>UIF</th>
+                    <th>Total Deductions</th>
                     <th>Net Pay</th>
+                    <th>Employer UIF</th>
+                    <th>Employer Cost</th>
                     <th>Action</th>
                 </tr>
 
             </thead>
 
+
             <tbody>
 
-                {% for payslip in payslips %}
+            {% for payslip in payslips %}
 
                 <tr>
 
@@ -147,28 +139,34 @@ Payroll Run | Appex Payroll
                     </td>
 
                     <td>
-                        R {{ "%.2f"|format(
-                            payslip.basic_salary or 0
-                        ) }}
+                        R {{ "%.2f"|format(payslip.gross_pay or 0) }}
                     </td>
 
                     <td>
-                        R {{ "%.2f"|format(
-                            payslip.gross_pay or 0
-                        ) }}
+                        R {{ "%.2f"|format(payslip.tax_deductions or 0) }}
                     </td>
 
                     <td>
-                        R {{ "%.2f"|format(
-                            payslip.total_deductions or 0
-                        ) }}
+                        R {{ "%.2f"|format(payslip.uif or 0) }}
+                    </td>
+
+                    <td>
+                        R {{ "%.2f"|format(payslip.total_deductions or 0) }}
                     </td>
 
                     <td>
                         <strong>
-                            R {{ "%.2f"|format(
-                                payslip.net_pay or 0
-                            ) }}
+                            R {{ "%.2f"|format(payslip.net_pay or 0) }}
+                        </strong>
+                    </td>
+
+                    <td>
+                        R {{ "%.2f"|format(payslip.employer_uif or 0) }}
+                    </td>
+
+                    <td>
+                        <strong>
+                            R {{ "%.2f"|format(payslip.employer_cost or 0) }}
                         </strong>
                     </td>
 
@@ -181,14 +179,24 @@ Payroll Run | Appex Payroll
                                 payslip_id=payslip.id
                             ) }}"
                         >
-                            View Payslip
+                            View
+                        </a>
+
+                        <a
+                            class="btn small"
+                            href="{{ url_for(
+                                'main.download_payslip_pdf',
+                                payslip_id=payslip.id
+                            ) }}"
+                        >
+                            PDF
                         </a>
 
                     </td>
 
                 </tr>
 
-                {% endfor %}
+            {% endfor %}
 
             </tbody>
 
@@ -203,6 +211,49 @@ Payroll Run | Appex Payroll
         </p>
 
     {% endif %}
+
+</div>
+
+
+<!-- ============================================================
+     PAYROLL INFORMATION
+============================================================ -->
+
+<div class="card">
+
+    <h2>Payroll Information</h2>
+
+    <div class="info-grid">
+
+        <div>
+            <span class="info-label">Payroll Period</span>
+            <strong>
+                {{ payroll_run.pay_period }}
+            </strong>
+        </div>
+
+        <div>
+            <span class="info-label">Pay Date</span>
+            <strong>
+                {{ payroll_run.pay_date }}
+            </strong>
+        </div>
+
+        <div>
+            <span class="info-label">Employees Processed</span>
+            <strong>
+                {{ payslips|length }}
+            </strong>
+        </div>
+
+        <div>
+            <span class="info-label">Payroll Status</span>
+            <strong>
+                {{ payroll_run.status }}
+            </strong>
+        </div>
+
+    </div>
 
 </div>
 
