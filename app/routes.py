@@ -408,6 +408,15 @@ def new_employee():
             ""
         ).strip()
 
+        # ----------------------------------------------------
+        # DATE OF BIRTH
+        # ----------------------------------------------------
+
+        date_of_birth = request.form.get(
+            "date_of_birth",
+            ""
+        ).strip()
+
         email = request.form.get(
             "email",
             ""
@@ -422,6 +431,10 @@ def new_employee():
             request.form.get("monthly_salary")
         )
 
+        # ----------------------------------------------------
+        # REQUIRED FIELD VALIDATION
+        # ----------------------------------------------------
+
         if not employee_number or not first_name or not last_name:
 
             flash(
@@ -433,11 +446,42 @@ def new_employee():
                 "employee_form.html"
             )
 
+        # ----------------------------------------------------
+        # CONVERT DATE OF BIRTH
+        # ----------------------------------------------------
+
+        parsed_date_of_birth = None
+
+        if date_of_birth:
+
+            try:
+
+                parsed_date_of_birth = datetime.strptime(
+                    date_of_birth,
+                    "%Y-%m-%d"
+                ).date()
+
+            except ValueError:
+
+                flash(
+                    "Please enter a valid date of birth.",
+                    "danger"
+                )
+
+                return render_template(
+                    "employee_form.html"
+                )
+
+        # ----------------------------------------------------
+        # CREATE EMPLOYEE
+        # ----------------------------------------------------
+
         employee = Employee(
             company_id=user.company_id,
             employee_number=employee_number,
             first_name=first_name,
             last_name=last_name,
+            date_of_birth=parsed_date_of_birth,
             email=email,
             job_title=job_title,
             monthly_salary=monthly_salary,
@@ -873,7 +917,7 @@ def create_payroll():
         )
 
         # ----------------------------------------------------
-        # EARNINGS ENTERED BY EMPLOYER
+        # EARNINGS
         # ----------------------------------------------------
 
         overtime = safe_float(
@@ -913,13 +957,6 @@ def create_payroll():
         # ----------------------------------------------------
         # EMPLOYEE AGE
         # ----------------------------------------------------
-        #
-        # Used by the payroll calculator for tax rebates.
-        #
-        # If the payroll form does not yet contain an age field,
-        # the calculator uses age 30.
-        #
-        # ----------------------------------------------------
 
         age_value = request.form.get(
             f"age_{employee.id}",
@@ -938,15 +975,7 @@ def create_payroll():
             age = 30
 
         # ====================================================
-        # AUTOMATIC PAYROLL CALCULATION
-        # ====================================================
-        #
-        # PAYE and UIF are now calculated by:
-        #
-        # app/payroll_calculator.py
-        #
-        # The employer does NOT manually enter PAYE or UIF.
-        #
+        # PAYROLL CALCULATOR
         # ====================================================
 
         calculation = calculate_payroll(
@@ -990,10 +1019,13 @@ def create_payroll():
             calculation["net_pay"]
         )
 
-        # Employer UIF is calculated separately.
         employer_uif = float(
             calculation["employer_uif"]
         )
+
+        # Prevent unused-variable issues while retaining
+        # the calculated employer UIF for future payroll totals.
+        _ = employer_uif
 
         # ----------------------------------------------------
         # CREATE PAYSLIP
@@ -1035,7 +1067,7 @@ def create_payroll():
         db.session.add(payslip)
 
         # ----------------------------------------------------
-        # UPDATE PAYROLL TOTALS
+        # UPDATE TOTALS
         # ----------------------------------------------------
 
         total_gross += gross_pay
@@ -1045,7 +1077,7 @@ def create_payroll():
         total_net += net_pay
 
     # ========================================================
-    # UPDATE PAYROLL RUN
+    # COMPLETE PAYROLL RUN
     # ========================================================
 
     payroll_run.total_gross = total_gross
