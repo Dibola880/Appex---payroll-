@@ -1,24 +1,97 @@
 {% extends "base.html" %}
 
-{% block title %}Payroll History | Appex Payroll{% endblock %}
+{% block title %}Payroll History - Appex Payroll{% endblock %}
 
 {% block content %}
 
 <div class="page-header">
+
     <div>
         <h1>Payroll History</h1>
-        <p>View and manage previously processed payroll runs.</p>
+        <p>
+            View and manage previously processed payroll runs.
+        </p>
     </div>
 
-    <a class="btn" href="{{ url_for('main.payroll') }}">
-        + New Payroll
-    </a>
+    <div>
+        <a class="btn" href="{{ url_for('main.payroll') }}">
+            + Process Payroll
+        </a>
+    </div>
+
 </div>
 
 
+<!-- ============================================================
+     PAYROLL HISTORY SUMMARY
+============================================================ -->
+
+<div class="dashboard-grid">
+
+    <div class="stat-card">
+        <span>Total Payroll Runs</span>
+        <strong>
+            {{ payroll_runs|length }}
+        </strong>
+    </div>
+
+    <div class="stat-card">
+        <span>Completed Runs</span>
+        <strong>
+            {{
+                payroll_runs
+                |selectattr("status", "equalto", "Completed")
+                |list
+                |length
+            }}
+        </strong>
+    </div>
+
+    <div class="stat-card">
+        <span>Total Gross Payroll</span>
+        <strong>
+            R {{
+                "%.2f"|format(
+                    payroll_runs
+                    |sum(attribute="total_gross")
+                )
+            }}
+        </strong>
+    </div>
+
+    <div class="stat-card">
+        <span>Total Net Payroll</span>
+        <strong>
+            R {{
+                "%.2f"|format(
+                    payroll_runs
+                    |sum(attribute="total_net")
+                )
+            }}
+        </strong>
+    </div>
+
+</div>
+
+
+<!-- ============================================================
+     PAYROLL HISTORY TABLE
+============================================================ -->
+
 <div class="card">
 
-    <h2>Payroll Runs</h2>
+    <div class="page-header">
+
+        <div>
+            <h2>Payroll Runs</h2>
+
+            <p>
+                Select a payroll run to view employee-level details.
+            </p>
+        </div>
+
+    </div>
+
 
     {% if payroll_runs %}
 
@@ -27,20 +100,25 @@
         <table>
 
             <thead>
+
                 <tr>
                     <th>Payroll Period</th>
                     <th>Pay Date</th>
-                    <th>Status</th>
-                    <th>Gross Pay</th>
+                    <th>Gross Payroll</th>
                     <th>Deductions</th>
-                    <th>Net Pay</th>
+                    <th>Net Payroll</th>
+                    <th>Employer UIF</th>
+                    <th>Employer Cost</th>
+                    <th>Status</th>
                     <th>Action</th>
                 </tr>
+
             </thead>
+
 
             <tbody>
 
-                {% for payroll in payroll_runs %}
+            {% for payroll in payroll_runs %}
 
                 <tr>
 
@@ -52,6 +130,40 @@
 
                     <td>
                         {{ payroll.pay_date }}
+                    </td>
+
+                    <td>
+                        R {{ "%.2f"|format(
+                            payroll.total_gross or 0
+                        ) }}
+                    </td>
+
+                    <td>
+                        R {{ "%.2f"|format(
+                            payroll.total_deductions or 0
+                        ) }}
+                    </td>
+
+                    <td>
+                        <strong>
+                            R {{ "%.2f"|format(
+                                payroll.total_net or 0
+                            ) }}
+                        </strong>
+                    </td>
+
+                    <td>
+                        R {{ "%.2f"|format(
+                            payroll.total_employer_uif or 0
+                        ) }}
+                    </td>
+
+                    <td>
+                        <strong>
+                            R {{ "%.2f"|format(
+                                payroll.total_employer_cost or 0
+                            ) }}
+                        </strong>
                     </td>
 
                     <td>
@@ -79,20 +191,6 @@
                     </td>
 
                     <td>
-                        R {{ "%.2f"|format(payroll.total_gross or 0) }}
-                    </td>
-
-                    <td>
-                        R {{ "%.2f"|format(payroll.total_deductions or 0) }}
-                    </td>
-
-                    <td>
-                        <strong>
-                            R {{ "%.2f"|format(payroll.total_net or 0) }}
-                        </strong>
-                    </td>
-
-                    <td>
 
                         <a
                             class="btn small"
@@ -101,14 +199,14 @@
                                 payroll_id=payroll.id
                             ) }}"
                         >
-                            View
+                            View Payroll
                         </a>
 
                     </td>
 
                 </tr>
 
-                {% endfor %}
+            {% endfor %}
 
             </tbody>
 
@@ -118,54 +216,46 @@
 
     {% else %}
 
-        <div class="flash warning">
-            No payroll runs have been processed yet.
+        <div class="empty-state">
+
+            <h3>No Payroll History</h3>
+
+            <p>
+                You have not processed any payroll yet.
+            </p>
+
+            <a
+                class="btn"
+                href="{{ url_for('main.payroll') }}"
+            >
+                Process First Payroll
+            </a>
+
         </div>
-
-        <p>
-            Once you process your first payroll,
-            it will appear here.
-        </p>
-
-        <a
-            class="btn"
-            href="{{ url_for('main.payroll') }}"
-        >
-            Create First Payroll
-        </a>
 
     {% endif %}
 
 </div>
 
 
+<!-- ============================================================
+     INFORMATION
+============================================================ -->
+
 <div class="card">
 
-    <h2>Payroll Summary</h2>
+    <h2>Payroll Records</h2>
 
     <p>
-        Payroll history provides a record of processed payroll
-        periods and their gross pay, deductions and net pay.
+        Each completed payroll run contains the employee payroll
+        calculations, deductions, net pay, employer UIF and
+        employer payroll cost.
     </p>
 
-    <div class="info-box">
-
-        <p>
-            <strong>Gross Pay</strong>
-            — Total earnings before deductions.
-        </p>
-
-        <p>
-            <strong>Total Deductions</strong>
-            — Tax and other deductions recorded for the payroll.
-        </p>
-
-        <p>
-            <strong>Net Pay</strong>
-            — Amount payable to employees after deductions.
-        </p>
-
-    </div>
+    <p>
+        Select <strong>View Payroll</strong> to see the individual
+        payslips included in a payroll run.
+    </p>
 
 </div>
 
