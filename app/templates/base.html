@@ -1,79 +1,156 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>{% block title %}Appex Payroll{% endblock %}</title>
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        {% block title %}
+        Appex Payroll
+        {% endblock %}
+    </title>
 
     <link
         rel="stylesheet"
         href="{{ url_for('static', filename='style.css') }}"
     >
+
 </head>
+
 
 <body>
 
 <div class="app-layout">
 
+
+    <!-- ========================================================
+         SIDEBAR
+    ========================================================= -->
+
     <aside class="sidebar">
 
         <div class="brand">
+
             <h2>APPEX</h2>
+
             <span>PAYROLL</span>
+
         </div>
+
 
         <nav>
 
             {% if current_user %}
 
+
+                <!-- ================================================
+                     EMPLOYER / ADMIN MENU
+                ================================================= -->
+
                 {% if current_user.role in ["employer", "admin"] %}
 
-                    <a href="{{ url_for('main.dashboard') }}">
+                    <a
+                        href="{{ url_for('main.dashboard') }}"
+                    >
                         Dashboard
                     </a>
 
-                    <a href="{{ url_for('main.employees') }}">
+
+                    <a
+                        href="{{ url_for('main.employees') }}"
+                    >
                         Employees
                     </a>
 
-                    <a href="{{ url_for('main.new_employee') }}">
+
+                    <a
+                        href="{{ url_for('main.new_employee') }}"
+                    >
                         Add Employee
                     </a>
 
-                    <a href="{{ url_for('main.payroll') }}">
+
+                    <a
+                        href="{{ url_for('main.payroll') }}"
+                    >
                         Payroll
                     </a>
 
-                    <a href="{{ url_for('main.integration') }}">
+
+                    <a
+                        href="{{ url_for('main.payroll_history') }}"
+                    >
+                        Payroll History
+                    </a>
+
+
+                    <a
+                        href="{{ url_for('main.integration') }}"
+                    >
                         Deel Integration
                     </a>
 
+
+                <!-- ================================================
+                     EMPLOYEE MENU
+                ================================================= -->
+
                 {% elif current_user.role == "employee" %}
 
-                    <a href="{{ url_for('main.employee_dashboard') }}">
+                    <a
+                        href="{{ url_for('main.employee_dashboard') }}"
+                    >
                         Employee Dashboard
                     </a>
 
-                    <a href="{{ url_for('main.my_payslips') }}">
+
+                    <a
+                        href="{{ url_for('main.my_payslips') }}"
+                    >
                         My Payslips
                     </a>
 
                 {% endif %}
 
-                <a href="{{ url_for('main.logout') }}" class="logout-link">
+
+                <!-- ================================================
+                     LOGOUT
+                ================================================= -->
+
+                <a
+                    href="{{ url_for('main.logout') }}"
+                    class="logout-link"
+                >
                     Logout
                 </a>
 
+
             {% else %}
 
-                <a href="{{ url_for('main.login') }}">
+
+                <!-- ================================================
+                     PUBLIC MENU
+                ================================================= -->
+
+                <a
+                    href="{{ url_for('main.login') }}"
+                >
                     Login
                 </a>
 
-                <a href="{{ url_for('main.register') }}">
+
+                <a
+                    href="{{ url_for('main.register') }}"
+                >
                     Register
                 </a>
+
 
             {% endif %}
 
@@ -82,9 +159,18 @@
     </aside>
 
 
+    <!-- ========================================================
+         MAIN CONTENT
+    ========================================================= -->
+
     <main class="main-content">
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
+
+        <!-- Flash Messages -->
+
+        {% with messages = get_flashed_messages(
+            with_categories=true
+        ) %}
 
             {% if messages %}
 
@@ -93,7 +179,9 @@
                     {% for category, message in messages %}
 
                         <div class="flash {{ category }}">
+
                             {{ message }}
+
                         </div>
 
                     {% endfor %}
@@ -105,13 +193,17 @@
         {% endwith %}
 
 
+        <!-- Page Content -->
+
         {% block content %}
 
         {% endblock %}
+
 
     </main>
 
 </div>
 
 </body>
+
 </html>
