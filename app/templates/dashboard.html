@@ -8,6 +8,7 @@
 
 <!-- Welcome section -->
 <div class="card">
+
     <h2>Welcome to Appex Payroll</h2>
 
     <p class="muted">
@@ -21,6 +22,7 @@
             {{ company.name }}
         </p>
     {% endif %}
+
 </div>
 
 
@@ -28,6 +30,7 @@
 <div class="grid">
 
     <div class="card">
+
         <small>Total Employees</small>
 
         <strong>
@@ -37,10 +40,12 @@
         <p class="muted">
             Employees registered
         </p>
+
     </div>
 
 
     <div class="card">
+
         <small>Monthly Payroll</small>
 
         <strong>
@@ -50,10 +55,12 @@
         <p class="muted">
             Current active employee salaries
         </p>
+
     </div>
 
 
     <div class="card">
+
         <small>Payroll Provider</small>
 
         <strong>
@@ -67,6 +74,7 @@
         <p class="muted">
             Payroll integration
         </p>
+
     </div>
 
 </div>
@@ -99,22 +107,108 @@
 </div>
 
 
-<!-- Payroll -->
+<!-- Payroll Management -->
 <div class="card">
 
-    <h2>Payroll</h2>
+    <h2>Payroll Management</h2>
 
     <p class="muted">
-        Review your current payroll information and employee
-        salary totals.
+        Process payroll, review previous payroll runs and
+        access employee payslips.
     </p>
 
-    <a
-        class="button"
-        href="{{ url_for('main.payroll') }}"
-    >
-        View Payroll
-    </a>
+
+    <div>
+
+        <a
+            class="button"
+            href="{{ url_for('main.payroll') }}"
+        >
+            Process Payroll
+        </a>
+
+
+        <a
+            class="button"
+            href="{{ url_for('main.payroll_history') }}"
+        >
+            Payroll History
+        </a>
+
+    </div>
+
+</div>
+
+
+<!-- Payroll workflow -->
+<div class="card">
+
+    <h2>Payroll Workflow</h2>
+
+    <p class="muted">
+        Follow the Appex Payroll workflow from employee setup
+        through to payslip generation.
+    </p>
+
+    <div class="grid">
+
+        <div>
+
+            <h3>1. Employees</h3>
+
+            <p class="muted">
+                Add and manage your employees and their salary
+                information.
+            </p>
+
+            <a
+                class="button"
+                href="{{ url_for('main.employees') }}"
+            >
+                Manage Employees
+            </a>
+
+        </div>
+
+
+        <div>
+
+            <h3>2. Process Payroll</h3>
+
+            <p class="muted">
+                Calculate earnings, PAYE, UIF, deductions and
+                employee net pay.
+            </p>
+
+            <a
+                class="button"
+                href="{{ url_for('main.payroll') }}"
+            >
+                Process Payroll
+            </a>
+
+        </div>
+
+
+        <div>
+
+            <h3>3. Payroll History</h3>
+
+            <p class="muted">
+                Review completed payroll runs and open detailed
+                payroll records.
+            </p>
+
+            <a
+                class="button"
+                href="{{ url_for('main.payroll_history') }}"
+            >
+                View History
+            </a>
+
+        </div>
+
+    </div>
 
 </div>
 
