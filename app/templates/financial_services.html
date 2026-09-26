@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block title %}Financial Services - Appex Payroll{% endblock %}
+
+{% block heading %}Employee Financial Services{% endblock %}
+
+{% block content %}
+
+<!-- Welcome -->
+<div class="card">
+
+    <h2>
+        Appex Employee Financial Services
+    </h2>
+
+    <p class="muted">
+        Access financial services made available through
+        Appex Financial Institute and your employer.
+    </p>
+
+</div>
+
+
+<!-- Employee Information -->
+{% if employee %}
+
+<div class="card">
+
+    <h2>Employee Information</h2>
+
+    <div class="employee-info-grid">
+
+        <div>
+            <small>Employee</small>
+            <strong>
+                {{ employee.first_name }}
+                {{ employee.last_name }}
+            </strong>
+        </div>
+
+        <div>
+            <small>Employee Number</small>
+            <strong>
+                {{ employee.employee_number or "-" }}
+            </strong>
+        </div>
+
+        <div>
+            <small>Job Title</small>
+            <strong>
+                {{ employee.job_title or "Not provided" }}
+            </strong>
+        </div>
+
+        <div>
+            <small>Employment Status</small>
+            <strong>
+                {{ employee.status or "Active" }}
+            </strong>
+        </div>
+
+    </div>
+
+</div>
+
+{% endif %}
+
+
+<!-- Available Services -->
+<div class="card">
+
+    <h2>Available Services</h2>
+
+    <div class="services-grid">
+
+
+        <!-- Employee Loan -->
+        <div class="service-card">
+
+            <div class="service-icon">
+                💰
+            </div>
+
+            <h3>Employee Loan</h3>
+
+            <p class="muted">
+                Apply for an Appex employee loan and manage
+                your application through your employee portal.
+            </p>
+
+            <a
+                href="{{ url_for('main.employee_loan_application') }}"
+                class="button">
+                Apply for a Loan
+            </a>
+
+        </div>
+
+
+        <!-- Loan Status -->
+        <div class="service-card">
+
+            <div class="service-icon">
+                📋
+            </div>
+
+            <h3>Loan Status</h3>
+
+            <p class="muted">
+                Check the status of your loan applications
+                and view available application information.
+            </p>
+
+            <a
+                href="{{ url_for('main.employee_loan_status') }}"
+                class="button">
+                View Loan Status
+            </a>
+
+        </div>
+
+
+        <!-- Repayments -->
+        <div class="service-card">
+
+            <div class="service-icon">
+                💳
+            </div>
+
+            <h3>Repayments</h3>
+
+            <p class="muted">
+                View your repayment information and
+                outstanding loan balance.
+            </p>
+
+            <a
+                href="{{ url_for('main.employee_repayments') }}"
+                class="button">
+                View Repayments
+            </a>
+
+        </div>
+
+
+        <!-- Financial Education -->
+        <div class="service-card">
+
+            <div class="service-icon">
+                📚
+            </div>
+
+            <h3>Financial Information</h3>
+
+            <p class="muted">
+                Access useful financial information and
+                resources provided by Appex.
+            </p>
+
+            <a
+                href="#"
+                class="button">
+                Learn More
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- Important Information -->
+<div class="card">
+
+    <h2>Important Information</h2>
+
+    <p class="muted">
+        Financial services are subject to applicable eligibility
+        requirements, verification and approval processes.
+    </p>
+
+    <p class="muted">
+        Applying for a financial service does not guarantee
+        approval.
+    </p>
+
+</div>
+
+
+<!-- Back to Dashboard -->
+<div class="card">
+
+    <a
+        href="{{ url_for('main.employee_dashboard') }}"
+        class="button">
+        ← Back to Employee Dashboard
+    </a>
+
+</div>
+
+
+<style>
+
+    .employee-info-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .employee-info-grid > div {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .employee-info-grid small {
+        color: #6b7280;
+        font-size: 0.85rem;
+    }
+
+
+    .services-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+
+    .service-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 24px;
+    }
+
+
+    .service-card h3 {
+        margin-top: 10px;
+        margin-bottom: 10px;
+    }
+
+
+    .service-icon {
+        font-size: 32px;
+    }
+
+
+    .service-card .button {
+        display: inline-block;
+        margin-top: 12px;
+        text-decoration: none;
+    }
+
+
+    @media (max-width: 768px) {
+
+        .employee-info-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .services-grid {
+            grid-template-columns: 1fr;
+        }
+
+    }
+
+
+    @media (max-width: 480px) {
+
+        .employee-info-grid {
+            grid-template-columns: 1fr;
+        }
+
+    }
+
+</style>
+
+{% endblock %}
