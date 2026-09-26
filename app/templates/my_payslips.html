@@ -1,90 +1,200 @@
 {% extends "base.html" %}
 
-{% block title %}My Payslips | Appex Payroll{% endblock %}
+{% block title %}My Payslips - Appex Payroll{% endblock %}
+
+{% block heading %}My Payslips{% endblock %}
 
 {% block content %}
 
-<div class="page-header">
+<div class="payslips-page">
 
-    <div>
-        <h1>My Payslips</h1>
+    <!-- Page Header -->
+    <div class="page-header">
+        <div>
+            <h2>My Payslips</h2>
+            <p class="muted">
+                View, print and download your payslips.
+            </p>
+        </div>
 
-        <p>
-            View your payroll history and payslips.
-        </p>
+        <a href="{{ url_for('main.employee_dashboard') }}"
+           class="btn secondary">
+            ← Back to Dashboard
+        </a>
     </div>
 
-</div>
+
+    <!-- Employee Information -->
+    <div class="card employee-summary">
+
+        <div class="employee-summary-header">
+            <div>
+                <h3>
+                    {{ employee.first_name }}
+                    {{ employee.last_name }}
+                </h3>
+
+                <p class="muted">
+                    Employee Number:
+                    <strong>{{ employee.employee_number }}</strong>
+                </p>
+            </div>
+
+            <div class="employee-status">
+                <span class="status-badge">
+                    {{ employee.status }}
+                </span>
+            </div>
+        </div>
+
+        <div class="employee-details">
+
+            <div>
+                <span class="detail-label">Position</span>
+                <strong>
+                    {{ employee.job_title or "Employee" }}
+                </strong>
+            </div>
+
+            <div>
+                <span class="detail-label">Email</span>
+                <strong>
+                    {{ employee.email or "-" }}
+                </strong>
+            </div>
+
+            <div>
+                <span class="detail-label">Company</span>
+                <strong>
+                    {{ employee.company.name }}
+                </strong>
+            </div>
+
+        </div>
+
+    </div>
 
 
-<div class="card">
-
-    <h2>Payslip History</h2>
-
+    <!-- Payslip List -->
     {% if payslips %}
 
-        <div class="table-wrap">
+    <div class="card">
 
-            <table>
+        <div class="card-header">
+            <div>
+                <h3>Payslip History</h3>
+                <p class="muted">
+                    Your available payroll records are shown below.
+                </p>
+            </div>
+
+            <div class="payslip-count">
+                {{ payslips|length }} payslip{% if payslips|length != 1 %}s{% endif %}
+            </div>
+        </div>
+
+
+        <!-- Responsive Table -->
+        <div class="payslip-table-wrapper">
+
+            <table class="payslip-table">
 
                 <thead>
-
                     <tr>
                         <th>Pay Period</th>
                         <th>Pay Date</th>
                         <th>Gross Pay</th>
+                        <th>Deductions</th>
                         <th>Net Pay</th>
-                        <th>Action</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                     </tr>
-
                 </thead>
-
 
                 <tbody>
 
-                    {% for payslip in payslips %}
+                {% for payslip in payslips %}
 
-                        <tr>
+                    <tr>
 
-                            <td>
+                        <!-- Pay Period -->
+                        <td>
+                            <strong>
                                 {{ payslip.pay_period }}
-                            </td>
+                            </strong>
+                        </td>
 
-                            <td>
-                                {{ payslip.pay_date }}
-                            </td>
 
-                            <td>
-                                R {{ "%.2f"|format(
-                                    payslip.gross_pay or 0
-                                ) }}
-                            </td>
+                        <!-- Pay Date -->
+                        <td>
+                            {% if payslip.pay_date %}
+                                {{ payslip.pay_date.strftime('%d %b %Y') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
 
-                            <td>
-                                <strong>
-                                    R {{ "%.2f"|format(
-                                        payslip.net_pay or 0
-                                    ) }}
-                                </strong>
-                            </td>
 
-                            <td>
+                        <!-- Gross Pay -->
+                        <td>
+                            R {{ "%.2f"|format(payslip.gross_pay or 0) }}
+                        </td>
+
+
+                        <!-- Deductions -->
+                        <td>
+                            R {{ "%.2f"|format(payslip.total_deductions or 0) }}
+                        </td>
+
+
+                        <!-- Net Pay -->
+                        <td>
+                            <strong class="net-pay">
+                                R {{ "%.2f"|format(payslip.net_pay or 0) }}
+                            </strong>
+                        </td>
+
+
+                        <!-- Status -->
+                        <td>
+
+                            {% if payslip.payroll_run %}
+                                <span class="status-badge">
+                                    {{ payslip.payroll_run.status }}
+                                </span>
+                            {% else %}
+                                <span class="status-badge">
+                                    Completed
+                                </span>
+                            {% endif %}
+
+                        </td>
+
+
+                        <!-- Actions -->
+                        <td>
+
+                            <div class="payslip-actions">
 
                                 <a
-                                    class="btn small"
-                                    href="{{ url_for(
-                                        'main.view_payslip',
-                                        payslip_id=payslip.id
-                                    ) }}"
-                                >
-                                    View Payslip
+                                    href="{{ url_for('main.view_payslip', payslip_id=payslip.id) }}"
+                                    class="btn primary small">
+                                    View
                                 </a>
 
-                            </td>
+                                <a
+                                    href="{{ url_for('main.download_payslip_pdf', payslip_id=payslip.id) }}"
+                                    class="btn secondary small">
+                                    PDF
+                                </a>
 
-                        </tr>
+                            </div>
 
-                    {% endfor %}
+                        </td>
+
+                    </tr>
+
+                {% endfor %}
 
                 </tbody>
 
@@ -92,39 +202,307 @@
 
         </div>
 
+    </div>
+
+
+    <!-- Information -->
+    <div class="card information-card">
+
+        <h3>About Your Payslips</h3>
+
+        <p class="muted">
+            Your payslips contain your salary, earnings, deductions
+            and net pay information for each completed payroll period.
+        </p>
+
+        <p class="muted">
+            You can select <strong>View</strong> to open a detailed
+            payslip or select <strong>PDF</strong> to download your
+            payslip.
+        </p>
+
+    </div>
+
+
     {% else %}
 
-        <div class="info-box">
+    <!-- No Payslips -->
+    <div class="card empty-state">
 
-            <h3>No Payslips Available</h3>
-
-            <p>
-                You do not have any payslips available yet.
-                Your payslips will appear here once your employer
-                processes payroll.
-            </p>
-
+        <div class="empty-icon">
+            📄
         </div>
+
+        <h3>No Payslips Available</h3>
+
+        <p class="muted">
+            You do not have any payslips available yet.
+            Once your employer processes payroll, your payslip
+            will appear here.
+        </p>
+
+        <a
+            href="{{ url_for('main.employee_dashboard') }}"
+            class="btn primary">
+            Return to Dashboard
+        </a>
+
+    </div>
 
     {% endif %}
 
 </div>
 
 
-<div class="card">
+<style>
 
-    <h2>About Your Payslips</h2>
+    .payslips-page {
+        width: 100%;
+    }
 
-    <p class="muted">
-        Your payslips contain information about your basic salary,
-        earnings, deductions and net pay.
-    </p>
 
-    <p class="muted">
-        Select <strong>View Payslip</strong> to open an individual
-        payslip and print or save it as a PDF.
-    </p>
+    /* Page Header */
 
-</div>
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+
+    .page-header h2 {
+        margin: 0 0 6px 0;
+    }
+
+
+    /* Employee Summary */
+
+    .employee-summary {
+        margin-bottom: 24px;
+    }
+
+    .employee-summary-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .employee-summary-header h3 {
+        margin: 0 0 6px 0;
+    }
+
+
+    .employee-details {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e5e7eb;
+    }
+
+
+    .employee-details > div {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+
+    .detail-label {
+        font-size: 0.85rem;
+        color: #6b7280;
+    }
+
+
+    /* Card Header */
+
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .card-header h3 {
+        margin: 0 0 5px 0;
+    }
+
+
+    .payslip-count {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #6b7280;
+        white-space: nowrap;
+    }
+
+
+    /* Table */
+
+    .payslip-table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+
+    .payslip-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 850px;
+    }
+
+
+    .payslip-table th {
+        text-align: left;
+        padding: 13px 12px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        border-bottom: 2px solid #e5e7eb;
+        white-space: nowrap;
+    }
+
+
+    .payslip-table td {
+        padding: 15px 12px;
+        border-bottom: 1px solid #e5e7eb;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+
+    .payslip-table tbody tr:hover {
+        background: #f9fafb;
+    }
+
+
+    /* Net Pay */
+
+    .net-pay {
+        font-weight: 700;
+    }
+
+
+    /* Status */
+
+    .status-badge {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        background: #ecfdf5;
+        color: #047857;
+        white-space: nowrap;
+    }
+
+
+    /* Buttons */
+
+    .payslip-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+
+    .btn.small {
+        padding: 7px 12px;
+        font-size: 0.85rem;
+        text-decoration: none;
+    }
+
+
+    /* Information Card */
+
+    .information-card {
+        margin-top: 24px;
+    }
+
+
+    .information-card h3 {
+        margin-top: 0;
+    }
+
+
+    /* Empty State */
+
+    .empty-state {
+        text-align: center;
+        padding: 50px 25px;
+    }
+
+
+    .empty-icon {
+        font-size: 42px;
+        margin-bottom: 15px;
+    }
+
+
+    .empty-state h3 {
+        margin-bottom: 10px;
+    }
+
+
+    .empty-state .btn {
+        display: inline-block;
+        margin-top: 15px;
+        text-decoration: none;
+    }
+
+
+    /* Mobile */
+
+    @media (max-width: 768px) {
+
+        .page-header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+
+        .page-header .btn {
+            text-align: center;
+        }
+
+
+        .employee-summary-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+
+        .employee-details {
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+
+        .card-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+
+        .payslip-table {
+            min-width: 800px;
+        }
+
+
+        .payslip-actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+
+        .payslip-actions .btn {
+            text-align: center;
+        }
+
+    }
+
+</style>
 
 {% endblock %}
