@@ -322,31 +322,18 @@ def dashboard():
 
     return render_template(
         "dashboard.html",
-
         company=company,
-
         employees=employees,
-
         total_salary=total_salary,
-
         total_employees=total_employees,
-
         active_employee_count=active_employee_count,
-
         total_payroll_runs=total_payroll_runs,
-
         total_gross_payroll=total_gross_payroll,
-
         total_deductions=total_deductions,
-
         total_net_payroll=total_net_payroll,
-
         total_employer_uif=total_employer_uif,
-
         total_employer_cost=total_employer_cost,
-
         latest_payroll=latest_payroll,
-
         recent_payroll_runs=recent_payroll_runs,
     )
 
@@ -1005,6 +992,45 @@ def employee_dashboard():
 
 
 # ============================================================
+# EMPLOYEE FINANCIAL SERVICES
+# ============================================================
+
+@bp.route("/employee/financial-services")
+@login_required
+def financial_services():
+
+    user = current_user()
+
+    if user.role != "employee":
+
+        return redirect(
+            url_for(
+                "main.dashboard"
+            )
+        )
+
+    employee = user.employee
+
+    if not employee:
+
+        flash(
+            "No employee profile is linked to this account.",
+            "danger"
+        )
+
+        return redirect(
+            url_for(
+                "main.employee_dashboard"
+            )
+        )
+
+    return render_template(
+        "financial_services.html",
+        employee=employee,
+    )
+
+
+# ============================================================
 # EMPLOYEE PAYSLIPS
 # ============================================================
 
@@ -1235,13 +1261,9 @@ def create_payroll():
     # --------------------------------------------------------
 
     total_gross = 0.0
-
     total_deductions = 0.0
-
     total_net = 0.0
-
     total_employer_uif = 0.0
-
     total_employer_cost = 0.0
 
     # ========================================================
