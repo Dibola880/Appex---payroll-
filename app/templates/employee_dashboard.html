@@ -22,7 +22,7 @@
 </div>
 
 
-<!-- Employee information -->
+<!-- Employee Information -->
 <div class="grid">
 
     <div class="card">
@@ -73,7 +73,7 @@
 </div>
 
 
-<!-- Employment information -->
+<!-- Employment Information -->
 <div class="card">
 
     <h2>Employment Information</h2>
@@ -101,7 +101,7 @@
 </div>
 
 
-<!-- Payroll -->
+<!-- Payroll Information -->
 <div class="card">
 
     <h2>Payroll Information</h2>
@@ -117,6 +117,14 @@
             Your payroll information is provided by your employer.
         </p>
 
+        <!-- My Payslips -->
+        <a
+            class="button"
+            href="{{ url_for('main.my_payslips') }}"
+        >
+            📄 View My Payslips
+        </a>
+
     {% else %}
 
         <p class="muted">
@@ -125,17 +133,10 @@
 
     {% endif %}
 
-    <a
-        class="button"
-        href="{{ url_for('main.my_payslips') }}"
-    >
-        View My Payslips
-    </a>
-
 </div>
 
 
-<!-- Financial services -->
+<!-- Financial Services -->
 <div class="card">
 
     <h2>Appex Employee Financial Services</h2>
