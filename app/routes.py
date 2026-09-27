@@ -114,18 +114,21 @@ def employer_required(view):
 def safe_float(value, default=0.0):
 
     try:
+
         return float(value)
 
     except (
         TypeError,
         ValueError
     ):
+
         return default
 
 
 def calculate_age_from_dob(date_of_birth):
 
     if not date_of_birth:
+
         return None
 
     try:
@@ -218,6 +221,12 @@ def dashboard():
         if employee.status == "Active"
     ])
 
+    total_salary = sum(
+        safe_float(employee.monthly_salary)
+        for employee in employees
+        if employee.status == "Active"
+    )
+
     latest_payroll = (
         payroll_runs[0]
         if payroll_runs
@@ -231,6 +240,7 @@ def dashboard():
         payroll_runs=payroll_runs,
         total_employees=total_employees,
         active_employees=active_employees,
+        total_salary=total_salary,
         latest_payroll=latest_payroll,
     )
 
@@ -538,6 +548,50 @@ def new_employee():
             request.form.get("monthly_salary")
         )
 
+        if not employee_number:
+
+            flash(
+                "Employee number is required.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.new_employee")
+            )
+
+        if not first_name:
+
+            flash(
+                "First name is required.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.new_employee")
+            )
+
+        if not last_name:
+
+            flash(
+                "Last name is required.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.new_employee")
+            )
+
+        if monthly_salary <= 0:
+
+            flash(
+                "Monthly salary must be greater than zero.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.new_employee")
+            )
+
         date_of_birth = None
 
         if date_of_birth_value:
@@ -596,7 +650,7 @@ def new_employee():
 
 @bp.route(
     "/employees/<int:employee_id>/invite",
-    methods=["POST"]
+    methods=["GET", "POST"]
 )
 @employer_required
 def invite_employee(employee_id):
@@ -607,6 +661,17 @@ def invite_employee(employee_id):
         id=employee_id,
         company_id=user.company_id
     ).first_or_404()
+
+    if employee.user_id:
+
+        flash(
+            "This employee already has an account.",
+            "warning"
+        )
+
+        return redirect(
+            url_for("main.employees")
+        )
 
     token = secrets.token_urlsafe(32)
 
@@ -645,7 +710,7 @@ def invite_employee(employee_id):
 
 @bp.route(
     "/employees/<int:employee_id>/create-invitation",
-    methods=["POST"]
+    methods=["GET", "POST"]
 )
 @employer_required
 def create_invitation(employee_id):
@@ -1431,18 +1496,35 @@ def create_payroll():
                 employee.monthly_salary
             )
 
+            age = calculate_age_from_dob(
+                employee.date_of_birth
+            )
+
+            if age is None:
+
+                age = 30
+
             try:
 
                 result = calculate_payroll(
-                    salary
+                    salary,
+                    age=age
                 )
 
             except TypeError:
 
                 result = {
+                    "basic_salary": salary,
+                    "overtime": 0,
+                    "bonus": 0,
+                    "commission": 0,
+                    "other_earnings": 0,
                     "gross_pay": salary,
                     "tax_deductions": 0,
+                    "paye": 0,
                     "uif": 0,
+                    "other_deductions": 0,
+                    "total_deductions": 0,
                     "net_pay": salary,
                     "employer_uif": 0,
                     "employer_cost": salary,
@@ -1494,8 +1576,11 @@ def create_payroll():
                 result.get(
                     "tax_deductions",
                     result.get(
-                        "tax",
-                        0
+                        "paye",
+                        result.get(
+                            "tax",
+                            0
+                        )
                     )
                 )
             )
@@ -1566,17 +1651,38 @@ def create_payroll():
             db.session.add(payslip)
 
             total_gross += gross_pay
-            total_deductions += total_employee_deductions
+
+            total_deductions += (
+                total_employee_deductions
+            )
+
             total_net += net_pay
-            total_employer_uif += employer_uif
-            total_employer_cost += employer_cost
+
+            total_employer_uif += (
+                employer_uif
+            )
+
+            total_employer_cost += (
+                employer_cost
+            )
 
         payroll_run.total_gross = total_gross
-        payroll_run.total_deductions = total_deductions
+
+        payroll_run.total_deductions = (
+            total_deductions
+        )
+
         payroll_run.total_net = total_net
-        payroll_run.total_employer_uif = total_employer_uif
-        payroll_run.total_employer_cost = total_employer_cost
-        payroll_run.status = "Processed"
+
+        payroll_run.total_employer_uif = (
+            total_employer_uif
+        )
+
+        payroll_run.total_employer_cost = (
+            total_employer_cost
+        )
+
+        payroll_run.status = "Completed"
 
         db.session.commit()
 
@@ -1587,7 +1693,7 @@ def create_payroll():
 
         return redirect(
             url_for(
-                "main.payroll_run",
+                "main.view_payroll",
                 payroll_id=payroll_run.id
             )
         )
@@ -1625,24 +1731,27 @@ def payroll_history():
 # VIEW PAYROLL RUN
 # ============================================================
 
-@bp.route("/payroll/<int:payroll_id>")
+@bp.route(
+    "/payroll/<int:payroll_id>",
+    endpoint="view_payroll"
+)
 @employer_required
-def payroll_run(payroll_id):
+def view_payroll(payroll_id):
 
     user = current_user()
 
-    payroll = PayrollRun.query.filter_by(
+    payroll_run = PayrollRun.query.filter_by(
         id=payroll_id,
         company_id=user.company_id
     ).first_or_404()
 
     payslips = Payslip.query.filter_by(
-        payroll_run_id=payroll.id
+        payroll_run_id=payroll_run.id
     ).all()
 
     return render_template(
         "payroll_run.html",
-        payroll=payroll,
+        payroll_run=payroll_run,
         payslips=payslips,
     )
 
@@ -1665,12 +1774,30 @@ def view_payslip(payslip_id):
 
     employee = payslip.employee
 
+    if not employee:
+
+        flash(
+            "Employee record not found.",
+            "danger"
+        )
+
+        if user.role == "employee":
+
+            return redirect(
+                url_for(
+                    "main.employee_dashboard"
+                )
+            )
+
+        return redirect(
+            url_for(
+                "main.dashboard"
+            )
+        )
+
     if user.role == "employee":
 
-        if (
-            not employee
-            or employee.user_id != user.id
-        ):
+        if employee.user_id != user.id:
 
             flash(
                 "You are not authorised to view this payslip.",
@@ -1723,12 +1850,22 @@ def download_payslip_pdf(payslip_id):
 
     employee = payslip.employee
 
+    if not employee:
+
+        flash(
+            "Employee record not found.",
+            "danger"
+        )
+
+        return redirect(
+            url_for(
+                "main.dashboard"
+            )
+        )
+
     if user.role == "employee":
 
-        if (
-            not employee
-            or employee.user_id != user.id
-        ):
+        if employee.user_id != user.id:
 
             flash(
                 "You are not authorised to download this payslip.",
@@ -1905,6 +2042,20 @@ def download_payslip_pdf(payslip_id):
         f"R {safe_float(payslip.commission):,.2f}"
     )
 
+    y -= 20
+
+    pdf.drawString(
+        50,
+        y,
+        "Other Earnings:"
+    )
+
+    pdf.drawRightString(
+        500,
+        y,
+        f"R {safe_float(payslip.other_earnings):,.2f}"
+    )
+
     y -= 30
 
     pdf.setFont(
@@ -1942,7 +2093,7 @@ def download_payslip_pdf(payslip_id):
     pdf.drawString(
         50,
         y,
-        "Tax:"
+        "PAYE / Tax:"
     )
 
     pdf.drawRightString(
@@ -1956,7 +2107,7 @@ def download_payslip_pdf(payslip_id):
     pdf.drawString(
         50,
         y,
-        "UIF:"
+        "Employee UIF:"
     )
 
     pdf.drawRightString(
@@ -2017,7 +2168,40 @@ def download_payslip_pdf(payslip_id):
         f"R {safe_float(payslip.net_pay):,.2f}"
     )
 
-    y -= 50
+    y -= 35
+
+    pdf.setFont(
+        "Helvetica",
+        10
+    )
+
+    pdf.drawString(
+        50,
+        y,
+        "Employer UIF:"
+    )
+
+    pdf.drawRightString(
+        500,
+        y,
+        f"R {safe_float(payslip.employer_uif):,.2f}"
+    )
+
+    y -= 20
+
+    pdf.drawString(
+        50,
+        y,
+        "Employer Cost:"
+    )
+
+    pdf.drawRightString(
+        500,
+        y,
+        f"R {safe_float(payslip.employer_cost):,.2f}"
+    )
+
+    y -= 40
 
     pdf.setFont(
         "Helvetica",
@@ -2092,9 +2276,13 @@ def payroll_calculator_test():
         except TypeError:
 
             result = {
+                "basic_salary": salary,
                 "gross_pay": salary,
                 "tax_deductions": 0,
+                "paye": 0,
                 "uif": 0,
+                "other_deductions": 0,
+                "total_deductions": 0,
                 "net_pay": salary,
                 "employer_uif": 0,
                 "employer_cost": salary,
