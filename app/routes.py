@@ -114,7 +114,6 @@ def employer_required(view):
 def safe_float(value, default=0.0):
 
     try:
-
         return float(value)
 
     except (
@@ -1372,37 +1371,27 @@ def my_payslips():
 
 
 # ============================================================
-# PAYROLL DASHBOARD
+# PAYROLL
 # ============================================================
-
-@bp.route("/payroll")
-@employer_required
-def payroll():
-
-    user = current_user()
-
-    payroll_runs = PayrollRun.query.filter_by(
-        company_id=user.company_id
-    ).order_by(
-        PayrollRun.id.desc()
-    ).all()
-
-    return render_template(
-        "payroll.html",
-        payroll_runs=payroll_runs,
-    )
-
-
-# ============================================================
-# CREATE PAYROLL
+#
+# IMPORTANT:
+# This route now handles BOTH:
+#
+# GET  = display payroll form
+# POST = process payroll
+#
+# This matches create_payroll.html:
+#
+# action="{{ url_for('main.payroll') }}"
+#
 # ============================================================
 
 @bp.route(
-    "/payroll/create",
+    "/payroll",
     methods=["GET", "POST"]
 )
 @employer_required
-def create_payroll():
+def payroll():
 
     user = current_user()
 
@@ -1429,6 +1418,40 @@ def create_payroll():
             or ""
         ).strip()
 
+        overtime = safe_float(
+            request.form.get(
+                "overtime"
+            )
+        )
+
+        bonus = safe_float(
+            request.form.get(
+                "bonus"
+            )
+        )
+
+        commission = safe_float(
+            request.form.get(
+                "commission"
+            )
+        )
+
+        other_earnings = safe_float(
+            request.form.get(
+                "other_earnings"
+            )
+        )
+
+        other_deductions = safe_float(
+            request.form.get(
+                "other_deductions"
+            )
+        )
+
+        # ----------------------------------------------------
+        # VALIDATION
+        # ----------------------------------------------------
+
         if not pay_period:
 
             flash(
@@ -1436,41 +1459,132 @@ def create_payroll():
                 "danger"
             )
 
-            return redirect(
-                url_for(
-                    "main.create_payroll"
-                )
+            return render_template(
+                "create_payroll.html",
+                employees=employees,
+                company=company,
             )
 
-        pay_date = None
+        if not pay_date_value:
 
-        if pay_date_value:
+            flash(
+                "Pay date is required.",
+                "danger"
+            )
 
-            try:
+            return render_template(
+                "create_payroll.html",
+                employees=employees,
+                company=company,
+            )
 
-                pay_date = datetime.strptime(
-                    pay_date_value,
-                    "%Y-%m-%d"
-                ).date()
+        try:
 
-            except ValueError:
+            pay_date = datetime.strptime(
+                pay_date_value,
+                "%Y-%m-%d"
+            ).date()
 
-                flash(
-                    "Invalid pay date.",
-                    "danger"
-                )
+        except ValueError:
 
-                return redirect(
-                    url_for(
-                        "main.create_payroll"
-                    )
-                )
+            flash(
+                "Invalid pay date.",
+                "danger"
+            )
+
+            return render_template(
+                "create_payroll.html",
+                employees=employees,
+                company=company,
+            )
+
+        if overtime < 0:
+
+            flash(
+                "Overtime cannot be negative.",
+                "danger"
+            )
+
+            return render_template(
+                "create_payroll.html",
+                employees=employees,
+                company=company,
+            )
+
+        if bonus < 0:
+
+            flash(
+                "Bonus cannot be negative.",
+                "danger"
+            )
+
+            return render_template(
+                "create_payroll.html",
+                employees=employees,
+                company=company,
+            )
+
+        if commission < 0:
+
+            flash(
+                "Commission cannot be negative.",
+                "danger"
+            )
+
+            return render_template(
+                "create_payroll.html",
+                employees=employees,
+                company=company,
+            )
+
+        if other_earnings < 0:
+
+            flash(
+                "Other earnings cannot be negative.",
+                "danger"
+            )
+
+            return render_template(
+                "create_payroll.html",
+                employees=employees,
+                company=company,
+            )
+
+        if other_deductions < 0:
+
+            flash(
+                "Other deductions cannot be negative.",
+                "danger"
+            )
+
+            return render_template(
+                "create_payroll.html",
+                employees=employees,
+                company=company,
+            )
+
+        if not employees:
+
+            flash(
+                "There are no active employees available for payroll.",
+                "warning"
+            )
+
+            return render_template(
+                "create_payroll.html",
+                employees=employees,
+                company=company,
+            )
+
+        # ----------------------------------------------------
+        # CREATE PAYROLL RUN
+        # ----------------------------------------------------
 
         payroll_run = PayrollRun(
             company_id=company.id,
             pay_period=pay_period,
             pay_date=pay_date,
-            status="Draft",
+            status="Completed",
             total_gross=0,
             total_deductions=0,
             total_net=0,
@@ -1482,11 +1596,19 @@ def create_payroll():
 
         db.session.flush()
 
-        total_gross = 0
-        total_deductions = 0
-        total_net = 0
-        total_employer_uif = 0
-        total_employer_cost = 0
+        # ----------------------------------------------------
+        # TOTALS
+        # ----------------------------------------------------
+
+        total_gross = 0.0
+        total_deductions = 0.0
+        total_net = 0.0
+        total_employer_uif = 0.0
+        total_employer_cost = 0.0
+
+        # ----------------------------------------------------
+        # PROCESS EACH EMPLOYEE
+        # ----------------------------------------------------
 
         for employee in employees:
 
@@ -1499,33 +1621,26 @@ def create_payroll():
             )
 
             if age is None:
+
                 age = 30
 
-            try:
+            # ------------------------------------------------
+            # CALCULATE PAYROLL
+            # ------------------------------------------------
 
-                result = calculate_payroll(
-                    salary,
-                    age=age
-                )
+            result = calculate_payroll(
+                basic_salary=salary,
+                overtime=overtime,
+                bonus=bonus,
+                commission=commission,
+                other_earnings=other_earnings,
+                other_deductions=other_deductions,
+                age=age,
+            )
 
-            except TypeError:
-
-                result = {
-                    "basic_salary": salary,
-                    "overtime": 0,
-                    "bonus": 0,
-                    "commission": 0,
-                    "other_earnings": 0,
-                    "gross_pay": salary,
-                    "tax_deductions": 0,
-                    "paye": 0,
-                    "uif": 0,
-                    "other_deductions": 0,
-                    "total_deductions": 0,
-                    "net_pay": salary,
-                    "employer_uif": 0,
-                    "employer_cost": salary,
-                }
+            # ------------------------------------------------
+            # GET RESULTS
+            # ------------------------------------------------
 
             basic_salary = safe_float(
                 result.get(
@@ -1534,51 +1649,49 @@ def create_payroll():
                 )
             )
 
-            overtime = safe_float(
+            calculated_overtime = safe_float(
                 result.get(
                     "overtime",
-                    0
+                    overtime
                 )
             )
 
-            bonus = safe_float(
+            calculated_bonus = safe_float(
                 result.get(
                     "bonus",
-                    0
+                    bonus
                 )
             )
 
-            commission = safe_float(
+            calculated_commission = safe_float(
                 result.get(
                     "commission",
-                    0
+                    commission
                 )
             )
 
-            other_earnings = safe_float(
+            calculated_other_earnings = safe_float(
                 result.get(
                     "other_earnings",
-                    0
+                    other_earnings
                 )
             )
 
             gross_pay = safe_float(
                 result.get(
                     "gross_pay",
-                    salary
+                    basic_salary
+                    + calculated_overtime
+                    + calculated_bonus
+                    + calculated_commission
+                    + calculated_other_earnings
                 )
             )
 
-            tax_deductions = safe_float(
+            paye = safe_float(
                 result.get(
-                    "tax_deductions",
-                    result.get(
-                        "paye",
-                        result.get(
-                            "tax",
-                            0
-                        )
-                    )
+                    "paye",
+                    0
                 )
             )
 
@@ -1589,17 +1702,20 @@ def create_payroll():
                 )
             )
 
-            other_deductions = safe_float(
+            calculated_other_deductions = safe_float(
                 result.get(
                     "other_deductions",
-                    0
+                    other_deductions
                 )
             )
 
-            total_employee_deductions = (
-                tax_deductions
-                + uif
-                + other_deductions
+            total_employee_deductions = safe_float(
+                result.get(
+                    "total_deductions",
+                    paye
+                    + uif
+                    + calculated_other_deductions
+                )
             )
 
             net_pay = safe_float(
@@ -1617,13 +1733,14 @@ def create_payroll():
                 )
             )
 
-            employer_cost = safe_float(
-                result.get(
-                    "employer_cost",
-                    gross_pay
-                    + employer_uif
-                )
+            employer_cost = (
+                gross_pay
+                + employer_uif
             )
+
+            # ------------------------------------------------
+            # CREATE PAYSLIP
+            # ------------------------------------------------
 
             payslip = Payslip(
                 employee_id=employee.id,
@@ -1631,14 +1748,14 @@ def create_payroll():
                 pay_period=pay_period,
                 pay_date=pay_date,
                 basic_salary=basic_salary,
-                overtime=overtime,
-                bonus=bonus,
-                commission=commission,
-                other_earnings=other_earnings,
+                overtime=calculated_overtime,
+                bonus=calculated_bonus,
+                commission=calculated_commission,
+                other_earnings=calculated_other_earnings,
                 gross_pay=gross_pay,
-                tax_deductions=tax_deductions,
+                tax_deductions=paye,
                 uif=uif,
-                other_deductions=other_deductions,
+                other_deductions=calculated_other_deductions,
                 total_deductions=total_employee_deductions,
                 net_pay=net_pay,
                 employer_uif=employer_uif,
@@ -1647,24 +1764,52 @@ def create_payroll():
 
             db.session.add(payslip)
 
+            # ------------------------------------------------
+            # ADD TO PAYROLL TOTALS
+            # ------------------------------------------------
+
             total_gross += gross_pay
-            total_deductions += total_employee_deductions
+
+            total_deductions += (
+                total_employee_deductions
+            )
+
             total_net += net_pay
-            total_employer_uif += employer_uif
-            total_employer_cost += employer_cost
+
+            total_employer_uif += (
+                employer_uif
+            )
+
+            total_employer_cost += (
+                employer_cost
+            )
+
+        # ----------------------------------------------------
+        # SAVE PAYROLL TOTALS
+        # ----------------------------------------------------
 
         payroll_run.total_gross = total_gross
-        payroll_run.total_deductions = total_deductions
+
+        payroll_run.total_deductions = (
+            total_deductions
+        )
+
         payroll_run.total_net = total_net
-        payroll_run.total_employer_uif = total_employer_uif
-        payroll_run.total_employer_cost = total_employer_cost
+
+        payroll_run.total_employer_uif = (
+            total_employer_uif
+        )
+
+        payroll_run.total_employer_cost = (
+            total_employer_cost
+        )
 
         payroll_run.status = "Completed"
 
         db.session.commit()
 
         flash(
-            "Payroll created successfully.",
+            "Payroll processed successfully.",
             "success"
         )
 
@@ -1675,10 +1820,41 @@ def create_payroll():
             )
         )
 
+    # --------------------------------------------------------
+    # GET = SHOW PAYROLL FORM
+    # --------------------------------------------------------
+
     return render_template(
         "create_payroll.html",
         employees=employees,
         company=company,
+    )
+
+
+# ============================================================
+# COMPATIBILITY CREATE PAYROLL ROUTE
+# ============================================================
+#
+# Allows /payroll/create to continue working if another
+# button or old page still points to it.
+#
+# ============================================================
+
+@bp.route(
+    "/payroll/create",
+    methods=["GET", "POST"]
+)
+@employer_required
+def create_payroll():
+
+    if request.method == "POST":
+
+        return payroll()
+
+    return redirect(
+        url_for(
+            "main.payroll"
+        )
     )
 
 
@@ -1735,7 +1911,6 @@ def view_payroll(payroll_id):
 
 # ============================================================
 # VIEW PAYSLIP
-# IMPORTANT: company is passed to payslip.html
 # ============================================================
 
 @bp.route(
@@ -1774,7 +1949,7 @@ def view_payslip(payslip_id):
         )
 
     # --------------------------------------------------------
-    # Employee security check
+    # EMPLOYEE SECURITY CHECK
     # --------------------------------------------------------
 
     if user.role == "employee":
@@ -1793,7 +1968,7 @@ def view_payslip(payslip_id):
             )
 
     # --------------------------------------------------------
-    # Employer security check
+    # EMPLOYER SECURITY CHECK
     # --------------------------------------------------------
 
     else:
@@ -1813,10 +1988,6 @@ def view_payslip(payslip_id):
 
     # --------------------------------------------------------
     # GET COMPANY
-    #
-    # This fixes:
-    # jinja2.exceptions.UndefinedError:
-    # 'company' is undefined
     # --------------------------------------------------------
 
     company = Company.query.get(
