@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Process Payroll - Appex Payroll{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h1>Process Payroll</h1>
+        <p class="muted">
+            Enter payroll information and calculate employee earnings,
+            PAYE, UIF, deductions and net pay.
+        </p>
+    </div>
+
+    <a class="button" href="{{ url_for('main.dashboard') }}">
+        ← Back to Dashboard
+    </a>
+</div>
+
+<div class="card">
+    <h2>Payroll Period</h2>
+
+    <form method="POST" action="{{ url_for('main.payroll') }}">
+
+        <div class="grid">
+
+            <div>
+                <label for="pay_period">Pay Period</label>
+                <input
+                    type="text"
+                    id="pay_period"
+                    name="pay_period"
+                    placeholder="September 2026"
+                    required
+                >
+                <small class="muted">
+                    Example: September 2026
+                </small>
+            </div>
+
+            <div>
+                <label for="pay_date">Pay Date</label>
+                <input
+                    type="date"
+                    id="pay_date"
+                    name="pay_date"
+                    required
+                >
+                <small class="muted">
+                    Date employees will be paid.
+                </small>
+            </div>
+
+        </div>
+
+        <hr>
+
+        <h2>Payroll Earnings & Deductions</h2>
+
+        <p class="muted">
+            Enter the additional payroll amounts below. Basic salary will
+            be taken from each employee's profile.
+        </p>
+
+        <div class="grid">
+
+            <div>
+                <label for="overtime">Overtime</label>
+                <input
+                    type="number"
+                    id="overtime"
+                    name="overtime"
+                    step="0.01"
+                    min="0"
+                    value="0.00"
+                    placeholder="0.00"
+                >
+            </div>
+
+            <div>
+                <label for="bonus">Bonus</label>
+                <input
+                    type="number"
+                    id="bonus"
+                    name="bonus"
+                    step="0.01"
+                    min="0"
+                    value="0.00"
+                    placeholder="0.00"
+                >
+            </div>
+
+            <div>
+                <label for="commission">Commission</label>
+                <input
+                    type="number"
+                    id="commission"
+                    name="commission"
+                    step="0.01"
+                    min="0"
+                    value="0.00"
+                    placeholder="0.00"
+                >
+            </div>
+
+            <div>
+                <label for="other_earnings">Other Earnings</label>
+                <input
+                    type="number"
+                    id="other_earnings"
+                    name="other_earnings"
+                    step="0.01"
+                    min="0"
+                    value="0.00"
+                    placeholder="0.00"
+                >
+            </div>
+
+            <div>
+                <label for="other_deductions">Other Deductions</label>
+                <input
+                    type="number"
+                    id="other_deductions"
+                    name="other_deductions"
+                    step="0.01"
+                    min="0"
+                    value="0.00"
+                    placeholder="0.00"
+                >
+                <small class="muted">
+                    Examples: loan deductions, advances or other approved deductions.
+                </small>
+            </div>
+
+        </div>
+
+        <hr>
+
+        <div class="card">
+            <h3>Payroll Calculation</h3>
+
+            <p class="muted">
+                Appex Payroll will calculate the following automatically:
+            </p>
+
+            <ul>
+                <li>Gross salary</li>
+                <li>PAYE</li>
+                <li>Employee UIF</li>
+                <li>Other deductions</li>
+                <li>Total deductions</li>
+                <li>Net salary</li>
+                <li>Employer UIF</li>
+                <li>Total employer cost</li>
+            </ul>
+        </div>
+
+        <div class="form-actions">
+
+            <button type="submit" class="button">
+                Calculate & Process Payroll
+            </button>
+
+            <a
+                class="button"
+                href="{{ url_for('main.payroll_history') }}"
+            >
+                View Payroll History
+            </a>
+
+        </div>
+
+    </form>
+</div>
+
+{% endblock %}
