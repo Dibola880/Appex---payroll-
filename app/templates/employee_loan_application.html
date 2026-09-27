@@ -1,0 +1,446 @@
+{% extends "base.html" %}
+
+{% block title %}Apply for Employee Loan - Appex Payroll{% endblock %}
+
+{% block heading %}Apply for an Employee Loan{% endblock %}
+
+{% block content %}
+
+<!-- ===================================================== --><!-- INTRODUCTION --><!-- ===================================================== --><div class="card"><h2>Employee Loan Application</h2>
+
+<p class="muted">
+    Apply for an Appex employee loan through your
+    employee financial services portal.
+</p>
+
+<p class="muted">
+    Please provide accurate information so that your
+    application can be reviewed.
+</p>
+
+</div><!-- ===================================================== --><!-- EMPLOYEE INFORMATION --><!-- ===================================================== --><div class="card"><h2>Employee Information</h2>
+
+<div class="info-grid">
+
+    <div>
+        <small>Employee</small>
+
+        <strong>
+            {{ employee.first_name }}
+            {{ employee.last_name }}
+        </strong>
+    </div>
+
+    <div>
+        <small>Employee Number</small>
+
+        <strong>
+            {{ employee.employee_number or "-" }}
+        </strong>
+    </div>
+
+    <div>
+        <small>Job Title</small>
+
+        <strong>
+            {{ employee.job_title or "Not provided" }}
+        </strong>
+    </div>
+
+    <div>
+        <small>Monthly Salary</small>
+
+        <strong>
+            R {{ "%.2f"|format(employee.monthly_salary or 0) }}
+        </strong>
+    </div>
+
+</div>
+
+</div><!-- ===================================================== --><!-- LOAN APPLICATION FORM --><!-- ===================================================== --><div class="card"><h2>Loan Details</h2>
+
+<form
+    method="POST"
+    action="{{ url_for('main.employee_loan_application') }}"
+>
+
+    <!-- Loan Amount -->
+
+    <div class="form-group">
+
+        <label for="requested_amount">
+            Requested Loan Amount
+        </label>
+
+        <input
+            type="number"
+            id="requested_amount"
+            name="requested_amount"
+            min="100"
+            step="0.01"
+            placeholder="e.g. 1500"
+            required
+        >
+
+        <small class="help-text">
+            Enter the amount you would like to apply for.
+        </small>
+
+    </div>
+
+
+    <!-- Loan Purpose -->
+
+    <div class="form-group">
+
+        <label for="loan_purpose">
+            Purpose of Loan
+        </label>
+
+        <select
+            id="loan_purpose"
+            name="loan_purpose"
+            required
+        >
+
+            <option value="">
+                Select purpose
+            </option>
+
+            <option value="Emergency">
+                Emergency
+            </option>
+
+            <option value="Household Expenses">
+                Household Expenses
+            </option>
+
+            <option value="Education">
+                Education
+            </option>
+
+            <option value="Transport">
+                Transport
+            </option>
+
+            <option value="Medical">
+                Medical
+            </option>
+
+            <option value="Debt Consolidation">
+                Debt Consolidation
+            </option>
+
+            <option value="Other">
+                Other
+            </option>
+
+        </select>
+
+    </div>
+
+
+    <!-- Repayment Term -->
+
+    <div class="form-group">
+
+        <label for="repayment_term">
+            Preferred Repayment Term
+        </label>
+
+        <select
+            id="repayment_term"
+            name="repayment_term"
+            required
+        >
+
+            <option value="">
+                Select repayment term
+            </option>
+
+            <option value="1 Month">
+                1 Month
+            </option>
+
+            <option value="2 Months">
+                2 Months
+            </option>
+
+            <option value="3 Months">
+                3 Months
+            </option>
+
+            <option value="6 Months">
+                6 Months
+            </option>
+
+        </select>
+
+    </div>
+
+
+    <!-- Monthly Income -->
+
+    <div class="form-group">
+
+        <label for="monthly_income">
+            Monthly Income
+        </label>
+
+        <input
+            type="number"
+            id="monthly_income"
+            name="monthly_income"
+            min="0"
+            step="0.01"
+            value="{{ employee.monthly_salary or '' }}"
+            required
+        >
+
+    </div>
+
+
+    <!-- Monthly Expenses -->
+
+    <div class="form-group">
+
+        <label for="monthly_expenses">
+            Estimated Monthly Expenses
+        </label>
+
+        <input
+            type="number"
+            id="monthly_expenses"
+            name="monthly_expenses"
+            min="0"
+            step="0.01"
+            placeholder="e.g. 5000"
+            required
+        >
+
+    </div>
+
+
+    <!-- Consent -->
+
+    <div class="consent-box">
+
+        <label>
+
+            <input
+                type="checkbox"
+                name="application_consent"
+                required
+            >
+
+            I confirm that the information provided in
+            this application is accurate and may be used
+            for the assessment of my financial-service
+            application.
+
+        </label>
+
+    </div>
+
+
+    <!-- Buttons -->
+
+    <div class="button-row">
+
+        <button
+            type="submit"
+            class="button"
+        >
+            Submit Loan Application
+        </button>
+
+        <a
+            href="{{ url_for('main.financial_services') }}"
+            class="button secondary-button"
+        >
+            Cancel
+        </a>
+
+    </div>
+
+</form>
+
+</div><!-- ===================================================== --><!-- IMPORTANT INFORMATION --><!-- ===================================================== --><div class="card"><h2>Important Information</h2>
+
+<p class="muted">
+    Submission of an application does not guarantee
+    approval.
+</p>
+
+<p class="muted">
+    Applications may be subject to affordability,
+    verification, eligibility and applicable lending
+    requirements.
+</p>
+
+</div><style>
+
+    .info-grid {
+
+        display: grid;
+
+        grid-template-columns:
+            repeat(4, 1fr);
+
+        gap: 20px;
+
+        margin-top: 20px;
+    }
+
+
+    .info-grid > div {
+
+        display: flex;
+
+        flex-direction: column;
+
+        gap: 6px;
+    }
+
+
+    .info-grid small {
+
+        color: #6b7280;
+
+        font-size: 0.85rem;
+    }
+
+
+    .form-group {
+
+        margin-bottom: 20px;
+    }
+
+
+    .form-group label {
+
+        display: block;
+
+        font-weight: 600;
+
+        margin-bottom: 7px;
+    }
+
+
+    .form-group input,
+    .form-group select {
+
+        width: 100%;
+
+        padding: 12px;
+
+        border: 1px solid #d1d5db;
+
+        border-radius: 8px;
+
+        box-sizing: border-box;
+
+        font-size: 16px;
+    }
+
+
+    .help-text {
+
+        display: block;
+
+        margin-top: 6px;
+
+        color: #6b7280;
+
+        font-size: 0.85rem;
+    }
+
+
+    .consent-box {
+
+        padding: 15px;
+
+        border: 1px solid #e5e7eb;
+
+        border-radius: 8px;
+
+        margin-bottom: 20px;
+
+        background: #f9fafb;
+    }
+
+
+    .consent-box label {
+
+        display: flex;
+
+        gap: 10px;
+
+        line-height: 1.5;
+    }
+
+
+    .consent-box input {
+
+        margin-top: 4px;
+
+        min-width: 18px;
+
+        min-height: 18px;
+    }
+
+
+    .button-row {
+
+        display: flex;
+
+        gap: 12px;
+
+        flex-wrap: wrap;
+    }
+
+
+    .secondary-button {
+
+        text-decoration: none;
+
+        display: inline-block;
+    }
+
+
+    @media (max-width: 768px) {
+
+        .info-grid {
+
+            grid-template-columns: 1fr 1fr;
+        }
+
+    }
+
+
+    @media (max-width: 480px) {
+
+        .info-grid {
+
+            grid-template-columns: 1fr;
+        }
+
+
+        .button-row {
+
+            flex-direction: column;
+        }
+
+
+        .button-row .button {
+
+            width: 100%;
+
+            box-sizing: border-box;
+
+            text-align: center;
+        }
+
+    }
+
+</style>{% endblock %}
