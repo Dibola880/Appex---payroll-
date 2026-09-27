@@ -34,6 +34,7 @@ from .models import (
     EmployeeInvitation,
     PayrollRun,
     Payslip,
+    LoanApplication,
 )
 
 from .payroll_calculator import calculate_payroll
@@ -117,18 +118,21 @@ def employer_required(view):
 def safe_float(value, default=0.0):
 
     try:
+
         return float(value)
 
     except (
         TypeError,
         ValueError
     ):
+
         return default
 
 
 def calculate_age_from_dob(date_of_birth):
 
     if not date_of_birth:
+
         return None
 
     try:
@@ -772,6 +776,7 @@ def accept_invitation(token):
         employee.user_id = user.id
 
         if not employee.email:
+
             employee.email = email
 
         invitation.used = True
@@ -870,14 +875,25 @@ def financial_services():
             )
         )
 
+    application = (
+        LoanApplication.query
+        .filter_by(employee_id=employee.id)
+        .order_by(
+            LoanApplication.created_at.desc()
+        )
+        .first()
+    )
+
     return render_template(
         "financial_services.html",
         employee=employee,
+        application=application,
     )
 
 
 # ============================================================
 # EMPLOYEE LOAN APPLICATION
+# DATABASE-BACKED VERSION
 # ============================================================
 
 @bp.route(
@@ -912,6 +928,31 @@ def employee_loan_application():
 
     if request.method == "POST":
 
+        # ----------------------------------------------------
+        # CONSENT
+        # ----------------------------------------------------
+
+        consent = request.form.get(
+            "application_consent"
+        )
+
+        if consent != "on":
+
+            flash(
+                "Please confirm the loan application declaration.",
+                "danger"
+            )
+
+            return redirect(
+                url_for(
+                    "main.employee_loan_application"
+                )
+            )
+
+        # ----------------------------------------------------
+        # FORM VALUES
+        # ----------------------------------------------------
+
         requested_amount = safe_float(
             request.form.get(
                 "requested_amount"
@@ -945,6 +986,10 @@ def employee_loan_application():
             )
         )
 
+        # ----------------------------------------------------
+        # VALIDATION
+        # ----------------------------------------------------
+
         if requested_amount <= 0:
 
             flash(
@@ -958,10 +1003,10 @@ def employee_loan_application():
                 )
             )
 
-        if not loan_purpose:
+        if requested_amount > 3000:
 
             flash(
-                "Please provide the purpose of the loan.",
+                "The maximum employee loan amount is R3,000.",
                 "danger"
             )
 
@@ -971,7 +1016,97 @@ def employee_loan_application():
                 )
             )
 
-        application_reference = (
+        if not loan_purpose:
+
+            flash(
+                "Please select the purpose of the loan.",
+                "danger"
+            )
+
+            return redirect(
+                url_for(
+                    "main.employee_loan_application"
+                )
+            )
+
+        if not repayment_term:
+
+            flash(
+                "Please select a repayment term.",
+                "danger"
+            )
+
+            return redirect(
+                url_for(
+                    "main.employee_loan_application"
+                )
+            )
+
+        if monthly_income <= 0:
+
+            flash(
+                "Please enter your monthly income.",
+                "danger"
+            )
+
+            return redirect(
+                url_for(
+                    "main.employee_loan_application"
+                )
+            )
+
+        if monthly_expenses < 0:
+
+            flash(
+                "Monthly expenses cannot be negative.",
+                "danger"
+            )
+
+            return redirect(
+                url_for(
+                    "main.employee_loan_application"
+                )
+            )
+
+        # ----------------------------------------------------
+        # CHECK FOR EXISTING ACTIVE APPLICATION
+        # ----------------------------------------------------
+
+        existing_application = (
+            LoanApplication.query
+            .filter(
+                LoanApplication.employee_id == employee.id,
+                LoanApplication.status.in_([
+                    "Submitted",
+                    "Under Review",
+                    "Approved",
+                    "Disbursed",
+                ])
+            )
+            .order_by(
+                LoanApplication.created_at.desc()
+            )
+            .first()
+        )
+
+        if existing_application:
+
+            flash(
+                "You already have an active loan application.",
+                "warning"
+            )
+
+            return redirect(
+                url_for(
+                    "main.employee_loan_status"
+                )
+            )
+
+        # ----------------------------------------------------
+        # GENERATE REFERENCE
+        # ----------------------------------------------------
+
+        reference = (
             "APL-"
             + datetime.utcnow().strftime(
                 "%Y%m%d%H%M%S"
@@ -980,26 +1115,28 @@ def employee_loan_application():
             + secrets.token_hex(3).upper()
         )
 
-        application = {
-            "reference": application_reference,
-            "employee_id": employee.id,
-            "employee_name": (
-                employee.first_name
-                + " "
-                + employee.last_name
-            ),
-            "requested_amount": requested_amount,
-            "loan_purpose": loan_purpose,
-            "repayment_term": repayment_term,
-            "monthly_income": monthly_income,
-            "monthly_expenses": monthly_expenses,
-            "status": "Submitted",
-            "submitted_at": datetime.utcnow().strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-        }
+        # ----------------------------------------------------
+        # CREATE DATABASE APPLICATION
+        # ----------------------------------------------------
 
-        session["employee_loan_application"] = application
+        application = LoanApplication(
+            employee_id=employee.id,
+            reference=reference,
+            requested_amount=requested_amount,
+            approved_amount=None,
+            loan_purpose=loan_purpose,
+            repayment_term=repayment_term,
+            monthly_income=monthly_income,
+            monthly_expenses=monthly_expenses,
+            status="Submitted",
+            total_repayable=None,
+            total_paid=0,
+            outstanding_balance=0,
+        )
+
+        db.session.add(application)
+
+        db.session.commit()
 
         flash(
             "Your loan application has been submitted successfully.",
@@ -1020,6 +1157,7 @@ def employee_loan_application():
 
 # ============================================================
 # EMPLOYEE LOAN STATUS
+# DATABASE-BACKED VERSION
 # ============================================================
 
 @bp.route("/employee/loan-status")
@@ -1049,17 +1187,16 @@ def employee_loan_status():
             )
         )
 
-    application = session.get(
-        "employee_loan_application"
+    application = (
+        LoanApplication.query
+        .filter_by(
+            employee_id=employee.id
+        )
+        .order_by(
+            LoanApplication.created_at.desc()
+        )
+        .first()
     )
-
-    if application:
-
-        if application.get(
-            "employee_id"
-        ) != employee.id:
-
-            application = None
 
     return render_template(
         "employee_loan_status.html",
@@ -1070,6 +1207,7 @@ def employee_loan_status():
 
 # ============================================================
 # EMPLOYEE REPAYMENTS
+# DATABASE-BACKED VERSION
 # ============================================================
 
 @bp.route("/employee/repayments")
@@ -1099,36 +1237,44 @@ def employee_repayments():
             )
         )
 
-    application = session.get(
-        "employee_loan_application"
+    application = (
+        LoanApplication.query
+        .filter_by(
+            employee_id=employee.id
+        )
+        .order_by(
+            LoanApplication.created_at.desc()
+        )
+        .first()
     )
-
-    if application:
-
-        if application.get(
-            "employee_id"
-        ) != employee.id:
-
-            application = None
-
-    outstanding_balance = 0.0
 
     amount_paid = 0.0
 
+    outstanding_balance = 0.0
+
     if application:
 
-        if application.get(
-            "status"
-        ) == "Approved":
+        amount_paid = safe_float(
+            application.total_paid
+        )
+
+        outstanding_balance = safe_float(
+            application.outstanding_balance
+        )
+
+        # If the loan has been approved/disbursed but
+        # outstanding_balance has not yet been populated,
+        # use the total repayable amount.
+        if (
+            outstanding_balance == 0
+            and application.status in [
+                "Approved",
+                "Disbursed",
+            ]
+        ):
 
             outstanding_balance = safe_float(
-                application.get(
-                    "approved_amount",
-                    application.get(
-                        "requested_amount",
-                        0
-                    )
-                )
+                application.total_repayable
             )
 
     return render_template(
