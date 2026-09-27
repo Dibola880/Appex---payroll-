@@ -128,7 +128,6 @@ def safe_float(value, default=0.0):
 def calculate_age_from_dob(date_of_birth):
 
     if not date_of_birth:
-
         return None
 
     try:
@@ -198,7 +197,6 @@ def dashboard():
     company = user.company
 
     employees = []
-
     payroll_runs = []
 
     if company:
@@ -704,8 +702,7 @@ def invite_employee(employee_id):
 
 
 # ============================================================
-# COMPATIBILITY ROUTE
-# Supports older dashboard/template links
+# COMPATIBILITY INVITATION ROUTE
 # ============================================================
 
 @bp.route(
@@ -950,7 +947,9 @@ def financial_services():
 
     application = (
         LoanApplication.query
-        .filter_by(employee_id=employee.id)
+        .filter_by(
+            employee_id=employee.id
+        )
         .order_by(
             LoanApplication.created_at.desc()
         )
@@ -1295,7 +1294,6 @@ def employee_repayments():
     )
 
     amount_paid = 0.0
-
     outstanding_balance = 0.0
 
     if application:
@@ -1501,7 +1499,6 @@ def create_payroll():
             )
 
             if age is None:
-
                 age = 30
 
             try:
@@ -1651,36 +1648,16 @@ def create_payroll():
             db.session.add(payslip)
 
             total_gross += gross_pay
-
-            total_deductions += (
-                total_employee_deductions
-            )
-
+            total_deductions += total_employee_deductions
             total_net += net_pay
-
-            total_employer_uif += (
-                employer_uif
-            )
-
-            total_employer_cost += (
-                employer_cost
-            )
+            total_employer_uif += employer_uif
+            total_employer_cost += employer_cost
 
         payroll_run.total_gross = total_gross
-
-        payroll_run.total_deductions = (
-            total_deductions
-        )
-
+        payroll_run.total_deductions = total_deductions
         payroll_run.total_net = total_net
-
-        payroll_run.total_employer_uif = (
-            total_employer_uif
-        )
-
-        payroll_run.total_employer_cost = (
-            total_employer_cost
-        )
+        payroll_run.total_employer_uif = total_employer_uif
+        payroll_run.total_employer_cost = total_employer_cost
 
         payroll_run.status = "Completed"
 
@@ -1758,6 +1735,7 @@ def view_payroll(payroll_id):
 
 # ============================================================
 # VIEW PAYSLIP
+# IMPORTANT: company is passed to payslip.html
 # ============================================================
 
 @bp.route(
@@ -1795,6 +1773,10 @@ def view_payslip(payslip_id):
             )
         )
 
+    # --------------------------------------------------------
+    # Employee security check
+    # --------------------------------------------------------
+
     if user.role == "employee":
 
         if employee.user_id != user.id:
@@ -1809,6 +1791,10 @@ def view_payslip(payslip_id):
                     "main.employee_dashboard"
                 )
             )
+
+    # --------------------------------------------------------
+    # Employer security check
+    # --------------------------------------------------------
 
     else:
 
@@ -1825,10 +1811,23 @@ def view_payslip(payslip_id):
                 )
             )
 
+    # --------------------------------------------------------
+    # GET COMPANY
+    #
+    # This fixes:
+    # jinja2.exceptions.UndefinedError:
+    # 'company' is undefined
+    # --------------------------------------------------------
+
+    company = Company.query.get(
+        employee.company_id
+    )
+
     return render_template(
         "payslip.html",
         payslip=payslip,
         employee=employee,
+        company=company,
     )
 
 
@@ -1904,6 +1903,10 @@ def download_payslip_pdf(payslip_id):
 
     y = height - 50
 
+    # --------------------------------------------------------
+    # TITLE
+    # --------------------------------------------------------
+
     pdf.setFont(
         "Helvetica-Bold",
         18
@@ -1921,6 +1924,10 @@ def download_payslip_pdf(payslip_id):
         "Helvetica",
         11
     )
+
+    # --------------------------------------------------------
+    # EMPLOYEE DETAILS
+    # --------------------------------------------------------
 
     pdf.drawString(
         50,
@@ -1969,6 +1976,10 @@ def download_payslip_pdf(payslip_id):
     )
 
     y -= 40
+
+    # --------------------------------------------------------
+    # EARNINGS
+    # --------------------------------------------------------
 
     pdf.setFont(
         "Helvetica-Bold",
@@ -2077,6 +2088,10 @@ def download_payslip_pdf(payslip_id):
 
     y -= 40
 
+    # --------------------------------------------------------
+    # DEDUCTIONS
+    # --------------------------------------------------------
+
     pdf.drawString(
         50,
         y,
@@ -2151,6 +2166,10 @@ def download_payslip_pdf(payslip_id):
 
     y -= 35
 
+    # --------------------------------------------------------
+    # NET PAY
+    # --------------------------------------------------------
+
     pdf.setFont(
         "Helvetica-Bold",
         14
@@ -2169,6 +2188,10 @@ def download_payslip_pdf(payslip_id):
     )
 
     y -= 35
+
+    # --------------------------------------------------------
+    # EMPLOYER COST
+    # --------------------------------------------------------
 
     pdf.setFont(
         "Helvetica",
@@ -2203,6 +2226,10 @@ def download_payslip_pdf(payslip_id):
 
     y -= 40
 
+    # --------------------------------------------------------
+    # FOOTER
+    # --------------------------------------------------------
+
     pdf.setFont(
         "Helvetica",
         9
@@ -2229,7 +2256,7 @@ def download_payslip_pdf(payslip_id):
 
 
 # ============================================================
-# INTEGRATION
+# DEEL LOCAL PAYROLL INTEGRATION
 # ============================================================
 
 @bp.route("/integration")
