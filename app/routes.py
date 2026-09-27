@@ -48,10 +48,6 @@ bp = Blueprint("main", __name__)
 # ============================================================
 
 def current_user():
-    """
-    Return the currently logged-in user.
-    """
-
     user_id = session.get("user_id")
 
     if not user_id:
@@ -118,21 +114,18 @@ def employer_required(view):
 def safe_float(value, default=0.0):
 
     try:
-
         return float(value)
 
     except (
         TypeError,
         ValueError
     ):
-
         return default
 
 
 def calculate_age_from_dob(date_of_birth):
 
     if not date_of_birth:
-
         return None
 
     try:
@@ -646,6 +639,21 @@ def invite_employee(employee_id):
 
 
 # ============================================================
+# COMPATIBILITY ROUTE
+# Supports older dashboard/template links
+# ============================================================
+
+@bp.route(
+    "/employees/<int:employee_id>/create-invitation",
+    methods=["POST"]
+)
+@employer_required
+def create_invitation(employee_id):
+
+    return invite_employee(employee_id)
+
+
+# ============================================================
 # ACCEPT EMPLOYEE INVITATION
 # ============================================================
 
@@ -893,7 +901,6 @@ def financial_services():
 
 # ============================================================
 # EMPLOYEE LOAN APPLICATION
-# DATABASE-BACKED VERSION
 # ============================================================
 
 @bp.route(
@@ -928,10 +935,6 @@ def employee_loan_application():
 
     if request.method == "POST":
 
-        # ----------------------------------------------------
-        # CONSENT
-        # ----------------------------------------------------
-
         consent = request.form.get(
             "application_consent"
         )
@@ -948,10 +951,6 @@ def employee_loan_application():
                     "main.employee_loan_application"
                 )
             )
-
-        # ----------------------------------------------------
-        # FORM VALUES
-        # ----------------------------------------------------
 
         requested_amount = safe_float(
             request.form.get(
@@ -985,10 +984,6 @@ def employee_loan_application():
                 "monthly_expenses"
             )
         )
-
-        # ----------------------------------------------------
-        # VALIDATION
-        # ----------------------------------------------------
 
         if requested_amount <= 0:
 
@@ -1068,10 +1063,6 @@ def employee_loan_application():
                 )
             )
 
-        # ----------------------------------------------------
-        # CHECK FOR EXISTING ACTIVE APPLICATION
-        # ----------------------------------------------------
-
         existing_application = (
             LoanApplication.query
             .filter(
@@ -1102,10 +1093,6 @@ def employee_loan_application():
                 )
             )
 
-        # ----------------------------------------------------
-        # GENERATE REFERENCE
-        # ----------------------------------------------------
-
         reference = (
             "APL-"
             + datetime.utcnow().strftime(
@@ -1114,10 +1101,6 @@ def employee_loan_application():
             + "-"
             + secrets.token_hex(3).upper()
         )
-
-        # ----------------------------------------------------
-        # CREATE DATABASE APPLICATION
-        # ----------------------------------------------------
 
         application = LoanApplication(
             employee_id=employee.id,
@@ -1157,7 +1140,6 @@ def employee_loan_application():
 
 # ============================================================
 # EMPLOYEE LOAN STATUS
-# DATABASE-BACKED VERSION
 # ============================================================
 
 @bp.route("/employee/loan-status")
@@ -1207,7 +1189,6 @@ def employee_loan_status():
 
 # ============================================================
 # EMPLOYEE REPAYMENTS
-# DATABASE-BACKED VERSION
 # ============================================================
 
 @bp.route("/employee/repayments")
@@ -1262,9 +1243,6 @@ def employee_repayments():
             application.outstanding_balance
         )
 
-        # If the loan has been approved/disbursed but
-        # outstanding_balance has not yet been populated,
-        # use the total repayable amount.
         if (
             outstanding_balance == 0
             and application.status in [
