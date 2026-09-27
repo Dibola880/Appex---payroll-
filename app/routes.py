@@ -16,7 +16,10 @@ from flask import (
     send_file,
 )
 
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import (
+    generate_password_hash,
+    check_password_hash,
+)
 
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -52,12 +55,14 @@ def current_user():
 
 
 def login_required(view):
+
     @wraps(view)
     def wrapped_view(*args, **kwargs):
 
         user = current_user()
 
         if not user:
+
             flash(
                 "Please log in first.",
                 "warning"
@@ -73,12 +78,14 @@ def login_required(view):
 
 
 def employer_required(view):
+
     @wraps(view)
     def wrapped_view(*args, **kwargs):
 
         user = current_user()
 
         if not user:
+
             flash(
                 "Please log in first.",
                 "warning"
@@ -200,10 +207,7 @@ def dashboard():
 
     user = current_user()
 
-    # --------------------------------------------------------
     # Redirect employees to employee dashboard
-    # --------------------------------------------------------
-
     if user.role == "employee":
 
         return redirect(
