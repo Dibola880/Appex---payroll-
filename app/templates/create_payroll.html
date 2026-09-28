@@ -8,8 +8,8 @@
     <div>
         <h1>Process Payroll</h1>
         <p class="muted">
-            Create a payroll run and calculate employee earnings,
-            PAYE, UIF, deductions and net pay.
+            Create a payroll run and enter payroll information for
+            each active employee.
         </p>
     </div>
 
@@ -24,6 +24,12 @@
     <h2>Payroll Period</h2>
 
     <form method="POST" action="{{ url_for('main.payroll') }}">
+
+        <input
+            type="hidden"
+            name="action"
+            value="review"
+        >
 
         <!-- =====================================================
              PAYROLL PERIOD
@@ -63,7 +69,7 @@
                 >
 
                 <small class="muted">
-                    The date employees will be paid.
+                    Date employees will be paid.
                 </small>
             </div>
 
@@ -74,136 +80,211 @@
 
 
         <!-- =====================================================
-             PAYROLL INPUTS
+             EMPLOYEE PAYROLL INPUTS
         ====================================================== -->
 
-        <h2>Payroll Earnings & Deductions</h2>
+        <h2>Employee Payroll Inputs</h2>
 
         <p class="muted">
-            Basic salary is automatically taken from each employee's
-            employee profile. Enter any additional earnings or
-            deductions for this payroll run below.
+            Basic salary is taken automatically from each employee's
+            profile. Enter additional earnings and deductions for
+            each employee below.
         </p>
 
 
-        <div class="grid">
+        {% if employees %}
 
-            <!-- OVERTIME -->
+            {% for employee in employees %}
 
-            <div>
-                <label for="overtime">
-                    Overtime
-                </label>
+                <div class="card">
 
-                <input
-                    type="number"
-                    id="overtime"
-                    name="overtime"
-                    step="0.01"
-                    min="0"
-                    value="0.00"
-                    placeholder="0.00"
+                    <h3>
+                        {{ employee.first_name }}
+                        {{ employee.last_name }}
+                    </h3>
+
+                    <p class="muted">
+
+                        Employee No:
+                        <strong>
+                            {{ employee.employee_number or "-" }}
+                        </strong>
+
+                        &nbsp; | &nbsp;
+
+                        Job Title:
+                        <strong>
+                            {{ employee.job_title or "-" }}
+                        </strong>
+
+                    </p>
+
+
+                    <!-- BASIC SALARY -->
+
+                    <div class="grid">
+
+                        <div>
+
+                            <label>
+                                Basic Salary
+                            </label>
+
+                            <input
+                                type="text"
+                                value="R {{ '%.2f'|format(employee.monthly_salary or 0) }}"
+                                readonly
+                            >
+
+                            <small class="muted">
+                                Taken from employee profile.
+                            </small>
+
+                        </div>
+
+
+                        <!-- OVERTIME -->
+
+                        <div>
+
+                            <label
+                                for="employee_{{ employee.id }}_overtime"
+                            >
+                                Overtime
+                            </label>
+
+                            <input
+                                type="number"
+                                id="employee_{{ employee.id }}_overtime"
+                                name="employee_{{ employee.id }}_overtime"
+                                step="0.01"
+                                min="0"
+                                value="0.00"
+                            >
+
+                        </div>
+
+
+                        <!-- BONUS -->
+
+                        <div>
+
+                            <label
+                                for="employee_{{ employee.id }}_bonus"
+                            >
+                                Bonus
+                            </label>
+
+                            <input
+                                type="number"
+                                id="employee_{{ employee.id }}_bonus"
+                                name="employee_{{ employee.id }}_bonus"
+                                step="0.01"
+                                min="0"
+                                value="0.00"
+                            >
+
+                        </div>
+
+
+                        <!-- COMMISSION -->
+
+                        <div>
+
+                            <label
+                                for="employee_{{ employee.id }}_commission"
+                            >
+                                Commission
+                            </label>
+
+                            <input
+                                type="number"
+                                id="employee_{{ employee.id }}_commission"
+                                name="employee_{{ employee.id }}_commission"
+                                step="0.01"
+                                min="0"
+                                value="0.00"
+                            >
+
+                        </div>
+
+
+                        <!-- OTHER EARNINGS -->
+
+                        <div>
+
+                            <label
+                                for="employee_{{ employee.id }}_other_earnings"
+                            >
+                                Other Earnings
+                            </label>
+
+                            <input
+                                type="number"
+                                id="employee_{{ employee.id }}_other_earnings"
+                                name="employee_{{ employee.id }}_other_earnings"
+                                step="0.01"
+                                min="0"
+                                value="0.00"
+                            >
+
+                        </div>
+
+
+                        <!-- OTHER DEDUCTIONS -->
+
+                        <div>
+
+                            <label
+                                for="employee_{{ employee.id }}_other_deductions"
+                            >
+                                Other Deductions
+                            </label>
+
+                            <input
+                                type="number"
+                                id="employee_{{ employee.id }}_other_deductions"
+                                name="employee_{{ employee.id }}_other_deductions"
+                                step="0.01"
+                                min="0"
+                                value="0.00"
+                            >
+
+                            <small class="muted">
+                                Approved deductions such as loans,
+                                advances or other deductions.
+                            </small>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            {% endfor %}
+
+
+        {% else %}
+
+            <div class="card">
+
+                <h3>No Active Employees</h3>
+
+                <p class="muted">
+                    There are currently no active employees available
+                    for payroll processing.
+                </p>
+
+                <a
+                    class="button"
+                    href="{{ url_for('main.new_employee') }}"
                 >
+                    + Add Employee
+                </a>
 
-                <small class="muted">
-                    Additional overtime earnings.
-                </small>
             </div>
 
-
-            <!-- BONUS -->
-
-            <div>
-                <label for="bonus">
-                    Bonus
-                </label>
-
-                <input
-                    type="number"
-                    id="bonus"
-                    name="bonus"
-                    step="0.01"
-                    min="0"
-                    value="0.00"
-                    placeholder="0.00"
-                >
-
-                <small class="muted">
-                    Bonus or additional incentive payment.
-                </small>
-            </div>
-
-
-            <!-- COMMISSION -->
-
-            <div>
-                <label for="commission">
-                    Commission
-                </label>
-
-                <input
-                    type="number"
-                    id="commission"
-                    name="commission"
-                    step="0.01"
-                    min="0"
-                    value="0.00"
-                    placeholder="0.00"
-                >
-
-                <small class="muted">
-                    Commission earned during the payroll period.
-                </small>
-            </div>
-
-
-            <!-- OTHER EARNINGS -->
-
-            <div>
-                <label for="other_earnings">
-                    Other Earnings
-                </label>
-
-                <input
-                    type="number"
-                    id="other_earnings"
-                    name="other_earnings"
-                    step="0.01"
-                    min="0"
-                    value="0.00"
-                    placeholder="0.00"
-                >
-
-                <small class="muted">
-                    Any other approved taxable earnings.
-                </small>
-            </div>
-
-
-            <!-- OTHER DEDUCTIONS -->
-
-            <div>
-                <label for="other_deductions">
-                    Other Deductions
-                </label>
-
-                <input
-                    type="number"
-                    id="other_deductions"
-                    name="other_deductions"
-                    step="0.01"
-                    min="0"
-                    value="0.00"
-                    placeholder="0.00"
-                >
-
-                <small class="muted">
-                    Examples: approved loan deductions,
-                    salary advances or other deductions.
-                </small>
-            </div>
-
-        </div>
+        {% endif %}
 
 
         <hr>
@@ -218,63 +299,37 @@
             <h3>Automatic Payroll Calculations</h3>
 
             <p class="muted">
-                Appex Payroll will automatically calculate the following
-                for each active employee:
+                Appex Payroll will calculate the following for each
+                employee:
             </p>
 
             <ul>
 
-                <li>
-                    Basic salary
-                </li>
+                <li>Basic salary</li>
 
-                <li>
-                    Overtime
-                </li>
+                <li>Overtime</li>
 
-                <li>
-                    Bonus
-                </li>
+                <li>Bonus</li>
 
-                <li>
-                    Commission
-                </li>
+                <li>Commission</li>
 
-                <li>
-                    Other earnings
-                </li>
+                <li>Other earnings</li>
 
-                <li>
-                    Gross pay
-                </li>
+                <li>Gross pay</li>
 
-                <li>
-                    PAYE
-                </li>
+                <li>PAYE</li>
 
-                <li>
-                    Employee UIF
-                </li>
+                <li>Employee UIF</li>
 
-                <li>
-                    Other deductions
-                </li>
+                <li>Other deductions</li>
 
-                <li>
-                    Total deductions
-                </li>
+                <li>Total deductions</li>
 
-                <li>
-                    Net pay
-                </li>
+                <li>Net pay</li>
 
-                <li>
-                    Employer UIF
-                </li>
+                <li>Employer UIF</li>
 
-                <li>
-                    Total employer cost
-                </li>
+                <li>Total employer cost</li>
 
             </ul>
 
@@ -282,22 +337,33 @@
 
 
         <!-- =====================================================
-             PAYROLL PROCESSING NOTICE
+             WORKFLOW
         ====================================================== -->
 
         <div class="card">
 
-            <h3>Before Processing</h3>
+            <h3>Payroll Workflow</h3>
 
             <p class="muted">
-                Please make sure your active employees have the correct
-                salary and employee information before processing payroll.
+                After submitting this payroll, Appex Payroll will
+                calculate the payroll and take you to the review stage.
             </p>
 
-            <p class="muted">
-                Payroll processing will create a payroll run and generate
-                employee payslip records.
-            </p>
+            <ol>
+
+                <li>Create payroll</li>
+
+                <li>Review employee calculations</li>
+
+                <li>Submit payroll for approval</li>
+
+                <li>Approve payroll</li>
+
+                <li>Complete payroll</li>
+
+                <li>Generate employee payslips</li>
+
+            </ol>
 
         </div>
 
@@ -311,8 +377,9 @@
             <button
                 type="submit"
                 class="button"
+                {% if not employees %}disabled{% endif %}
             >
-                Calculate & Process Payroll
+                Calculate & Review Payroll
             </button>
 
 
