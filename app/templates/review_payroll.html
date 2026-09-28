@@ -25,26 +25,27 @@
 
 
 <!-- ============================================================
-     PAYROLL SUMMARY
+     PAYROLL INFORMATION
 ============================================================= -->
 
 <div class="card">
 
-    <h2>Payroll Summary</h2>
+    <h2>Payroll Information</h2>
 
     <div class="grid">
 
         <div>
             <small>Pay Period</small>
             <strong>
-                {{ payroll_run.pay_period }}
+                {{ payroll_run.pay_period or "-" }}
             </strong>
         </div>
 
         <div>
             <small>Pay Date</small>
             <strong>
-                {{ payroll_run.pay_date.strftime('%d %b %Y') if payroll_run.pay_date else '-' }}
+                {{ payroll_run.pay_date.strftime('%d %b %Y')
+                   if payroll_run.pay_date else "-" }}
             </strong>
         </div>
 
@@ -91,7 +92,7 @@
 
 
 <!-- ============================================================
-     TOTALS
+     PAYROLL TOTALS
 ============================================================= -->
 
 <div class="grid">
@@ -131,7 +132,7 @@
 
     <div class="card">
 
-        <small>Employer UIF</small>
+        <small>Total Employer UIF</small>
 
         <h2>
             R {{ "%.2f"|format(total_employer_uif or 0) }}
@@ -159,11 +160,11 @@
 
 <div class="card">
 
-    <h2>Employee Payroll Details</h2>
+    <h2>Employee Payroll Calculations</h2>
 
     <p class="muted">
-        Check each employee's earnings, deductions, tax and net pay
-        before approving payroll.
+        Review the calculated earnings, PAYE, UIF, deductions and
+        net pay for each employee.
     </p>
 
 
@@ -216,94 +217,159 @@
 
             {% for item in results %}
 
-                {% set employee = item.employee %}
-                {% set payroll = item.result %}
+                {% set employee = item["employee"] %}
+                {% set payroll_input = item["payroll_input"] %}
+                {% set result = item["result"] %}
 
                 <tr>
 
+                    <!-- EMPLOYEE -->
+
                     <td>
+
                         <strong>
                             {{ employee.first_name }}
                             {{ employee.last_name }}
                         </strong>
+
                     </td>
 
+
+                    <!-- EMPLOYEE NUMBER -->
 
                     <td>
                         {{ employee.employee_number or "-" }}
                     </td>
 
 
+                    <!-- BASIC SALARY -->
+
                     <td>
-                        R {{ "%.2f"|format(payroll.basic_salary or 0) }}
+                        R {{ "%.2f"|format(
+                            result.get("basic_salary", 0)
+                        ) }}
                     </td>
 
 
+                    <!-- OVERTIME -->
+
                     <td>
-                        R {{ "%.2f"|format(payroll.overtime or 0) }}
+                        R {{ "%.2f"|format(
+                            result.get("overtime", 0)
+                        ) }}
                     </td>
 
 
+                    <!-- BONUS -->
+
                     <td>
-                        R {{ "%.2f"|format(payroll.bonus or 0) }}
+                        R {{ "%.2f"|format(
+                            result.get("bonus", 0)
+                        ) }}
                     </td>
 
 
+                    <!-- COMMISSION -->
+
                     <td>
-                        R {{ "%.2f"|format(payroll.commission or 0) }}
+                        R {{ "%.2f"|format(
+                            result.get("commission", 0)
+                        ) }}
                     </td>
 
 
+                    <!-- OTHER EARNINGS -->
+
                     <td>
-                        R {{ "%.2f"|format(payroll.other_earnings or 0) }}
+                        R {{ "%.2f"|format(
+                            result.get("other_earnings", 0)
+                        ) }}
                     </td>
 
 
-                    <td>
-                        <strong>
-                            R {{ "%.2f"|format(payroll.gross_pay or 0) }}
-                        </strong>
-                    </td>
-
-
-                    <td>
-                        R {{ "%.2f"|format(payroll.paye or 0) }}
-                    </td>
-
-
-                    <td>
-                        R {{ "%.2f"|format(payroll.uif or 0) }}
-                    </td>
-
-
-                    <td>
-                        R {{ "%.2f"|format(payroll.other_deductions or 0) }}
-                    </td>
-
-
-                    <td>
-                        R {{ "%.2f"|format(payroll.total_deductions or 0) }}
-                    </td>
-
+                    <!-- GROSS -->
 
                     <td>
 
                         <strong>
-                            R {{ "%.2f"|format(payroll.net_pay or 0) }}
+                            R {{ "%.2f"|format(
+                                item["gross_pay"]
+                            ) }}
                         </strong>
 
                     </td>
 
 
+                    <!-- PAYE -->
+
                     <td>
-                        R {{ "%.2f"|format(payroll.employer_uif or 0) }}
+                        R {{ "%.2f"|format(
+                            item["paye"]
+                        ) }}
                     </td>
 
+
+                    <!-- EMPLOYEE UIF -->
+
+                    <td>
+                        R {{ "%.2f"|format(
+                            item["uif"]
+                        ) }}
+                    </td>
+
+
+                    <!-- OTHER DEDUCTIONS -->
+
+                    <td>
+                        R {{ "%.2f"|format(
+                            item["other_deductions"]
+                        ) }}
+                    </td>
+
+
+                    <!-- TOTAL DEDUCTIONS -->
 
                     <td>
 
                         <strong>
-                            R {{ "%.2f"|format(item.employer_cost or 0) }}
+                            R {{ "%.2f"|format(
+                                item["total_deductions"]
+                            ) }}
+                        </strong>
+
+                    </td>
+
+
+                    <!-- NET PAY -->
+
+                    <td>
+
+                        <strong>
+                            R {{ "%.2f"|format(
+                                item["net_pay"]
+                            ) }}
+                        </strong>
+
+                    </td>
+
+
+                    <!-- EMPLOYER UIF -->
+
+                    <td>
+                        R {{ "%.2f"|format(
+                            item["employer_uif"]
+                        ) }}
+                    </td>
+
+
+                    <!-- EMPLOYER COST -->
+
+                    <td>
+
+                        <strong>
+                            R {{ "%.2f"|format(
+                                item["employer_cost"]
+                            ) }}
                         </strong>
 
                     </td>
@@ -325,8 +391,7 @@
             <h3>No Payroll Calculations</h3>
 
             <p>
-                There are no employee payroll calculations available
-                for this payroll run.
+                No employee payroll calculations were found.
             </p>
 
         </div>
@@ -347,11 +412,11 @@
     <ul>
 
         <li>
-            Check employee names and employee numbers.
+            Check each employee's name and employee number.
         </li>
 
         <li>
-            Check basic salaries.
+            Check basic salary.
         </li>
 
         <li>
@@ -359,19 +424,27 @@
         </li>
 
         <li>
-            Check other earnings and deductions.
+            Check other earnings.
         </li>
 
         <li>
-            Check PAYE and UIF calculations.
+            Check PAYE.
         </li>
 
         <li>
-            Check employee net pay.
+            Check employee UIF.
         </li>
 
         <li>
-            Check total employer cost.
+            Check other deductions.
+        </li>
+
+        <li>
+            Check net pay.
+        </li>
+
+        <li>
+            Check employer UIF and employer cost.
         </li>
 
     </ul>
@@ -380,56 +453,86 @@
 
 
 <!-- ============================================================
-     ACTIONS
+     SUBMIT FOR REVIEW
 ============================================================= -->
+
+{% if payroll_run.status == "Draft" or payroll_run.status == "Review" %}
 
 <div class="card">
 
-    <h2>Payroll Approval</h2>
+    <h2>Submit Payroll</h2>
 
     <p class="muted">
-
-        Once you have checked the calculations, submit the payroll
+        If all payroll calculations are correct, submit this payroll
         for approval.
-
     </p>
 
+    <form
+        method="POST"
+        action="{{ url_for(
+            'main.submit_payroll_for_review',
+            payroll_id=payroll_run.id
+        ) }}"
+    >
 
-    {% if payroll_run.status == "Draft" or payroll_run.status == "Review" %}
-
-        <form
-            method="POST"
-            action="{{ url_for('main.submit_payroll_for_review', payroll_id=payroll_run.id) }}"
+        <button
+            type="submit"
+            class="button"
         >
+            Submit Payroll for Review
+        </button>
 
-            <button
-                type="submit"
-                class="button"
-            >
-                Submit Payroll for Review
-            </button>
-
-        </form>
-
-    {% elif payroll_run.status == "Approved" %}
-
-        <p>
-            <span class="badge success">
-                Payroll Approved
-            </span>
-        </p>
-
-    {% elif payroll_run.status == "Completed" %}
-
-        <p>
-            <span class="badge success">
-                Payroll Completed
-            </span>
-        </p>
-
-    {% endif %}
+    </form>
 
 </div>
+
+{% endif %}
+
+
+<!-- ============================================================
+     STATUS MESSAGE
+============================================================= -->
+
+{% if payroll_run.status == "Approved" %}
+
+<div class="card">
+
+    <h2>Payroll Approved</h2>
+
+    <p>
+        <span class="badge success">
+            Approved
+        </span>
+    </p>
+
+    <p class="muted">
+        This payroll is approved and can now be completed.
+    </p>
+
+</div>
+
+{% endif %}
+
+
+{% if payroll_run.status == "Completed" %}
+
+<div class="card">
+
+    <h2>Payroll Completed</h2>
+
+    <p>
+        <span class="badge success">
+            Completed
+        </span>
+    </p>
+
+    <p class="muted">
+        Payslips have been generated for this payroll.
+    </p>
+
+</div>
+
+{% endif %}
 
 
 <!-- ============================================================
@@ -444,7 +547,6 @@
     >
         Payroll History
     </a>
-
 
     <a
         class="button"
