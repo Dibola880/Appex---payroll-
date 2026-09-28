@@ -199,6 +199,12 @@ class Employee(db.Model):
         cascade="all, delete-orphan"
     )
 
+    payroll_inputs = db.relationship(
+        "PayrollInput",
+        back_populates="employee",
+        cascade="all, delete-orphan"
+    )
+
     loan_applications = db.relationship(
         "LoanApplication",
         back_populates="employee",
@@ -320,10 +326,90 @@ class PayrollRun(db.Model):
         back_populates="payroll_runs"
     )
 
+    payroll_inputs = db.relationship(
+        "PayrollInput",
+        back_populates="payroll_run",
+        cascade="all, delete-orphan"
+    )
+
     payslips = db.relationship(
         "Payslip",
         back_populates="payroll_run",
         cascade="all, delete-orphan"
+    )
+
+
+# ============================================================
+# PAYROLL INPUT
+# ============================================================
+
+class PayrollInput(db.Model):
+
+    __tablename__ = "payroll_input"
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
+
+    payroll_run_id = db.Column(
+        db.Integer,
+        db.ForeignKey("payroll_run.id"),
+        nullable=False
+    )
+
+    employee_id = db.Column(
+        db.Integer,
+        db.ForeignKey("employee.id"),
+        nullable=False
+    )
+
+    # --------------------------------------------------------
+    # Payroll earnings
+    # --------------------------------------------------------
+
+    basic_salary = db.Column(
+        db.Float,
+        default=0
+    )
+
+    overtime = db.Column(
+        db.Float,
+        default=0
+    )
+
+    bonus = db.Column(
+        db.Float,
+        default=0
+    )
+
+    commission = db.Column(
+        db.Float,
+        default=0
+    )
+
+    other_earnings = db.Column(
+        db.Float,
+        default=0
+    )
+
+    other_deductions = db.Column(
+        db.Float,
+        default=0
+    )
+
+    # --------------------------------------------------------
+    # Relationships
+    # --------------------------------------------------------
+
+    payroll_run = db.relationship(
+        "PayrollRun",
+        back_populates="payroll_inputs"
+    )
+
+    employee = db.relationship(
+        "Employee",
+        back_populates="payroll_inputs"
     )
 
 
@@ -457,8 +543,6 @@ class LoanApplication(db.Model):
         primary_key=True
     )
 
-    # Employee relationship
-
     employee_id = db.Column(
         db.Integer,
         db.ForeignKey("employee.id"),
@@ -466,16 +550,12 @@ class LoanApplication(db.Model):
         index=True
     )
 
-    # Application reference
-
     reference = db.Column(
         db.String(50),
         unique=True,
         nullable=False,
         index=True
     )
-
-    # Loan information
 
     requested_amount = db.Column(
         db.Float,
@@ -496,8 +576,6 @@ class LoanApplication(db.Model):
         db.String(100)
     )
 
-    # Affordability information
-
     monthly_income = db.Column(
         db.Float,
         default=0
@@ -508,16 +586,12 @@ class LoanApplication(db.Model):
         default=0
     )
 
-    # Application status
-
     status = db.Column(
         db.String(50),
         default="Submitted",
         nullable=False,
         index=True
     )
-
-    # Approval information
 
     reviewed_at = db.Column(
         db.DateTime,
@@ -535,8 +609,6 @@ class LoanApplication(db.Model):
         nullable=True
     )
 
-    # Disbursement information
-
     disbursed_at = db.Column(
         db.DateTime,
         nullable=True
@@ -546,8 +618,6 @@ class LoanApplication(db.Model):
         db.String(100),
         nullable=True
     )
-
-    # Repayment information
 
     total_repayable = db.Column(
         db.Float,
@@ -569,8 +639,6 @@ class LoanApplication(db.Model):
         nullable=True
     )
 
-    # Timestamps
-
     created_at = db.Column(
         db.DateTime,
         default=datetime.utcnow,
@@ -583,8 +651,6 @@ class LoanApplication(db.Model):
         onupdate=datetime.utcnow,
         nullable=False
     )
-
-    # Relationships
 
     employee = db.relationship(
         "Employee",
