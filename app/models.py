@@ -355,13 +355,15 @@ class PayrollInput(db.Model):
     payroll_run_id = db.Column(
         db.Integer,
         db.ForeignKey("payroll_run.id"),
-        nullable=False
+        nullable=False,
+        index=True
     )
 
     employee_id = db.Column(
         db.Integer,
         db.ForeignKey("employee.id"),
-        nullable=False
+        nullable=False,
+        index=True
     )
 
     # --------------------------------------------------------
