@@ -395,7 +395,21 @@ class PayrollInput(db.Model):
         default=0
     )
 
+    # --------------------------------------------------------
+    # Payroll deductions
+    # --------------------------------------------------------
+
     other_deductions = db.Column(
+        db.Float,
+        default=0
+    )
+
+    # --------------------------------------------------------
+    # Phase 5A
+    # Employee loan repayment deducted through payroll
+    # --------------------------------------------------------
+
+    loan_repayment = db.Column(
         db.Float,
         default=0
     )
@@ -448,6 +462,10 @@ class Payslip(db.Model):
         db.Date
     )
 
+    # --------------------------------------------------------
+    # Earnings
+    # --------------------------------------------------------
+
     basic_salary = db.Column(
         db.Float,
         default=0
@@ -478,6 +496,10 @@ class Payslip(db.Model):
         default=0
     )
 
+    # --------------------------------------------------------
+    # Deductions
+    # --------------------------------------------------------
+
     tax_deductions = db.Column(
         db.Float,
         default=0
@@ -493,6 +515,16 @@ class Payslip(db.Model):
         default=0
     )
 
+    # --------------------------------------------------------
+    # Phase 5A
+    # Employee loan repayment
+    # --------------------------------------------------------
+
+    loan_repayment = db.Column(
+        db.Float,
+        default=0
+    )
+
     total_deductions = db.Column(
         db.Float,
         default=0
@@ -502,6 +534,10 @@ class Payslip(db.Model):
         db.Float,
         default=0
     )
+
+    # --------------------------------------------------------
+    # Employer costs
+    # --------------------------------------------------------
 
     employer_uif = db.Column(
         db.Float,
@@ -513,6 +549,10 @@ class Payslip(db.Model):
         default=0
     )
 
+    # --------------------------------------------------------
+    # Deel / document fields
+    # --------------------------------------------------------
+
     deel_payslip_id = db.Column(
         db.String(200)
     )
@@ -520,6 +560,10 @@ class Payslip(db.Model):
     pdf_url = db.Column(
         db.String(500)
     )
+
+    # --------------------------------------------------------
+    # Relationships
+    # --------------------------------------------------------
 
     employee = db.relationship(
         "Employee",
