@@ -1,4 +1,6 @@
 import secrets
+import calendar
+import re
 
 from datetime import datetime, timedelta
 from functools import wraps
@@ -161,6 +163,184 @@ def calculate_age_from_dob(date_of_birth):
         return None
 
 
+# ============================================================
+# PHASE 5A - LOAN HELPERS
+# ============================================================
+
+def parse_repayment_term_months(repayment_term):
+
+    """
+    Convert repayment terms such as:
+
+        1 month
+        3 months
+        6 months
+        12 months
+
+    into an integer number of months.
+    """
+
+    text = str(
+        repayment_term or ""
+    ).strip().lower()
+
+    match = re.search(
+        r"(\d+)",
+        text
+    )
+
+    if not match:
+        return 1
+
+    months = int(
+        match.group(1)
+    )
+
+    # Safety limit for the Phase 5A MVP.
+    return max(
+        1,
+        min(months, 60)
+    )
+
+
+def add_months(value, months):
+
+    """
+    Safely add calendar months to a date.
+    """
+
+    if not value:
+        return None
+
+    month_index = (
+        value.month - 1
+        + months
+    )
+
+    year = (
+        value.year
+        + month_index // 12
+    )
+
+    month = (
+        month_index % 12
+        + 1
+    )
+
+    day = min(
+        value.day,
+        calendar.monthrange(
+            year,
+            month
+        )[1]
+    )
+
+    return value.replace(
+        year=year,
+        month=month,
+        day=day
+    )
+
+
+def get_active_employee_loan(employee_id):
+
+    """
+    Return the employee's currently disbursed loan.
+
+    Phase 5A allows one active disbursed loan per employee.
+    """
+
+    return (
+        LoanApplication.query
+        .filter(
+            LoanApplication.employee_id == employee_id,
+            LoanApplication.status == "Disbursed",
+            LoanApplication.outstanding_balance > 0
+        )
+        .order_by(
+            LoanApplication.created_at.asc()
+        )
+        .first()
+    )
+
+
+def calculate_loan_installment(application):
+
+    """
+    Calculate the normal monthly payroll deduction.
+
+    Phase 5A uses:
+
+        total repayable / repayment term
+
+    No additional interest or fees are added here.
+    """
+
+    if not application:
+        return 0.0
+
+    total_repayable = safe_float(
+        application.total_repayable
+    )
+
+    outstanding_balance = safe_float(
+        application.outstanding_balance
+    )
+
+    if total_repayable <= 0:
+        return 0.0
+
+    if outstanding_balance <= 0:
+        return 0.0
+
+    months = parse_repayment_term_months(
+        application.repayment_term
+    )
+
+    installment = round(
+        total_repayable / months,
+        2
+    )
+
+    # Never deduct more than the outstanding balance.
+    installment = min(
+        installment,
+        outstanding_balance
+    )
+
+    return round(
+        max(0.0, installment),
+        2
+    )
+
+
+def get_company_loan_or_404(
+    loan_id,
+    user
+):
+
+    """
+    Security helper.
+
+    An employer can only access loans belonging
+    to employees in their own company.
+    """
+
+    return (
+        LoanApplication.query
+        .join(Employee)
+        .filter(
+            LoanApplication.id == loan_id,
+            Employee.company_id == user.company_id
+        )
+        .first_or_404()
+    )
+
+
+# ============================================================
+# PAYROLL CALCULATION
+# ============================================================
+
 def calculate_payroll_input(payroll_input):
 
     employee = payroll_input.employee
@@ -195,22 +375,34 @@ def calculate_payroll_input(payroll_input):
     )
 
     gross_pay = safe_float(
-        result.get("gross_pay", 0)
+        result.get(
+            "gross_pay",
+            0
+        )
     )
 
     paye = safe_float(
-        result.get("paye", 0)
+        result.get(
+            "paye",
+            0
+        )
     )
 
     uif = safe_float(
-        result.get("uif", 0)
+        result.get(
+            "uif",
+            0
+        )
     )
 
     other_deductions = safe_float(
-        result.get("other_deductions", 0)
+        result.get(
+            "other_deductions",
+            0
+        )
     )
 
-    total_deductions = safe_float(
+    base_total_deductions = safe_float(
         result.get(
             "total_deductions",
             paye
@@ -219,30 +411,134 @@ def calculate_payroll_input(payroll_input):
         )
     )
 
-    net_pay = safe_float(
-        result.get("net_pay", 0)
+    # --------------------------------------------------------
+    # PHASE 5A - LOAN REPAYMENT
+    # --------------------------------------------------------
+
+    loan_application = None
+    scheduled_loan_repayment = 0.0
+    loan_repayment = 0.0
+    loan_outstanding_before = 0.0
+
+    payroll_run = payroll_input.payroll_run
+
+    # --------------------------------------------------------
+    # Completed payrolls use the amount already recorded
+    # on PayrollInput. This prevents a completed loan from
+    # being recalculated as a new deduction.
+    # --------------------------------------------------------
+
+    if (
+        payroll_run
+        and payroll_run.status == "Completed"
+    ):
+
+        loan_repayment = safe_float(
+            payroll_input.loan_repayment
+        )
+
+    else:
+
+        loan_application = (
+            get_active_employee_loan(
+                employee.id
+            )
+        )
+
+        if loan_application:
+
+            loan_outstanding_before = safe_float(
+                loan_application.outstanding_balance
+            )
+
+            scheduled_loan_repayment = (
+                calculate_loan_installment(
+                    loan_application
+                )
+            )
+
+            # ------------------------------------------------
+            # Never allow the loan deduction to make the
+            # employee's net pay negative.
+            # ------------------------------------------------
+
+            available_for_loan = max(
+                0.0,
+                gross_pay
+                - base_total_deductions
+            )
+
+            loan_repayment = min(
+                scheduled_loan_repayment,
+                available_for_loan
+            )
+
+            loan_repayment = round(
+                max(0.0, loan_repayment),
+                2
+            )
+
+    total_deductions = round(
+        base_total_deductions
+        + loan_repayment,
+        2
+    )
+
+    net_pay = round(
+        max(
+            0.0,
+            gross_pay
+            - total_deductions
+        ),
+        2
     )
 
     employer_uif = safe_float(
-        result.get("employer_uif", 0)
+        result.get(
+            "employer_uif",
+            0
+        )
     )
 
-    employer_cost = (
+    employer_cost = round(
         gross_pay
-        + employer_uif
+        + employer_uif,
+        2
     )
 
     return {
         "employee": employee,
+
         "payroll_input": payroll_input,
+
         "result": result,
+
         "gross_pay": gross_pay,
+
         "paye": paye,
+
         "uif": uif,
+
         "other_deductions": other_deductions,
+
+        "loan_repayment": loan_repayment,
+
+        "scheduled_loan_repayment": (
+            scheduled_loan_repayment
+        ),
+
+        "loan_application": loan_application,
+
+        "loan_outstanding_before": (
+            loan_outstanding_before
+        ),
+
         "total_deductions": total_deductions,
+
         "net_pay": net_pay,
+
         "employer_uif": employer_uif,
+
         "employer_cost": employer_cost,
     }
 
@@ -267,38 +563,53 @@ def calculate_payroll_run_totals(payroll_run):
             payroll_input
         )
 
-        results.append(calculated)
-
-        total_gross += calculated["gross_pay"]
-
-        total_deductions += (
-            calculated["total_deductions"]
+        results.append(
+            calculated
         )
 
-        total_net += calculated["net_pay"]
+        total_gross += calculated[
+            "gross_pay"
+        ]
 
-        total_employer_uif += (
-            calculated["employer_uif"]
-        )
+        total_deductions += calculated[
+            "total_deductions"
+        ]
 
-        total_employer_cost += (
-            calculated["employer_cost"]
-        )
+        total_net += calculated[
+            "net_pay"
+        ]
 
-    payroll_run.total_gross = total_gross
+        total_employer_uif += calculated[
+            "employer_uif"
+        ]
 
-    payroll_run.total_deductions = (
-        total_deductions
+        total_employer_cost += calculated[
+            "employer_cost"
+        ]
+
+    payroll_run.total_gross = round(
+        total_gross,
+        2
     )
 
-    payroll_run.total_net = total_net
-
-    payroll_run.total_employer_uif = (
-        total_employer_uif
+    payroll_run.total_deductions = round(
+        total_deductions,
+        2
     )
 
-    payroll_run.total_employer_cost = (
-        total_employer_cost
+    payroll_run.total_net = round(
+        total_net,
+        2
+    )
+
+    payroll_run.total_employer_uif = round(
+        total_employer_uif,
+        2
+    )
+
+    payroll_run.total_employer_cost = round(
+        total_employer_cost,
+        2
     )
 
     return results
@@ -314,10 +625,6 @@ def get_employee_payroll_value(
         field_name
         or ""
     ).strip()
-
-    # --------------------------------------------------------
-    # New individual employee field
-    # --------------------------------------------------------
 
     individual_key = (
         f"employee_{employee_id}_{field_name}"
@@ -336,10 +643,6 @@ def get_employee_payroll_value(
             value,
             default
         )
-
-    # --------------------------------------------------------
-    # Compatibility with older payroll form
-    # --------------------------------------------------------
 
     value = request.form.get(
         field_name
@@ -560,7 +863,9 @@ def register():
             payroll_provider="Deel Local Payroll",
         )
 
-        db.session.add(company)
+        db.session.add(
+            company
+        )
 
         db.session.flush()
 
@@ -575,7 +880,9 @@ def register():
             is_active=True,
         )
 
-        db.session.add(user)
+        db.session.add(
+            user
+        )
 
         db.session.commit()
 
@@ -873,7 +1180,9 @@ def new_employee():
             status=status,
         )
 
-        db.session.add(employee)
+        db.session.add(
+            employee
+        )
 
         db.session.commit()
 
@@ -932,7 +1241,9 @@ def invite_employee(employee_id):
         used=False,
     )
 
-    db.session.add(invitation)
+    db.session.add(
+        invitation
+    )
 
     db.session.commit()
 
@@ -1098,7 +1409,9 @@ def accept_invitation(token):
             is_active=True,
         )
 
-        db.session.add(user)
+        db.session.add(
+            user
+        )
 
         db.session.flush()
 
@@ -1440,7 +1753,9 @@ def employee_loan_application():
             outstanding_balance=0,
         )
 
-        db.session.add(application)
+        db.session.add(
+            application
+        )
 
         db.session.commit()
 
@@ -1558,6 +1873,7 @@ def employee_repayments():
 
     amount_paid = 0.0
     outstanding_balance = 0.0
+    monthly_installment = 0.0
 
     if application:
 
@@ -1570,15 +1886,20 @@ def employee_repayments():
         )
 
         if (
-            outstanding_balance == 0
-            and application.status in [
-                "Approved",
-                "Disbursed",
-            ]
+            application.status == "Approved"
+            and outstanding_balance <= 0
         ):
 
             outstanding_balance = safe_float(
                 application.total_repayable
+            )
+
+        if application.status == "Disbursed":
+
+            monthly_installment = (
+                calculate_loan_installment(
+                    application
+                )
             )
 
     return render_template(
@@ -1587,6 +1908,347 @@ def employee_repayments():
         application=application,
         outstanding_balance=outstanding_balance,
         amount_paid=amount_paid,
+        monthly_installment=monthly_installment,
+    )
+
+
+# ============================================================
+# PHASE 5A - EMPLOYER LOAN MANAGEMENT
+# ============================================================
+
+@bp.route(
+    "/loans"
+)
+@employer_required
+def loan_management():
+
+    user = current_user()
+
+    applications = (
+        LoanApplication.query
+        .join(Employee)
+        .filter(
+            Employee.company_id == user.company_id
+        )
+        .order_by(
+            LoanApplication.created_at.desc()
+        )
+        .all()
+    )
+
+    return render_template(
+        "loan_management.html",
+        applications=applications,
+    )
+
+
+# ============================================================
+# PHASE 5A - APPROVE LOAN
+# ============================================================
+
+@bp.route(
+    "/loans/<int:loan_id>/approve",
+    methods=["POST"]
+)
+@employer_required
+def approve_loan(loan_id):
+
+    user = current_user()
+
+    application = get_company_loan_or_404(
+        loan_id,
+        user
+    )
+
+    if application.status not in [
+        "Submitted",
+        "Under Review",
+    ]:
+
+        flash(
+            "Only submitted loan applications can be approved.",
+            "warning"
+        )
+
+        return redirect(
+            url_for(
+                "main.loan_management"
+            )
+        )
+
+    approved_amount = safe_float(
+        request.form.get(
+            "approved_amount"
+        ),
+        application.requested_amount
+    )
+
+    if approved_amount <= 0:
+
+        flash(
+            "Approved amount must be greater than zero.",
+            "danger"
+        )
+
+        return redirect(
+            url_for(
+                "main.loan_management"
+            )
+        )
+
+    if approved_amount > safe_float(
+        application.requested_amount
+    ):
+
+        flash(
+            "Approved amount cannot exceed the requested amount.",
+            "danger"
+        )
+
+        return redirect(
+            url_for(
+                "main.loan_management"
+            )
+        )
+
+    approval_notes = (
+        request.form.get(
+            "approval_notes"
+        )
+        or ""
+    ).strip()
+
+    application.approved_amount = (
+        approved_amount
+    )
+
+    # Phase 5A:
+    # The approved amount is currently the total repayable amount.
+    application.total_repayable = (
+        approved_amount
+    )
+
+    application.total_paid = 0.0
+
+    application.outstanding_balance = (
+        approved_amount
+    )
+
+    application.status = "Approved"
+
+    application.reviewed_at = (
+        datetime.utcnow()
+    )
+
+    application.reviewed_by = user.id
+
+    application.approval_notes = (
+        approval_notes
+    )
+
+    db.session.commit()
+
+    flash(
+        f"Loan {application.reference} approved for R {approved_amount:,.2f}.",
+        "success"
+    )
+
+    return redirect(
+        url_for(
+            "main.loan_management"
+        )
+    )
+
+
+# ============================================================
+# PHASE 5A - REJECT LOAN
+# ============================================================
+
+@bp.route(
+    "/loans/<int:loan_id>/reject",
+    methods=["POST"]
+)
+@employer_required
+def reject_loan(loan_id):
+
+    user = current_user()
+
+    application = get_company_loan_or_404(
+        loan_id,
+        user
+    )
+
+    if application.status not in [
+        "Submitted",
+        "Under Review",
+    ]:
+
+        flash(
+            "This loan application cannot be rejected at its current stage.",
+            "warning"
+        )
+
+        return redirect(
+            url_for(
+                "main.loan_management"
+            )
+        )
+
+    rejection_notes = (
+        request.form.get(
+            "approval_notes"
+        )
+        or request.form.get(
+            "rejection_reason"
+        )
+        or ""
+    ).strip()
+
+    application.status = "Rejected"
+
+    application.reviewed_at = (
+        datetime.utcnow()
+    )
+
+    application.reviewed_by = user.id
+
+    application.approval_notes = (
+        rejection_notes
+    )
+
+    db.session.commit()
+
+    flash(
+        f"Loan {application.reference} has been rejected.",
+        "success"
+    )
+
+    return redirect(
+        url_for(
+            "main.loan_management"
+        )
+    )
+
+
+# ============================================================
+# PHASE 5A - DISBURSE LOAN
+# ============================================================
+
+@bp.route(
+    "/loans/<int:loan_id>/disburse",
+    methods=["POST"]
+)
+@employer_required
+def disburse_loan(loan_id):
+
+    user = current_user()
+
+    application = get_company_loan_or_404(
+        loan_id,
+        user
+    )
+
+    if application.status != "Approved":
+
+        flash(
+            "Only approved loans can be disbursed.",
+            "warning"
+        )
+
+        return redirect(
+            url_for(
+                "main.loan_management"
+            )
+        )
+
+    approved_amount = safe_float(
+        application.approved_amount
+    )
+
+    if approved_amount <= 0:
+
+        flash(
+            "The approved loan amount is invalid.",
+            "danger"
+        )
+
+        return redirect(
+            url_for(
+                "main.loan_management"
+            )
+        )
+
+    disbursement_reference = (
+        request.form.get(
+            "disbursement_reference"
+        )
+        or ""
+    ).strip()
+
+    if not disbursement_reference:
+
+        disbursement_reference = (
+            "APX-DISB-"
+            + datetime.utcnow().strftime(
+                "%Y%m%d%H%M%S"
+            )
+            + "-"
+            + secrets.token_hex(
+                2
+            ).upper()
+        )
+
+    application.status = "Disbursed"
+
+    application.disbursed_at = (
+        datetime.utcnow()
+    )
+
+    application.disbursement_reference = (
+        disbursement_reference
+    )
+
+    application.total_repayable = (
+        safe_float(
+            application.total_repayable,
+            approved_amount
+        )
+    )
+
+    application.total_paid = safe_float(
+        application.total_paid
+    )
+
+    application.outstanding_balance = round(
+        max(
+            0.0,
+            safe_float(
+                application.total_repayable
+            )
+            - safe_float(
+                application.total_paid
+            )
+        ),
+        2
+    )
+
+    # The first deduction will occur on the next
+    # completed payroll after disbursement.
+    application.next_payment_date = (
+        datetime.utcnow().date()
+    )
+
+    db.session.commit()
+
+    flash(
+        f"Loan {application.reference} has been disbursed.",
+        "success"
+    )
+
+    return redirect(
+        url_for(
+            "main.loan_management"
+        )
     )
 
 
@@ -1741,10 +2403,6 @@ def payroll():
                 company=company,
             )
 
-        # ----------------------------------------------------
-        # Create payroll run
-        # ----------------------------------------------------
-
         payroll_run = PayrollRun(
             company_id=company.id,
             pay_period=pay_period,
@@ -1762,10 +2420,6 @@ def payroll():
         )
 
         db.session.flush()
-
-        # ----------------------------------------------------
-        # Create individual employee payroll inputs
-        # ----------------------------------------------------
 
         for employee in employees:
 
@@ -1805,6 +2459,7 @@ def payroll():
                 commission=commission,
                 other_earnings=other_earnings,
                 other_deductions=other_deductions,
+                loan_repayment=0,
             )
 
             db.session.add(
@@ -1812,10 +2467,6 @@ def payroll():
             )
 
         db.session.commit()
-
-        # ----------------------------------------------------
-        # Calculate initial payroll totals
-        # ----------------------------------------------------
 
         calculate_payroll_run_totals(
             payroll_run
@@ -1883,10 +2534,6 @@ def review_payroll(payroll_id):
         company_id=user.company_id
     ).first_or_404()
 
-    # --------------------------------------------------------
-    # Completed payroll is locked
-    # --------------------------------------------------------
-
     if payroll_run.status == "Completed":
 
         flash(
@@ -1900,10 +2547,6 @@ def review_payroll(payroll_id):
                 payroll_id=payroll_run.id
             )
         )
-
-    # --------------------------------------------------------
-    # Approved payroll is locked from editing
-    # --------------------------------------------------------
 
     if payroll_run.status == "Approved":
 
@@ -1935,10 +2578,6 @@ def review_payroll(payroll_id):
                 "main.payroll"
             )
         )
-
-    # --------------------------------------------------------
-    # Allow employer to update payroll inputs
-    # --------------------------------------------------------
 
     if request.method == "POST":
 
@@ -2007,10 +2646,6 @@ def review_payroll(payroll_id):
                 payroll_id=payroll_run.id
             )
         )
-
-    # --------------------------------------------------------
-    # GET - calculate preview
-    # --------------------------------------------------------
 
     results = calculate_payroll_run_totals(
         payroll_run
@@ -2228,7 +2863,7 @@ def complete_payroll(payroll_id):
         )
 
     # --------------------------------------------------------
-    # Recalculate one final time before completion
+    # Final payroll calculation
     # --------------------------------------------------------
 
     results = calculate_payroll_run_totals(
@@ -2236,7 +2871,7 @@ def complete_payroll(payroll_id):
     )
 
     # --------------------------------------------------------
-    # Remove any existing payslips
+    # Remove existing payslips for this payroll
     # --------------------------------------------------------
 
     Payslip.query.filter_by(
@@ -2246,7 +2881,7 @@ def complete_payroll(payroll_id):
     )
 
     # --------------------------------------------------------
-    # Generate final payslips
+    # Generate payslips
     # --------------------------------------------------------
 
     for calculated in results:
@@ -2263,10 +2898,34 @@ def complete_payroll(payroll_id):
             "result"
         ]
 
+        loan_application = calculated.get(
+            "loan_application"
+        )
+
+        loan_repayment = round(
+            safe_float(
+                calculated.get(
+                    "loan_repayment",
+                    0
+                )
+            ),
+            2
+        )
+
+        # ----------------------------------------------------
+        # Store the actual loan repayment on PayrollInput
+        # ----------------------------------------------------
+
+        payroll_input.loan_repayment = (
+            loan_repayment
+        )
+
         payslip = Payslip(
             employee_id=employee.id,
             payroll_run_id=payroll_run.id,
+
             pay_period=payroll_run.pay_period,
+
             pay_date=payroll_run.pay_date,
 
             basic_salary=safe_float(
@@ -2320,6 +2979,8 @@ def complete_payroll(payroll_id):
                 "other_deductions"
             ],
 
+            loan_repayment=loan_repayment,
+
             total_deductions=calculated[
                 "total_deductions"
             ],
@@ -2341,12 +3002,74 @@ def complete_payroll(payroll_id):
             payslip
         )
 
+        # ----------------------------------------------------
+        # PHASE 5A
+        # Apply payroll repayment to loan balance
+        # ----------------------------------------------------
+
+        if (
+            loan_application
+            and loan_repayment > 0
+            and loan_application.status == "Disbursed"
+        ):
+
+            current_total_paid = safe_float(
+                loan_application.total_paid
+            )
+
+            total_repayable = safe_float(
+                loan_application.total_repayable
+            )
+
+            new_total_paid = round(
+                current_total_paid
+                + loan_repayment,
+                2
+            )
+
+            new_outstanding = round(
+                max(
+                    0.0,
+                    total_repayable
+                    - new_total_paid
+                ),
+                2
+            )
+
+            loan_application.total_paid = (
+                new_total_paid
+            )
+
+            loan_application.outstanding_balance = (
+                new_outstanding
+            )
+
+            if new_outstanding <= 0.01:
+
+                loan_application.outstanding_balance = 0.0
+
+                loan_application.status = "Repaid"
+
+                loan_application.next_payment_date = None
+
+            else:
+
+                loan_application.status = "Disbursed"
+
+                loan_application.next_payment_date = (
+                    add_months(
+                        payroll_run.pay_date
+                        or datetime.utcnow().date(),
+                        1
+                    )
+                )
+
     payroll_run.status = "Completed"
 
     db.session.commit()
 
     flash(
-        "Payroll completed successfully and payslips generated.",
+        "Payroll completed successfully. Loan repayments have been recorded.",
         "success"
     )
 
@@ -2466,10 +3189,6 @@ def view_payslip(payslip_id):
             )
         )
 
-    # --------------------------------------------------------
-    # Employee security
-    # --------------------------------------------------------
-
     if user.role == "employee":
 
         if employee.user_id != user.id:
@@ -2484,10 +3203,6 @@ def view_payslip(payslip_id):
                     "main.employee_dashboard"
                 )
             )
-
-    # --------------------------------------------------------
-    # Employer security
-    # --------------------------------------------------------
 
     else:
 
@@ -2545,10 +3260,6 @@ def download_payslip_pdf(payslip_id):
             url_for("main.dashboard")
         )
 
-    # --------------------------------------------------------
-    # Employee security
-    # --------------------------------------------------------
-
     if user.role == "employee":
 
         if employee.user_id != user.id:
@@ -2564,10 +3275,6 @@ def download_payslip_pdf(payslip_id):
                 )
             )
 
-    # --------------------------------------------------------
-    # Employer security
-    # --------------------------------------------------------
-
     else:
 
         if employee.company_id != user.company_id:
@@ -2582,10 +3289,6 @@ def download_payslip_pdf(payslip_id):
                     "main.dashboard"
                 )
             )
-
-    # --------------------------------------------------------
-    # Create PDF
-    # --------------------------------------------------------
 
     buffer = BytesIO()
 
@@ -2664,9 +3367,9 @@ def download_payslip_pdf(payslip_id):
 
     y -= 40
 
-    # --------------------------------------------------------
-    # Earnings
-    # --------------------------------------------------------
+    # ========================================================
+    # EARNINGS
+    # ========================================================
 
     pdf.setFont(
         "Helvetica-Bold",
@@ -2775,9 +3478,9 @@ def download_payslip_pdf(payslip_id):
 
     y -= 40
 
-    # --------------------------------------------------------
-    # Deductions
-    # --------------------------------------------------------
+    # ========================================================
+    # DEDUCTIONS
+    # ========================================================
 
     pdf.drawString(
         50,
@@ -2823,6 +3526,20 @@ def download_payslip_pdf(payslip_id):
     pdf.drawString(
         50,
         y,
+        "Loan Repayment:"
+    )
+
+    pdf.drawRightString(
+        500,
+        y,
+        f"R {safe_float(payslip.loan_repayment):,.2f}"
+    )
+
+    y -= 20
+
+    pdf.drawString(
+        50,
+        y,
         "Other Deductions:"
     )
 
@@ -2853,9 +3570,9 @@ def download_payslip_pdf(payslip_id):
 
     y -= 35
 
-    # --------------------------------------------------------
-    # Net pay
-    # --------------------------------------------------------
+    # ========================================================
+    # NET PAY
+    # ========================================================
 
     pdf.setFont(
         "Helvetica-Bold",
@@ -2876,9 +3593,9 @@ def download_payslip_pdf(payslip_id):
 
     y -= 35
 
-    # --------------------------------------------------------
-    # Employer cost
-    # --------------------------------------------------------
+    # ========================================================
+    # EMPLOYER COST
+    # ========================================================
 
     pdf.setFont(
         "Helvetica",
