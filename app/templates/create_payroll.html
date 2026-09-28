@@ -8,7 +8,7 @@
     <div>
         <h1>Process Payroll</h1>
         <p class="muted">
-            Enter payroll information and calculate employee earnings,
+            Create a payroll run and calculate employee earnings,
             PAYE, UIF, deductions and net pay.
         </p>
     </div>
@@ -18,15 +18,24 @@
     </a>
 </div>
 
+
 <div class="card">
+
     <h2>Payroll Period</h2>
 
     <form method="POST" action="{{ url_for('main.payroll') }}">
 
+        <!-- =====================================================
+             PAYROLL PERIOD
+        ====================================================== -->
+
         <div class="grid">
 
             <div>
-                <label for="pay_period">Pay Period</label>
+                <label for="pay_period">
+                    Pay Period
+                </label>
+
                 <input
                     type="text"
                     id="pay_period"
@@ -34,39 +43,58 @@
                     placeholder="September 2026"
                     required
                 >
+
                 <small class="muted">
                     Example: September 2026
                 </small>
             </div>
 
+
             <div>
-                <label for="pay_date">Pay Date</label>
+                <label for="pay_date">
+                    Pay Date
+                </label>
+
                 <input
                     type="date"
                     id="pay_date"
                     name="pay_date"
                     required
                 >
+
                 <small class="muted">
-                    Date employees will be paid.
+                    The date employees will be paid.
                 </small>
             </div>
 
         </div>
 
+
         <hr>
+
+
+        <!-- =====================================================
+             PAYROLL INPUTS
+        ====================================================== -->
 
         <h2>Payroll Earnings & Deductions</h2>
 
         <p class="muted">
-            Enter the additional payroll amounts below. Basic salary will
-            be taken from each employee's profile.
+            Basic salary is automatically taken from each employee's
+            employee profile. Enter any additional earnings or
+            deductions for this payroll run below.
         </p>
+
 
         <div class="grid">
 
+            <!-- OVERTIME -->
+
             <div>
-                <label for="overtime">Overtime</label>
+                <label for="overtime">
+                    Overtime
+                </label>
+
                 <input
                     type="number"
                     id="overtime"
@@ -76,10 +104,20 @@
                     value="0.00"
                     placeholder="0.00"
                 >
+
+                <small class="muted">
+                    Additional overtime earnings.
+                </small>
             </div>
 
+
+            <!-- BONUS -->
+
             <div>
-                <label for="bonus">Bonus</label>
+                <label for="bonus">
+                    Bonus
+                </label>
+
                 <input
                     type="number"
                     id="bonus"
@@ -89,10 +127,20 @@
                     value="0.00"
                     placeholder="0.00"
                 >
+
+                <small class="muted">
+                    Bonus or additional incentive payment.
+                </small>
             </div>
 
+
+            <!-- COMMISSION -->
+
             <div>
-                <label for="commission">Commission</label>
+                <label for="commission">
+                    Commission
+                </label>
+
                 <input
                     type="number"
                     id="commission"
@@ -102,10 +150,20 @@
                     value="0.00"
                     placeholder="0.00"
                 >
+
+                <small class="muted">
+                    Commission earned during the payroll period.
+                </small>
             </div>
 
+
+            <!-- OTHER EARNINGS -->
+
             <div>
-                <label for="other_earnings">Other Earnings</label>
+                <label for="other_earnings">
+                    Other Earnings
+                </label>
+
                 <input
                     type="number"
                     id="other_earnings"
@@ -115,10 +173,20 @@
                     value="0.00"
                     placeholder="0.00"
                 >
+
+                <small class="muted">
+                    Any other approved taxable earnings.
+                </small>
             </div>
 
+
+            <!-- OTHER DEDUCTIONS -->
+
             <div>
-                <label for="other_deductions">Other Deductions</label>
+                <label for="other_deductions">
+                    Other Deductions
+                </label>
+
                 <input
                     type="number"
                     id="other_deductions"
@@ -128,39 +196,125 @@
                     value="0.00"
                     placeholder="0.00"
                 >
+
                 <small class="muted">
-                    Examples: loan deductions, advances or other approved deductions.
+                    Examples: approved loan deductions,
+                    salary advances or other deductions.
                 </small>
             </div>
 
         </div>
 
+
         <hr>
 
+
+        <!-- =====================================================
+             AUTOMATIC CALCULATIONS
+        ====================================================== -->
+
         <div class="card">
-            <h3>Payroll Calculation</h3>
+
+            <h3>Automatic Payroll Calculations</h3>
 
             <p class="muted">
-                Appex Payroll will calculate the following automatically:
+                Appex Payroll will automatically calculate the following
+                for each active employee:
             </p>
 
             <ul>
-                <li>Gross salary</li>
-                <li>PAYE</li>
-                <li>Employee UIF</li>
-                <li>Other deductions</li>
-                <li>Total deductions</li>
-                <li>Net salary</li>
-                <li>Employer UIF</li>
-                <li>Total employer cost</li>
+
+                <li>
+                    Basic salary
+                </li>
+
+                <li>
+                    Overtime
+                </li>
+
+                <li>
+                    Bonus
+                </li>
+
+                <li>
+                    Commission
+                </li>
+
+                <li>
+                    Other earnings
+                </li>
+
+                <li>
+                    Gross pay
+                </li>
+
+                <li>
+                    PAYE
+                </li>
+
+                <li>
+                    Employee UIF
+                </li>
+
+                <li>
+                    Other deductions
+                </li>
+
+                <li>
+                    Total deductions
+                </li>
+
+                <li>
+                    Net pay
+                </li>
+
+                <li>
+                    Employer UIF
+                </li>
+
+                <li>
+                    Total employer cost
+                </li>
+
             </ul>
+
         </div>
+
+
+        <!-- =====================================================
+             PAYROLL PROCESSING NOTICE
+        ====================================================== -->
+
+        <div class="card">
+
+            <h3>Before Processing</h3>
+
+            <p class="muted">
+                Please make sure your active employees have the correct
+                salary and employee information before processing payroll.
+            </p>
+
+            <p class="muted">
+                Payroll processing will create a payroll run and generate
+                employee payslip records.
+            </p>
+
+        </div>
+
+
+        <!-- =====================================================
+             ACTIONS
+        ====================================================== -->
 
         <div class="form-actions">
 
-            <button type="submit" class="button">
+            <button
+                type="submit"
+                class="button"
+            >
                 Calculate & Process Payroll
             </button>
+
 
             <a
                 class="button"
@@ -169,9 +323,18 @@
                 View Payroll History
             </a>
 
+
+            <a
+                class="button"
+                href="{{ url_for('main.dashboard') }}"
+            >
+                Cancel
+            </a>
+
         </div>
 
     </form>
+
 </div>
 
 {% endblock %}
