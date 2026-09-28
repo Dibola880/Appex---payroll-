@@ -1,0 +1,458 @@
+{% extends "base.html" %}
+
+{% block title %}Review Payroll - Appex Payroll{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+
+    <div>
+        <h1>Review Payroll</h1>
+
+        <p class="muted">
+            Review the calculated payroll before submitting it for approval.
+        </p>
+    </div>
+
+    <a
+        class="button"
+        href="{{ url_for('main.payroll') }}"
+    >
+        ← Back to Payroll
+    </a>
+
+</div>
+
+
+<!-- ============================================================
+     PAYROLL SUMMARY
+============================================================= -->
+
+<div class="card">
+
+    <h2>Payroll Summary</h2>
+
+    <div class="grid">
+
+        <div>
+            <small>Pay Period</small>
+            <strong>
+                {{ payroll_run.pay_period }}
+            </strong>
+        </div>
+
+        <div>
+            <small>Pay Date</small>
+            <strong>
+                {{ payroll_run.pay_date.strftime('%d %b %Y') if payroll_run.pay_date else '-' }}
+            </strong>
+        </div>
+
+        <div>
+            <small>Status</small>
+
+            {% if payroll_run.status == "Draft" %}
+
+                <span class="badge warning">
+                    Draft
+                </span>
+
+            {% elif payroll_run.status == "Review" %}
+
+                <span class="badge warning">
+                    Review
+                </span>
+
+            {% elif payroll_run.status == "Approved" %}
+
+                <span class="badge success">
+                    Approved
+                </span>
+
+            {% elif payroll_run.status == "Completed" %}
+
+                <span class="badge success">
+                    Completed
+                </span>
+
+            {% else %}
+
+                <span class="badge">
+                    {{ payroll_run.status }}
+                </span>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ============================================================
+     TOTALS
+============================================================= -->
+
+<div class="grid">
+
+    <div class="card">
+
+        <small>Total Gross Payroll</small>
+
+        <h2>
+            R {{ "%.2f"|format(total_gross or 0) }}
+        </h2>
+
+    </div>
+
+
+    <div class="card">
+
+        <small>Total Deductions</small>
+
+        <h2>
+            R {{ "%.2f"|format(total_deductions or 0) }}
+        </h2>
+
+    </div>
+
+
+    <div class="card">
+
+        <small>Total Net Payroll</small>
+
+        <h2>
+            R {{ "%.2f"|format(total_net or 0) }}
+        </h2>
+
+    </div>
+
+
+    <div class="card">
+
+        <small>Employer UIF</small>
+
+        <h2>
+            R {{ "%.2f"|format(total_employer_uif or 0) }}
+        </h2>
+
+    </div>
+
+
+    <div class="card">
+
+        <small>Total Employer Cost</small>
+
+        <h2>
+            R {{ "%.2f"|format(total_employer_cost or 0) }}
+        </h2>
+
+    </div>
+
+</div>
+
+
+<!-- ============================================================
+     EMPLOYEE PAYROLL DETAILS
+============================================================= -->
+
+<div class="card">
+
+    <h2>Employee Payroll Details</h2>
+
+    <p class="muted">
+        Check each employee's earnings, deductions, tax and net pay
+        before approving payroll.
+    </p>
+
+
+    {% if results %}
+
+    <div class="table-wrap">
+
+        <table>
+
+            <thead>
+
+                <tr>
+
+                    <th>Employee</th>
+
+                    <th>Employee No.</th>
+
+                    <th>Basic Salary</th>
+
+                    <th>Overtime</th>
+
+                    <th>Bonus</th>
+
+                    <th>Commission</th>
+
+                    <th>Other Earnings</th>
+
+                    <th>Gross Pay</th>
+
+                    <th>PAYE</th>
+
+                    <th>Employee UIF</th>
+
+                    <th>Other Deductions</th>
+
+                    <th>Total Deductions</th>
+
+                    <th>Net Pay</th>
+
+                    <th>Employer UIF</th>
+
+                    <th>Employer Cost</th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody>
+
+            {% for item in results %}
+
+                {% set employee = item.employee %}
+                {% set payroll = item.result %}
+
+                <tr>
+
+                    <td>
+                        <strong>
+                            {{ employee.first_name }}
+                            {{ employee.last_name }}
+                        </strong>
+                    </td>
+
+
+                    <td>
+                        {{ employee.employee_number or "-" }}
+                    </td>
+
+
+                    <td>
+                        R {{ "%.2f"|format(payroll.basic_salary or 0) }}
+                    </td>
+
+
+                    <td>
+                        R {{ "%.2f"|format(payroll.overtime or 0) }}
+                    </td>
+
+
+                    <td>
+                        R {{ "%.2f"|format(payroll.bonus or 0) }}
+                    </td>
+
+
+                    <td>
+                        R {{ "%.2f"|format(payroll.commission or 0) }}
+                    </td>
+
+
+                    <td>
+                        R {{ "%.2f"|format(payroll.other_earnings or 0) }}
+                    </td>
+
+
+                    <td>
+                        <strong>
+                            R {{ "%.2f"|format(payroll.gross_pay or 0) }}
+                        </strong>
+                    </td>
+
+
+                    <td>
+                        R {{ "%.2f"|format(payroll.paye or 0) }}
+                    </td>
+
+
+                    <td>
+                        R {{ "%.2f"|format(payroll.uif or 0) }}
+                    </td>
+
+
+                    <td>
+                        R {{ "%.2f"|format(payroll.other_deductions or 0) }}
+                    </td>
+
+
+                    <td>
+                        R {{ "%.2f"|format(payroll.total_deductions or 0) }}
+                    </td>
+
+
+                    <td>
+
+                        <strong>
+                            R {{ "%.2f"|format(payroll.net_pay or 0) }}
+                        </strong>
+
+                    </td>
+
+
+                    <td>
+                        R {{ "%.2f"|format(payroll.employer_uif or 0) }}
+                    </td>
+
+
+                    <td>
+
+                        <strong>
+                            R {{ "%.2f"|format(item.employer_cost or 0) }}
+                        </strong>
+
+                    </td>
+
+                </tr>
+
+            {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    {% else %}
+
+        <div class="empty-state">
+
+            <h3>No Payroll Calculations</h3>
+
+            <p>
+                There are no employee payroll calculations available
+                for this payroll run.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+</div>
+
+
+<!-- ============================================================
+     PAYROLL CHECKLIST
+============================================================= -->
+
+<div class="card">
+
+    <h2>Payroll Review Checklist</h2>
+
+    <ul>
+
+        <li>
+            Check employee names and employee numbers.
+        </li>
+
+        <li>
+            Check basic salaries.
+        </li>
+
+        <li>
+            Check overtime, bonuses and commissions.
+        </li>
+
+        <li>
+            Check other earnings and deductions.
+        </li>
+
+        <li>
+            Check PAYE and UIF calculations.
+        </li>
+
+        <li>
+            Check employee net pay.
+        </li>
+
+        <li>
+            Check total employer cost.
+        </li>
+
+    </ul>
+
+</div>
+
+
+<!-- ============================================================
+     ACTIONS
+============================================================= -->
+
+<div class="card">
+
+    <h2>Payroll Approval</h2>
+
+    <p class="muted">
+
+        Once you have checked the calculations, submit the payroll
+        for approval.
+
+    </p>
+
+
+    {% if payroll_run.status == "Draft" or payroll_run.status == "Review" %}
+
+        <form
+            method="POST"
+            action="{{ url_for('main.submit_payroll_for_review', payroll_id=payroll_run.id) }}"
+        >
+
+            <button
+                type="submit"
+                class="button"
+            >
+                Submit Payroll for Review
+            </button>
+
+        </form>
+
+    {% elif payroll_run.status == "Approved" %}
+
+        <p>
+            <span class="badge success">
+                Payroll Approved
+            </span>
+        </p>
+
+    {% elif payroll_run.status == "Completed" %}
+
+        <p>
+            <span class="badge success">
+                Payroll Completed
+            </span>
+        </p>
+
+    {% endif %}
+
+</div>
+
+
+<!-- ============================================================
+     NAVIGATION
+============================================================= -->
+
+<div class="form-actions">
+
+    <a
+        class="button"
+        href="{{ url_for('main.payroll_history') }}"
+    >
+        Payroll History
+    </a>
+
+
+    <a
+        class="button"
+        href="{{ url_for('main.dashboard') }}"
+    >
+        Dashboard
+    </a>
+
+</div>
+
+{% endblock %}
