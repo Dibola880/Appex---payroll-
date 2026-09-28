@@ -33,6 +33,7 @@ from .models import (
     Employee,
     EmployeeInvitation,
     PayrollRun,
+    PayrollInput,
     Payslip,
     LoanApplication,
 )
@@ -48,6 +49,7 @@ bp = Blueprint("main", __name__)
 # ============================================================
 
 def current_user():
+
     user_id = session.get("user_id")
 
     if not user_id:
@@ -114,6 +116,7 @@ def employer_required(view):
 def safe_float(value, default=0.0):
 
     try:
+
         return float(value)
 
     except (
@@ -503,7 +506,10 @@ def employees():
 # ADD EMPLOYEE
 # ============================================================
 
-@bp.route("/employees/new", methods=["GET", "POST"])
+@bp.route(
+    "/employees/new",
+    methods=["GET", "POST"]
+)
 @employer_required
 def new_employee():
 
@@ -1374,15 +1380,14 @@ def my_payslips():
 # PAYROLL
 # ============================================================
 #
-# IMPORTANT:
-# This route now handles BOTH:
+# Individual employee payroll inputs.
 #
-# GET  = display payroll form
-# POST = process payroll
+# GET:
+#   Displays the payroll form.
 #
-# This matches create_payroll.html:
-#
-# action="{{ url_for('main.payroll') }}"
+# POST:
+#   Creates a payroll draft and saves individual PayrollInput
+#   records for every active employee.
 #
 # ============================================================
 
@@ -1400,56 +1405,30 @@ def payroll():
     employees = Employee.query.filter_by(
         company_id=company.id,
         status="Active"
+    ).order_by(
+        Employee.first_name.asc(),
+        Employee.last_name.asc()
     ).all()
 
     if request.method == "POST":
 
+        action = (
+            request.form.get("action")
+            or "draft"
+        ).strip().lower()
+
         pay_period = (
-            request.form.get(
-                "pay_period"
-            )
+            request.form.get("pay_period")
             or ""
         ).strip()
 
         pay_date_value = (
-            request.form.get(
-                "pay_date"
-            )
+            request.form.get("pay_date")
             or ""
         ).strip()
 
-        overtime = safe_float(
-            request.form.get(
-                "overtime"
-            )
-        )
-
-        bonus = safe_float(
-            request.form.get(
-                "bonus"
-            )
-        )
-
-        commission = safe_float(
-            request.form.get(
-                "commission"
-            )
-        )
-
-        other_earnings = safe_float(
-            request.form.get(
-                "other_earnings"
-            )
-        )
-
-        other_deductions = safe_float(
-            request.form.get(
-                "other_deductions"
-            )
-        )
-
         # ----------------------------------------------------
-        # VALIDATION
+        # VALIDATE PAY PERIOD
         # ----------------------------------------------------
 
         if not pay_period:
@@ -1464,6 +1443,10 @@ def payroll():
                 employees=employees,
                 company=company,
             )
+
+        # ----------------------------------------------------
+        # VALIDATE PAY DATE
+        # ----------------------------------------------------
 
         if not pay_date_value:
 
@@ -1498,70 +1481,9 @@ def payroll():
                 company=company,
             )
 
-        if overtime < 0:
-
-            flash(
-                "Overtime cannot be negative.",
-                "danger"
-            )
-
-            return render_template(
-                "create_payroll.html",
-                employees=employees,
-                company=company,
-            )
-
-        if bonus < 0:
-
-            flash(
-                "Bonus cannot be negative.",
-                "danger"
-            )
-
-            return render_template(
-                "create_payroll.html",
-                employees=employees,
-                company=company,
-            )
-
-        if commission < 0:
-
-            flash(
-                "Commission cannot be negative.",
-                "danger"
-            )
-
-            return render_template(
-                "create_payroll.html",
-                employees=employees,
-                company=company,
-            )
-
-        if other_earnings < 0:
-
-            flash(
-                "Other earnings cannot be negative.",
-                "danger"
-            )
-
-            return render_template(
-                "create_payroll.html",
-                employees=employees,
-                company=company,
-            )
-
-        if other_deductions < 0:
-
-            flash(
-                "Other deductions cannot be negative.",
-                "danger"
-            )
-
-            return render_template(
-                "create_payroll.html",
-                employees=employees,
-                company=company,
-            )
+        # ----------------------------------------------------
+        # VALIDATE EMPLOYEES
+        # ----------------------------------------------------
 
         if not employees:
 
@@ -1577,14 +1499,14 @@ def payroll():
             )
 
         # ----------------------------------------------------
-        # CREATE PAYROLL RUN
+        # CREATE PAYROLL RUN AS DRAFT
         # ----------------------------------------------------
 
         payroll_run = PayrollRun(
             company_id=company.id,
             pay_period=pay_period,
             pay_date=pay_date,
-            status="Completed",
+            status="Draft",
             total_gross=0,
             total_deductions=0,
             total_net=0,
@@ -1597,219 +1519,100 @@ def payroll():
         db.session.flush()
 
         # ----------------------------------------------------
-        # TOTALS
-        # ----------------------------------------------------
-
-        total_gross = 0.0
-        total_deductions = 0.0
-        total_net = 0.0
-        total_employer_uif = 0.0
-        total_employer_cost = 0.0
-
-        # ----------------------------------------------------
-        # PROCESS EACH EMPLOYEE
+        # CREATE INDIVIDUAL PAYROLL INPUTS
         # ----------------------------------------------------
 
         for employee in employees:
 
-            salary = safe_float(
-                employee.monthly_salary
+            prefix = (
+                f"employee_{employee.id}_"
             )
 
-            age = calculate_age_from_dob(
-                employee.date_of_birth
+            overtime = safe_float(
+                request.form.get(
+                    prefix + "overtime"
+                )
             )
 
-            if age is None:
+            bonus = safe_float(
+                request.form.get(
+                    prefix + "bonus"
+                )
+            )
 
-                age = 30
+            commission = safe_float(
+                request.form.get(
+                    prefix + "commission"
+                )
+            )
+
+            other_earnings = safe_float(
+                request.form.get(
+                    prefix + "other_earnings"
+                )
+            )
+
+            other_deductions = safe_float(
+                request.form.get(
+                    prefix + "other_deductions"
+                )
+            )
 
             # ------------------------------------------------
-            # CALCULATE PAYROLL
+            # Prevent negative payroll values
             # ------------------------------------------------
 
-            result = calculate_payroll(
-                basic_salary=salary,
+            if overtime < 0:
+                overtime = 0
+
+            if bonus < 0:
+                bonus = 0
+
+            if commission < 0:
+                commission = 0
+
+            if other_earnings < 0:
+                other_earnings = 0
+
+            if other_deductions < 0:
+                other_deductions = 0
+
+            payroll_input = PayrollInput(
+                payroll_run_id=payroll_run.id,
+                employee_id=employee.id,
+                basic_salary=safe_float(
+                    employee.monthly_salary
+                ),
                 overtime=overtime,
                 bonus=bonus,
                 commission=commission,
                 other_earnings=other_earnings,
                 other_deductions=other_deductions,
-                age=age,
             )
 
-            # ------------------------------------------------
-            # GET RESULTS
-            # ------------------------------------------------
-
-            basic_salary = safe_float(
-                result.get(
-                    "basic_salary",
-                    salary
-                )
-            )
-
-            calculated_overtime = safe_float(
-                result.get(
-                    "overtime",
-                    overtime
-                )
-            )
-
-            calculated_bonus = safe_float(
-                result.get(
-                    "bonus",
-                    bonus
-                )
-            )
-
-            calculated_commission = safe_float(
-                result.get(
-                    "commission",
-                    commission
-                )
-            )
-
-            calculated_other_earnings = safe_float(
-                result.get(
-                    "other_earnings",
-                    other_earnings
-                )
-            )
-
-            gross_pay = safe_float(
-                result.get(
-                    "gross_pay",
-                    basic_salary
-                    + calculated_overtime
-                    + calculated_bonus
-                    + calculated_commission
-                    + calculated_other_earnings
-                )
-            )
-
-            paye = safe_float(
-                result.get(
-                    "paye",
-                    0
-                )
-            )
-
-            uif = safe_float(
-                result.get(
-                    "uif",
-                    0
-                )
-            )
-
-            calculated_other_deductions = safe_float(
-                result.get(
-                    "other_deductions",
-                    other_deductions
-                )
-            )
-
-            total_employee_deductions = safe_float(
-                result.get(
-                    "total_deductions",
-                    paye
-                    + uif
-                    + calculated_other_deductions
-                )
-            )
-
-            net_pay = safe_float(
-                result.get(
-                    "net_pay",
-                    gross_pay
-                    - total_employee_deductions
-                )
-            )
-
-            employer_uif = safe_float(
-                result.get(
-                    "employer_uif",
-                    0
-                )
-            )
-
-            employer_cost = (
-                gross_pay
-                + employer_uif
-            )
-
-            # ------------------------------------------------
-            # CREATE PAYSLIP
-            # ------------------------------------------------
-
-            payslip = Payslip(
-                employee_id=employee.id,
-                payroll_run_id=payroll_run.id,
-                pay_period=pay_period,
-                pay_date=pay_date,
-                basic_salary=basic_salary,
-                overtime=calculated_overtime,
-                bonus=calculated_bonus,
-                commission=calculated_commission,
-                other_earnings=calculated_other_earnings,
-                gross_pay=gross_pay,
-                tax_deductions=paye,
-                uif=uif,
-                other_deductions=calculated_other_deductions,
-                total_deductions=total_employee_deductions,
-                net_pay=net_pay,
-                employer_uif=employer_uif,
-                employer_cost=employer_cost,
-            )
-
-            db.session.add(payslip)
-
-            # ------------------------------------------------
-            # ADD TO PAYROLL TOTALS
-            # ------------------------------------------------
-
-            total_gross += gross_pay
-
-            total_deductions += (
-                total_employee_deductions
-            )
-
-            total_net += net_pay
-
-            total_employer_uif += (
-                employer_uif
-            )
-
-            total_employer_cost += (
-                employer_cost
-            )
-
-        # ----------------------------------------------------
-        # SAVE PAYROLL TOTALS
-        # ----------------------------------------------------
-
-        payroll_run.total_gross = total_gross
-
-        payroll_run.total_deductions = (
-            total_deductions
-        )
-
-        payroll_run.total_net = total_net
-
-        payroll_run.total_employer_uif = (
-            total_employer_uif
-        )
-
-        payroll_run.total_employer_cost = (
-            total_employer_cost
-        )
-
-        payroll_run.status = "Completed"
+            db.session.add(payroll_input)
 
         db.session.commit()
 
+        # ----------------------------------------------------
+        # If employer clicked Review Payroll
+        # ----------------------------------------------------
+
+        if action == "review":
+
+            return redirect(
+                url_for(
+                    "main.review_payroll",
+                    payroll_id=payroll_run.id
+                )
+            )
+
+        # ----------------------------------------------------
+        # Otherwise keep it as Draft
+        # ----------------------------------------------------
+
         flash(
-            "Payroll processed successfully.",
+            "Payroll draft created successfully.",
             "success"
         )
 
@@ -1821,7 +1624,7 @@ def payroll():
         )
 
     # --------------------------------------------------------
-    # GET = SHOW PAYROLL FORM
+    # GET
     # --------------------------------------------------------
 
     return render_template(
@@ -1833,11 +1636,6 @@ def payroll():
 
 # ============================================================
 # COMPATIBILITY CREATE PAYROLL ROUTE
-# ============================================================
-#
-# Allows /payroll/create to continue working if another
-# button or old page still points to it.
-#
 # ============================================================
 
 @bp.route(
@@ -1854,6 +1652,549 @@ def create_payroll():
     return redirect(
         url_for(
             "main.payroll"
+        )
+    )
+
+
+# ============================================================
+# REVIEW PAYROLL
+# ============================================================
+
+@bp.route(
+    "/payroll/<int:payroll_id>/review"
+)
+@employer_required
+def review_payroll(payroll_id):
+
+    user = current_user()
+
+    payroll_run = PayrollRun.query.filter_by(
+        id=payroll_id,
+        company_id=user.company_id
+    ).first_or_404()
+
+    # --------------------------------------------------------
+    # Completed payroll is locked
+    # --------------------------------------------------------
+
+    if payroll_run.status == "Completed":
+
+        flash(
+            "This payroll has already been completed.",
+            "warning"
+        )
+
+        return redirect(
+            url_for(
+                "main.view_payroll",
+                payroll_id=payroll_run.id
+            )
+        )
+
+    payroll_inputs = PayrollInput.query.filter_by(
+        payroll_run_id=payroll_run.id
+    ).all()
+
+    results = []
+
+    total_gross = 0.0
+    total_deductions = 0.0
+    total_net = 0.0
+    total_employer_uif = 0.0
+    total_employer_cost = 0.0
+
+    # --------------------------------------------------------
+    # Calculate each employee
+    # --------------------------------------------------------
+
+    for payroll_input in payroll_inputs:
+
+        employee = payroll_input.employee
+
+        age = calculate_age_from_dob(
+            employee.date_of_birth
+        )
+
+        if age is None:
+
+            age = 30
+
+        result = calculate_payroll(
+            basic_salary=safe_float(
+                payroll_input.basic_salary
+            ),
+            overtime=safe_float(
+                payroll_input.overtime
+            ),
+            bonus=safe_float(
+                payroll_input.bonus
+            ),
+            commission=safe_float(
+                payroll_input.commission
+            ),
+            other_earnings=safe_float(
+                payroll_input.other_earnings
+            ),
+            other_deductions=safe_float(
+                payroll_input.other_deductions
+            ),
+            age=age,
+        )
+
+        gross_pay = safe_float(
+            result.get(
+                "gross_pay",
+                0
+            )
+        )
+
+        paye = safe_float(
+            result.get(
+                "paye",
+                0
+            )
+        )
+
+        uif = safe_float(
+            result.get(
+                "uif",
+                0
+            )
+        )
+
+        other_deductions = safe_float(
+            result.get(
+                "other_deductions",
+                0
+            )
+        )
+
+        total_employee_deductions = safe_float(
+            result.get(
+                "total_deductions",
+                paye
+                + uif
+                + other_deductions
+            )
+        )
+
+        net_pay = safe_float(
+            result.get(
+                "net_pay",
+                0
+            )
+        )
+
+        employer_uif = safe_float(
+            result.get(
+                "employer_uif",
+                0
+            )
+        )
+
+        employer_cost = (
+            gross_pay
+            + employer_uif
+        )
+
+        results.append({
+            "employee": employee,
+            "payroll_input": payroll_input,
+            "result": result,
+            "gross_pay": gross_pay,
+            "paye": paye,
+            "uif": uif,
+            "other_deductions": other_deductions,
+            "total_deductions": total_employee_deductions,
+            "net_pay": net_pay,
+            "employer_uif": employer_uif,
+            "employer_cost": employer_cost,
+        })
+
+        total_gross += gross_pay
+
+        total_deductions += (
+            total_employee_deductions
+        )
+
+        total_net += net_pay
+
+        total_employer_uif += employer_uif
+
+        total_employer_cost += employer_cost
+
+    return render_template(
+        "review_payroll.html",
+        payroll_run=payroll_run,
+        results=results,
+        total_gross=total_gross,
+        total_deductions=total_deductions,
+        total_net=total_net,
+        total_employer_uif=total_employer_uif,
+        total_employer_cost=total_employer_cost,
+    )
+
+
+# ============================================================
+# SUBMIT PAYROLL FOR REVIEW
+# ============================================================
+
+@bp.route(
+    "/payroll/<int:payroll_id>/submit-review",
+    methods=["POST"]
+)
+@employer_required
+def submit_payroll_for_review(payroll_id):
+
+    user = current_user()
+
+    payroll_run = PayrollRun.query.filter_by(
+        id=payroll_id,
+        company_id=user.company_id
+    ).first_or_404()
+
+    if payroll_run.status != "Draft":
+
+        flash(
+            "Only draft payroll can be submitted for review.",
+            "warning"
+        )
+
+        return redirect(
+            url_for(
+                "main.review_payroll",
+                payroll_id=payroll_run.id
+            )
+        )
+
+    payroll_run.status = "Under Review"
+
+    db.session.commit()
+
+    flash(
+        "Payroll has been submitted for review.",
+        "success"
+    )
+
+    return redirect(
+        url_for(
+            "main.view_payroll",
+            payroll_id=payroll_run.id
+        )
+    )
+
+
+# ============================================================
+# APPROVE PAYROLL
+# ============================================================
+
+@bp.route(
+    "/payroll/<int:payroll_id>/approve",
+    methods=["POST"]
+)
+@employer_required
+def approve_payroll(payroll_id):
+
+    user = current_user()
+
+    payroll_run = PayrollRun.query.filter_by(
+        id=payroll_id,
+        company_id=user.company_id
+    ).first_or_404()
+
+    if payroll_run.status != "Under Review":
+
+        flash(
+            "Only payroll under review can be approved.",
+            "warning"
+        )
+
+        return redirect(
+            url_for(
+                "main.view_payroll",
+                payroll_id=payroll_run.id
+            )
+        )
+
+    payroll_run.status = "Approved"
+
+    db.session.commit()
+
+    flash(
+        "Payroll approved successfully.",
+        "success"
+    )
+
+    return redirect(
+        url_for(
+            "main.view_payroll",
+            payroll_id=payroll_run.id
+        )
+    )
+
+
+# ============================================================
+# COMPLETE PAYROLL
+# ============================================================
+
+@bp.route(
+    "/payroll/<int:payroll_id>/complete",
+    methods=["POST"]
+)
+@employer_required
+def complete_payroll(payroll_id):
+
+    user = current_user()
+
+    payroll_run = PayrollRun.query.filter_by(
+        id=payroll_id,
+        company_id=user.company_id
+    ).first_or_404()
+
+    if payroll_run.status != "Approved":
+
+        flash(
+            "Only approved payroll can be completed.",
+            "warning"
+        )
+
+        return redirect(
+            url_for(
+                "main.view_payroll",
+                payroll_id=payroll_run.id
+            )
+        )
+
+    payroll_inputs = PayrollInput.query.filter_by(
+        payroll_run_id=payroll_run.id
+    ).all()
+
+    if not payroll_inputs:
+
+        flash(
+            "This payroll has no employee inputs.",
+            "danger"
+        )
+
+        return redirect(
+            url_for(
+                "main.view_payroll",
+                payroll_id=payroll_run.id
+            )
+        )
+
+    # --------------------------------------------------------
+    # Remove existing payslips for this payroll run
+    # --------------------------------------------------------
+
+    Payslip.query.filter_by(
+        payroll_run_id=payroll_run.id
+    ).delete(
+        synchronize_session=False
+    )
+
+    total_gross = 0.0
+    total_deductions = 0.0
+    total_net = 0.0
+    total_employer_uif = 0.0
+    total_employer_cost = 0.0
+
+    # --------------------------------------------------------
+    # Generate final payslips
+    # --------------------------------------------------------
+
+    for payroll_input in payroll_inputs:
+
+        employee = payroll_input.employee
+
+        age = calculate_age_from_dob(
+            employee.date_of_birth
+        )
+
+        if age is None:
+
+            age = 30
+
+        result = calculate_payroll(
+            basic_salary=safe_float(
+                payroll_input.basic_salary
+            ),
+            overtime=safe_float(
+                payroll_input.overtime
+            ),
+            bonus=safe_float(
+                payroll_input.bonus
+            ),
+            commission=safe_float(
+                payroll_input.commission
+            ),
+            other_earnings=safe_float(
+                payroll_input.other_earnings
+            ),
+            other_deductions=safe_float(
+                payroll_input.other_deductions
+            ),
+            age=age,
+        )
+
+        basic_salary = safe_float(
+            result.get(
+                "basic_salary",
+                payroll_input.basic_salary
+            )
+        )
+
+        overtime = safe_float(
+            result.get(
+                "overtime",
+                payroll_input.overtime
+            )
+        )
+
+        bonus = safe_float(
+            result.get(
+                "bonus",
+                payroll_input.bonus
+            )
+        )
+
+        commission = safe_float(
+            result.get(
+                "commission",
+                payroll_input.commission
+            )
+        )
+
+        other_earnings = safe_float(
+            result.get(
+                "other_earnings",
+                payroll_input.other_earnings
+            )
+        )
+
+        gross_pay = safe_float(
+            result.get(
+                "gross_pay",
+                0
+            )
+        )
+
+        paye = safe_float(
+            result.get(
+                "paye",
+                0
+            )
+        )
+
+        uif = safe_float(
+            result.get(
+                "uif",
+                0
+            )
+        )
+
+        other_deductions = safe_float(
+            result.get(
+                "other_deductions",
+                0
+            )
+        )
+
+        total_employee_deductions = safe_float(
+            result.get(
+                "total_deductions",
+                paye
+                + uif
+                + other_deductions
+            )
+        )
+
+        net_pay = safe_float(
+            result.get(
+                "net_pay",
+                0
+            )
+        )
+
+        employer_uif = safe_float(
+            result.get(
+                "employer_uif",
+                0
+            )
+        )
+
+        employer_cost = (
+            gross_pay
+            + employer_uif
+        )
+
+        payslip = Payslip(
+            employee_id=employee.id,
+            payroll_run_id=payroll_run.id,
+            pay_period=payroll_run.pay_period,
+            pay_date=payroll_run.pay_date,
+            basic_salary=basic_salary,
+            overtime=overtime,
+            bonus=bonus,
+            commission=commission,
+            other_earnings=other_earnings,
+            gross_pay=gross_pay,
+            tax_deductions=paye,
+            uif=uif,
+            other_deductions=other_deductions,
+            total_deductions=total_employee_deductions,
+            net_pay=net_pay,
+            employer_uif=employer_uif,
+            employer_cost=employer_cost,
+        )
+
+        db.session.add(payslip)
+
+        total_gross += gross_pay
+
+        total_deductions += (
+            total_employee_deductions
+        )
+
+        total_net += net_pay
+
+        total_employer_uif += employer_uif
+
+        total_employer_cost += employer_cost
+
+    # --------------------------------------------------------
+    # Save payroll totals
+    # --------------------------------------------------------
+
+    payroll_run.total_gross = total_gross
+
+    payroll_run.total_deductions = (
+        total_deductions
+    )
+
+    payroll_run.total_net = total_net
+
+    payroll_run.total_employer_uif = (
+        total_employer_uif
+    )
+
+    payroll_run.total_employer_cost = (
+        total_employer_cost
+    )
+
+    payroll_run.status = "Completed"
+
+    db.session.commit()
+
+    flash(
+        "Payroll completed successfully and payslips generated.",
+        "success"
+    )
+
+    return redirect(
+        url_for(
+            "main.view_payroll",
+            payroll_id=payroll_run.id
         )
     )
 
@@ -1902,10 +2243,15 @@ def view_payroll(payroll_id):
         payroll_run_id=payroll_run.id
     ).all()
 
+    payroll_inputs = PayrollInput.query.filter_by(
+        payroll_run_id=payroll_run.id
+    ).all()
+
     return render_template(
         "payroll_run.html",
         payroll_run=payroll_run,
         payslips=payslips,
+        payroll_inputs=payroll_inputs,
     )
 
 
@@ -1949,7 +2295,7 @@ def view_payslip(payslip_id):
         )
 
     # --------------------------------------------------------
-    # EMPLOYEE SECURITY CHECK
+    # Employee security
     # --------------------------------------------------------
 
     if user.role == "employee":
@@ -1968,7 +2314,7 @@ def view_payslip(payslip_id):
             )
 
     # --------------------------------------------------------
-    # EMPLOYER SECURITY CHECK
+    # Employer security
     # --------------------------------------------------------
 
     else:
@@ -1985,10 +2331,6 @@ def view_payslip(payslip_id):
                     "main.dashboard"
                 )
             )
-
-    # --------------------------------------------------------
-    # GET COMPANY
-    # --------------------------------------------------------
 
     company = Company.query.get(
         employee.company_id
@@ -2033,6 +2375,10 @@ def download_payslip_pdf(payslip_id):
             )
         )
 
+    # --------------------------------------------------------
+    # Employee security
+    # --------------------------------------------------------
+
     if user.role == "employee":
 
         if employee.user_id != user.id:
@@ -2048,6 +2394,10 @@ def download_payslip_pdf(payslip_id):
                 )
             )
 
+    # --------------------------------------------------------
+    # Employer security
+    # --------------------------------------------------------
+
     else:
 
         if employee.company_id != user.company_id:
@@ -2062,6 +2412,10 @@ def download_payslip_pdf(payslip_id):
                     "main.dashboard"
                 )
             )
+
+    # --------------------------------------------------------
+    # Create PDF
+    # --------------------------------------------------------
 
     buffer = BytesIO()
 
