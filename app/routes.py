@@ -195,7 +195,6 @@ def parse_repayment_term_months(repayment_term):
         match.group(1)
     )
 
-    # Safety limit for the Phase 5A MVP.
     return max(
         1,
         min(months, 60)
@@ -272,7 +271,6 @@ def calculate_loan_installment(application):
 
         total repayable / repayment term
 
-    No additional interest or fees are added here.
     """
 
     if not application:
@@ -301,7 +299,6 @@ def calculate_loan_installment(application):
         2
     )
 
-    # Never deduct more than the outstanding balance.
     installment = min(
         installment,
         outstanding_balance
@@ -422,8 +419,7 @@ def calculate_payroll_input(payroll_input):
     payroll_run = payroll_input.payroll_run
 
     # --------------------------------------------------------
-    # Completed payrolls use the amount already recorded
-    # on PayrollInput.
+    # Completed payrolls use the amount already recorded.
     # --------------------------------------------------------
 
     if (
@@ -455,10 +451,8 @@ def calculate_payroll_input(payroll_input):
                 )
             )
 
-            # ------------------------------------------------
-            # Never allow the loan deduction to make the
-            # employee's net pay negative.
-            # ------------------------------------------------
+            # Never allow the loan deduction to make
+            # the employee's net pay negative.
 
             available_for_loan = max(
                 0.0,
@@ -1867,10 +1861,8 @@ def employee_repayments():
             application.outstanding_balance
         )
 
-        # ----------------------------------------------------
-        # Only Disbursed loans have scheduled payroll
-        # repayments.
-        # ----------------------------------------------------
+        # Only Disbursed loans have scheduled
+        # payroll repayments.
 
         if application.status == "Disbursed":
 
@@ -1891,7 +1883,7 @@ def employee_repayments():
 
 
 # ============================================================
-# PHASE 5A - EMPLOYER LOAN MANAGEMENT
+# EMPLOYER LOAN MANAGEMENT
 # ============================================================
 
 @bp.route(
@@ -1921,7 +1913,7 @@ def loan_management():
 
 
 # ============================================================
-# PHASE 5A - APPROVE LOAN
+# APPROVE LOAN
 # ============================================================
 
 @bp.route(
@@ -2001,7 +1993,9 @@ def approve_loan(loan_id):
     )
 
     # Phase 5A:
-    # Approved amount is currently the total repayable amount.
+    # The approved amount is currently treated
+    # as the total repayable amount.
+
     application.total_repayable = (
         approved_amount
     )
@@ -2039,7 +2033,7 @@ def approve_loan(loan_id):
 
 
 # ============================================================
-# PHASE 5A - REJECT LOAN
+# REJECT LOAN
 # ============================================================
 
 @bp.route(
@@ -2109,7 +2103,7 @@ def reject_loan(loan_id):
 
 
 # ============================================================
-# PHASE 5A - DISBURSE LOAN
+# DISBURSE LOAN
 # ============================================================
 
 @bp.route(
@@ -2210,7 +2204,9 @@ def disburse_loan(loan_id):
         2
     )
 
-    # First deduction occurs on the next completed payroll.
+    # The next completed payroll will perform
+    # the actual deduction.
+
     application.next_payment_date = (
         datetime.utcnow().date()
     )
@@ -2380,9 +2376,7 @@ def payroll():
                 company=company,
             )
 
-        # ----------------------------------------------------
-        # Prevent duplicate payroll period
-        # ----------------------------------------------------
+        # Prevent duplicate payroll period.
 
         existing_payroll = PayrollRun.query.filter_by(
             company_id=company.id,
@@ -2912,9 +2906,7 @@ def complete_payroll(payroll_id):
             2
         )
 
-        # ----------------------------------------------------
-        # Store actual loan repayment on PayrollInput
-        # ----------------------------------------------------
+        # Store actual loan repayment.
 
         payroll_input.loan_repayment = (
             loan_repayment
@@ -3188,9 +3180,7 @@ def view_payslip(payslip_id):
             )
         )
 
-    # --------------------------------------------------------
-    # Employee security
-    # --------------------------------------------------------
+    # Employee security.
 
     if user.role == "employee":
 
@@ -3207,9 +3197,7 @@ def view_payslip(payslip_id):
                 )
             )
 
-    # --------------------------------------------------------
-    # Employer security
-    # --------------------------------------------------------
+    # Employer security.
 
     else:
 
@@ -3267,9 +3255,7 @@ def download_payslip_pdf(payslip_id):
             url_for("main.dashboard")
         )
 
-    # --------------------------------------------------------
-    # Employee security
-    # --------------------------------------------------------
+    # Employee security.
 
     if user.role == "employee":
 
@@ -3286,9 +3272,7 @@ def download_payslip_pdf(payslip_id):
                 )
             )
 
-    # --------------------------------------------------------
-    # Employer security
-    # --------------------------------------------------------
+    # Employer security.
 
     else:
 
