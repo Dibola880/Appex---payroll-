@@ -1,194 +1,600 @@
 {% extends "base.html" %}
 
-{% block title %}Employee Dashboard - Appex Payroll{% endblock %}
+{% block title %}
+Employee Dashboard - Appex Payroll
+{% endblock %}
 
-{% block heading %}Employee Dashboard{% endblock %}
 
 {% block content %}
 
-<!-- ===================================================== -->
-<!-- WELCOME -->
-<!-- ===================================================== -->
+<div class="page-header">
 
-<div class="card">
+    <div>
 
-    <h2>
-        Welcome,
-        {{ employee.first_name if employee else "Employee" }}
-    </h2>
-
-    <p class="muted">
-        Welcome to your Appex Payroll employee portal.
-        Here you can view your employment and payroll information.
-    </p>
-
-</div>
-
-
-<!-- ===================================================== -->
-<!-- EMPLOYEE INFORMATION -->
-<!-- ===================================================== -->
-
-<div class="grid">
-
-    <div class="card">
-
-        <small>Employee</small>
-
-        <strong>
-            {% if employee %}
-                {{ employee.first_name }}
-                {{ employee.last_name }}
-            {% else %}
-                Employee
-            {% endif %}
-        </strong>
-
-    </div>
-
-
-    <div class="card">
-
-        <small>Employee Number</small>
-
-        <strong>
-            {% if employee %}
-                {{ employee.employee_number }}
-            {% else %}
-                -
-            {% endif %}
-        </strong>
-
-    </div>
-
-
-    <div class="card">
-
-        <small>Employment Status</small>
-
-        <strong>
-            {% if employee %}
-                {{ employee.status }}
-            {% else %}
-                Active
-            {% endif %}
-        </strong>
-
-    </div>
-
-</div>
-
-
-<!-- ===================================================== -->
-<!-- EMPLOYMENT INFORMATION -->
-<!-- ===================================================== -->
-
-<div class="card">
-
-    <h2>Employment Information</h2>
-
-    {% if employee %}
-
-        <p>
-            <strong>Job Title:</strong>
-            {{ employee.job_title or "Not provided" }}
-        </p>
-
-        <p>
-            <strong>Email:</strong>
-            {{ employee.email or "Not provided" }}
-        </p>
-
-    {% else %}
+        <h1>Employee Dashboard</h1>
 
         <p class="muted">
-            Your employment information is not available yet.
+            Welcome back, {{ employee.first_name }}.
         </p>
 
-    {% endif %}
+    </div>
 
 </div>
 
 
-<!-- ===================================================== -->
-<!-- PAYROLL INFORMATION -->
-<!-- ===================================================== -->
+<!-- =========================================================
+     QUICK ACTIONS
+========================================================= -->
 
-<div class="card">
-
-    <h2>Payroll Information</h2>
-
-    {% if employee %}
-
-        <p>
-            <strong>Monthly Salary:</strong>
-            R {{ "%.2f"|format(employee.monthly_salary or 0) }}
-        </p>
-
-        <p class="muted">
-            Your payroll information is provided by your employer.
-        </p>
+<div class="stats-grid">
 
 
-        <!-- Payslips Button -->
+    <!-- Payslips -->
+
+    <div class="stat-card">
+
+        <div class="stat-label">
+            Payslips
+        </div>
+
+        <div class="stat-value">
+            {{ payslips|length }}
+        </div>
 
         <a
-            class="button"
             href="{{ url_for('main.my_payslips') }}"
+            class="btn"
         >
-            📄 View My Payslips
+            View Payslips
         </a>
+
+    </div>
+
+
+    <!-- Loan Application -->
+
+    <div class="stat-card">
+
+        <div class="stat-label">
+            Employee Financial Services
+        </div>
+
+        <div class="stat-value">
+            💰
+        </div>
+
+        <a
+            href="{{ url_for('main.loan_application') }}"
+            class="btn btn-primary"
+        >
+            Apply For Loan
+        </a>
+
+    </div>
+
+
+    <!-- Loan Status -->
+
+    <div class="stat-card">
+
+        <div class="stat-label">
+            Loan Status
+        </div>
+
+        <div class="stat-value">
+            📋
+        </div>
+
+        <a
+            href="{{ url_for('main.loan_status') }}"
+            class="btn"
+        >
+            View Loan Status
+        </a>
+
+    </div>
+
+
+    <!-- Repayments -->
+
+    <div class="stat-card">
+
+        <div class="stat-label">
+            Loan Repayments
+        </div>
+
+        <div class="stat-value">
+            💳
+        </div>
+
+        <a
+            href="{{ url_for('main.employee_repayments') }}"
+            class="btn"
+        >
+            View Repayments
+        </a>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     EMPLOYEE INFORMATION
+========================================================= -->
+
+<div class="card">
+
+    <div class="card-header">
+
+        <h2>
+            My Employment Information
+        </h2>
+
+    </div>
+
+
+    <div class="loan-details">
+
+        <div>
+
+            <strong>
+                Employee Number
+            </strong>
+
+            <p class="muted">
+                {{ employee.employee_number or "Not assigned" }}
+            </p>
+
+        </div>
+
+
+        <div>
+
+            <strong>
+                Name
+            </strong>
+
+            <p class="muted">
+                {{ employee.first_name }}
+                {{ employee.last_name }}
+            </p>
+
+        </div>
+
+
+        <div>
+
+            <strong>
+                Job Title
+            </strong>
+
+            <p class="muted">
+                {{ employee.job_title or "Not specified" }}
+            </p>
+
+        </div>
+
+
+        <div>
+
+            <strong>
+                Monthly Salary
+            </strong>
+
+            <p class="muted">
+                R{{ "%.2f"|format(employee.monthly_salary or 0) }}
+            </p>
+
+        </div>
+
+
+        <div>
+
+            <strong>
+                Employment Status
+            </strong>
+
+            <p>
+
+                {% if employee.status == "Active" %}
+
+                    <span class="badge badge-success">
+                        Active
+                    </span>
+
+                {% else %}
+
+                    <span class="badge">
+                        {{ employee.status }}
+                    </span>
+
+                {% endif %}
+
+            </p>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     FINANCIAL SERVICES
+========================================================= -->
+
+<div class="card">
+
+    <div class="card-header">
+
+        <h2>
+            Employee Financial Services
+        </h2>
+
+        <p class="muted">
+            Access financial services available through Appex Payroll.
+        </p>
+
+    </div>
+
+
+    <div class="financial-service">
+
+        <div>
+
+            <h3>
+                💰 Salary-Based Loan
+            </h3>
+
+            <p class="muted">
+                Apply for a loan through your employer-linked
+                Appex Payroll account. Approved repayments can
+                be deducted automatically through payroll.
+            </p>
+
+        </div>
+
+
+        <a
+            href="{{ url_for('main.loan_application') }}"
+            class="btn btn-primary"
+        >
+            Apply For Loan
+        </a>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     RECENT PAYSLIPS
+========================================================= -->
+
+<div class="card">
+
+    <div class="card-header">
+
+        <div>
+
+            <h2>
+                Recent Payslips
+            </h2>
+
+            <p class="muted">
+                Your latest payroll records.
+            </p>
+
+        </div>
+
+
+        <a
+            href="{{ url_for('main.my_payslips') }}"
+            class="btn"
+        >
+            View All
+        </a>
+
+    </div>
+
+
+    {% if payslips %}
+
+        <div class="table-responsive">
+
+            <table class="data-table">
+
+                <thead>
+
+                    <tr>
+
+                        <th>
+                            Pay Period
+                        </th>
+
+                        <th>
+                            Pay Date
+                        </th>
+
+                        <th>
+                            Gross Pay
+                        </th>
+
+                        <th>
+                            Net Pay
+                        </th>
+
+                        <th>
+                            Action
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                    {% for payslip in payslips[:5] %}
+
+                        <tr>
+
+                            <td>
+                                {{ payslip.pay_period or "-" }}
+                            </td>
+
+
+                            <td>
+
+                                {% if payslip.pay_date %}
+
+                                    {{ payslip.pay_date.strftime("%d %b %Y") }}
+
+                                {% else %}
+
+                                    -
+
+                                {% endif %}
+
+                            </td>
+
+
+                            <td>
+                                R{{ "%.2f"|format(payslip.gross_pay or 0) }}
+                            </td>
+
+
+                            <td>
+                                R{{ "%.2f"|format(payslip.net_pay or 0) }}
+                            </td>
+
+
+                            <td>
+
+                                <a
+                                    href="{{ url_for('main.view_payslip', payslip_id=payslip.id) }}"
+                                    class="btn"
+                                >
+                                    View
+                                </a>
+
+                            </td>
+
+                        </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
 
     {% else %}
 
-        <p class="muted">
-            Payroll information is not available yet.
-        </p>
+        <div class="empty-state">
+
+            <h3>
+                No payslips yet
+            </h3>
+
+            <p class="muted">
+                Your payslips will appear here after payroll is completed.
+            </p>
+
+        </div>
 
     {% endif %}
 
 </div>
 
 
-<!-- ===================================================== -->
-<!-- FINANCIAL SERVICES -->
-<!-- ===================================================== -->
+<style>
 
-<div class="card">
+.page-header {
+    margin-bottom: 25px;
+}
 
-    <h2>
-        Appex Employee Financial Services
-    </h2>
-
-    <p class="muted">
-        Access financial services that may be made available
-        through your employer and Appex Financial Institute.
-    </p>
-
-    <a
-        class="button"
-        href="{{ url_for('main.financial_services') }}"
-    >
-        💰 View Financial Services
-    </a>
-
-</div>
+.page-header h1 {
+    margin-bottom: 5px;
+}
 
 
-<!-- ===================================================== -->
-<!-- SUPPORT -->
-<!-- ===================================================== -->
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    margin-bottom: 25px;
+}
 
-<div class="card">
 
-    <h2>Need Help?</h2>
+.stat-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+}
 
-    <p class="muted">
-        If you have questions about your payroll, employment
-        information or available financial services, contact
-        your employer or Appex support.
-    </p>
 
-</div>
+.stat-label {
+    font-size: 14px;
+    color: #777;
+    margin-bottom: 8px;
+}
+
+
+.stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 15px;
+}
+
+
+.card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+}
+
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+
+.card-header h2 {
+    margin-bottom: 5px;
+}
+
+
+.financial-service {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    padding: 20px;
+    border: 1px solid #eee;
+    border-radius: 10px;
+}
+
+
+.financial-service h3 {
+    margin-bottom: 8px;
+}
+
+
+.loan-details {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+
+.loan-details strong {
+    display: block;
+    margin-bottom: 5px;
+}
+
+
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+}
+
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+
+.data-table th {
+    text-align: left;
+    padding: 12px;
+    border-bottom: 2px solid #eee;
+}
+
+
+.data-table td {
+    padding: 14px 12px;
+    border-bottom: 1px solid #eee;
+}
+
+
+.badge {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #eee;
+}
+
+
+.badge-success {
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
+
+.btn-primary {
+    background: #0d6efd;
+    color: #ffffff;
+}
+
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+
+@media (max-width: 900px) {
+
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .loan-details {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+}
+
+
+@media (max-width: 600px) {
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .loan-details {
+        grid-template-columns: 1fr;
+    }
+
+    .card {
+        padding: 15px;
+    }
+
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .financial-service {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+}
+
+</style>
 
 {% endblock %}
