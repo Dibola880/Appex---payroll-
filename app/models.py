@@ -53,6 +53,17 @@ class Company(db.Model):
         cascade="all, delete-orphan"
     )
 
+    # --------------------------------------------------------
+    # Phase 5B
+    # Loan products belonging to this company
+    # --------------------------------------------------------
+
+    loan_products = db.relationship(
+        "LoanProduct",
+        back_populates="company",
+        cascade="all, delete-orphan"
+    )
+
 
 # ============================================================
 # USER
@@ -577,6 +588,126 @@ class Payslip(db.Model):
 
 
 # ============================================================
+# PHASE 5B
+# LOAN PRODUCT
+# ============================================================
+
+class LoanProduct(db.Model):
+
+    __tablename__ = "loan_product"
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
+
+    # --------------------------------------------------------
+    # Company that owns this loan product
+    # --------------------------------------------------------
+
+    company_id = db.Column(
+        db.Integer,
+        db.ForeignKey("company.id"),
+        nullable=False,
+        index=True
+    )
+
+    # --------------------------------------------------------
+    # Product information
+    # --------------------------------------------------------
+
+    name = db.Column(
+        db.String(150),
+        nullable=False
+    )
+
+    description = db.Column(
+        db.Text,
+        nullable=True
+    )
+
+    # --------------------------------------------------------
+    # Loan limits
+    # --------------------------------------------------------
+
+    minimum_amount = db.Column(
+        db.Float,
+        default=0,
+        nullable=False
+    )
+
+    maximum_amount = db.Column(
+        db.Float,
+        default=0,
+        nullable=False
+    )
+
+    # --------------------------------------------------------
+    # Pricing
+    #
+    # Example:
+    # 40.00 means 40%
+    # --------------------------------------------------------
+
+    interest_rate = db.Column(
+        db.Float,
+        default=0,
+        nullable=False
+    )
+
+    # --------------------------------------------------------
+    # Repayment
+    # --------------------------------------------------------
+
+    repayment_term_months = db.Column(
+        db.Integer,
+        default=1,
+        nullable=False
+    )
+
+    # --------------------------------------------------------
+    # Product status
+    # --------------------------------------------------------
+
+    active = db.Column(
+        db.Boolean,
+        default=True,
+        nullable=False
+    )
+
+    # --------------------------------------------------------
+    # Timestamps
+    # --------------------------------------------------------
+
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        nullable=False
+    )
+
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False
+    )
+
+    # --------------------------------------------------------
+    # Relationships
+    # --------------------------------------------------------
+
+    company = db.relationship(
+        "Company",
+        back_populates="loan_products"
+    )
+
+    loan_applications = db.relationship(
+        "LoanApplication",
+        back_populates="loan_product"
+    )
+
+
+# ============================================================
 # LOAN APPLICATION
 # ============================================================
 
@@ -593,6 +724,21 @@ class LoanApplication(db.Model):
         db.Integer,
         db.ForeignKey("employee.id"),
         nullable=False,
+        index=True
+    )
+
+    # --------------------------------------------------------
+    # Phase 5B
+    # Selected loan product
+    #
+    # Nullable so existing Phase 5A applications
+    # continue working.
+    # --------------------------------------------------------
+
+    product_id = db.Column(
+        db.Integer,
+        db.ForeignKey("loan_product.id"),
+        nullable=True,
         index=True
     )
 
@@ -698,8 +844,17 @@ class LoanApplication(db.Model):
         nullable=False
     )
 
+    # --------------------------------------------------------
+    # Relationships
+    # --------------------------------------------------------
+
     employee = db.relationship(
         "Employee",
+        back_populates="loan_applications"
+    )
+
+    loan_product = db.relationship(
+        "LoanProduct",
         back_populates="loan_applications"
     )
 
