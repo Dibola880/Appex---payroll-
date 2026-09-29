@@ -270,7 +270,6 @@ def calculate_loan_installment(application):
     Phase 5A uses:
 
         total repayable / repayment term
-
     """
 
     if not application:
@@ -1751,6 +1750,22 @@ def employee_loan_application():
     )
 
 
+# ------------------------------------------------------------
+# COMPATIBILITY ALIAS
+# Supports templates using:
+# main.employee_loan_application
+# while keeping:
+# main.loan_application
+# ------------------------------------------------------------
+
+bp.add_url_rule(
+    "/employee/loan-application",
+    endpoint="employee_loan_application",
+    view_func=employee_loan_application,
+    methods=["GET", "POST"]
+)
+
+
 # ============================================================
 # EMPLOYEE LOAN STATUS
 # ============================================================
@@ -1801,6 +1816,22 @@ def employee_loan_status():
         employee=employee,
         application=application,
     )
+
+
+# ------------------------------------------------------------
+# COMPATIBILITY ALIAS
+# Supports:
+# main.employee_loan_status
+# and:
+# main.loan_status
+# ------------------------------------------------------------
+
+bp.add_url_rule(
+    "/employee/loan-status",
+    endpoint="employee_loan_status",
+    view_func=employee_loan_status,
+    methods=["GET"]
+)
 
 
 # ============================================================
@@ -1861,9 +1892,6 @@ def employee_repayments():
             application.outstanding_balance
         )
 
-        # Only Disbursed loans have scheduled
-        # payroll repayments.
-
         if application.status == "Disbursed":
 
             monthly_installment = (
@@ -1880,6 +1908,18 @@ def employee_repayments():
         amount_paid=amount_paid,
         monthly_installment=monthly_installment,
     )
+
+
+# ------------------------------------------------------------
+# COMPATIBILITY ALIAS
+# ------------------------------------------------------------
+
+bp.add_url_rule(
+    "/employee/repayments",
+    endpoint="repayments",
+    view_func=employee_repayments,
+    methods=["GET"]
+)
 
 
 # ============================================================
@@ -1991,10 +2031,6 @@ def approve_loan(loan_id):
     application.approved_amount = (
         approved_amount
     )
-
-    # Phase 5A:
-    # The approved amount is currently treated
-    # as the total repayable amount.
 
     application.total_repayable = (
         approved_amount
@@ -2204,9 +2240,6 @@ def disburse_loan(loan_id):
         2
     )
 
-    # The next completed payroll will perform
-    # the actual deduction.
-
     application.next_payment_date = (
         datetime.utcnow().date()
     )
@@ -2375,8 +2408,6 @@ def payroll():
                 employees=employees,
                 company=company,
             )
-
-        # Prevent duplicate payroll period.
 
         existing_payroll = PayrollRun.query.filter_by(
             company_id=company.id,
@@ -2906,8 +2937,6 @@ def complete_payroll(payroll_id):
             2
         )
 
-        # Store actual loan repayment.
-
         payroll_input.loan_repayment = (
             loan_repayment
         )
@@ -3180,8 +3209,6 @@ def view_payslip(payslip_id):
             )
         )
 
-    # Employee security.
-
     if user.role == "employee":
 
         if employee.user_id != user.id:
@@ -3196,8 +3223,6 @@ def view_payslip(payslip_id):
                     "main.employee_dashboard"
                 )
             )
-
-    # Employer security.
 
     else:
 
@@ -3255,8 +3280,6 @@ def download_payslip_pdf(payslip_id):
             url_for("main.dashboard")
         )
 
-    # Employee security.
-
     if user.role == "employee":
 
         if employee.user_id != user.id:
@@ -3271,8 +3294,6 @@ def download_payslip_pdf(payslip_id):
                     "main.employee_dashboard"
                 )
             )
-
-    # Employer security.
 
     else:
 
