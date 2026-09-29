@@ -50,7 +50,6 @@ bp = Blueprint("main", __name__)
 # ============================================================
 
 def current_user():
-
     user_id = session.get("user_id")
 
     if not user_id:
@@ -411,9 +410,9 @@ def calculate_payroll_input(payroll_input):
         )
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # PHASE 5A - LOAN REPAYMENT
-    # --------------------------------------------------------
+    # ========================================================
 
     loan_application = None
     scheduled_loan_repayment = 0.0
@@ -424,8 +423,7 @@ def calculate_payroll_input(payroll_input):
 
     # --------------------------------------------------------
     # Completed payrolls use the amount already recorded
-    # on PayrollInput. This prevents a completed loan from
-    # being recalculated as a new deduction.
+    # on PayrollInput.
     # --------------------------------------------------------
 
     if (
@@ -508,37 +506,19 @@ def calculate_payroll_input(payroll_input):
 
     return {
         "employee": employee,
-
         "payroll_input": payroll_input,
-
         "result": result,
-
         "gross_pay": gross_pay,
-
         "paye": paye,
-
         "uif": uif,
-
         "other_deductions": other_deductions,
-
         "loan_repayment": loan_repayment,
-
-        "scheduled_loan_repayment": (
-            scheduled_loan_repayment
-        ),
-
+        "scheduled_loan_repayment": scheduled_loan_repayment,
         "loan_application": loan_application,
-
-        "loan_outstanding_before": (
-            loan_outstanding_before
-        ),
-
+        "loan_outstanding_before": loan_outstanding_before,
         "total_deductions": total_deductions,
-
         "net_pay": net_pay,
-
         "employer_uif": employer_uif,
-
         "employer_cost": employer_cost,
     }
 
@@ -1539,7 +1519,8 @@ def financial_services():
 
 @bp.route(
     "/employee/loan-application",
-    methods=["GET", "POST"]
+    methods=["GET", "POST"],
+    endpoint="loan_application"
 )
 @login_required
 def employee_loan_application():
@@ -1582,7 +1563,7 @@ def employee_loan_application():
 
             return redirect(
                 url_for(
-                    "main.employee_loan_application"
+                    "main.loan_application"
                 )
             )
 
@@ -1628,7 +1609,7 @@ def employee_loan_application():
 
             return redirect(
                 url_for(
-                    "main.employee_loan_application"
+                    "main.loan_application"
                 )
             )
 
@@ -1641,7 +1622,7 @@ def employee_loan_application():
 
             return redirect(
                 url_for(
-                    "main.employee_loan_application"
+                    "main.loan_application"
                 )
             )
 
@@ -1654,7 +1635,7 @@ def employee_loan_application():
 
             return redirect(
                 url_for(
-                    "main.employee_loan_application"
+                    "main.loan_application"
                 )
             )
 
@@ -1667,7 +1648,7 @@ def employee_loan_application():
 
             return redirect(
                 url_for(
-                    "main.employee_loan_application"
+                    "main.loan_application"
                 )
             )
 
@@ -1680,7 +1661,7 @@ def employee_loan_application():
 
             return redirect(
                 url_for(
-                    "main.employee_loan_application"
+                    "main.loan_application"
                 )
             )
 
@@ -1693,7 +1674,7 @@ def employee_loan_application():
 
             return redirect(
                 url_for(
-                    "main.employee_loan_application"
+                    "main.loan_application"
                 )
             )
 
@@ -1723,7 +1704,7 @@ def employee_loan_application():
 
             return redirect(
                 url_for(
-                    "main.employee_loan_status"
+                    "main.loan_status"
                 )
             )
 
@@ -1766,7 +1747,7 @@ def employee_loan_application():
 
         return redirect(
             url_for(
-                "main.employee_loan_status"
+                "main.loan_status"
             )
         )
 
@@ -1781,7 +1762,8 @@ def employee_loan_application():
 # ============================================================
 
 @bp.route(
-    "/employee/loan-status"
+    "/employee/loan-status",
+    endpoint="loan_status"
 )
 @login_required
 def employee_loan_status():
@@ -1885,14 +1867,10 @@ def employee_repayments():
             application.outstanding_balance
         )
 
-        if (
-            application.status == "Approved"
-            and outstanding_balance <= 0
-        ):
-
-            outstanding_balance = safe_float(
-                application.total_repayable
-            )
+        # ----------------------------------------------------
+        # Only Disbursed loans have scheduled payroll
+        # repayments.
+        # ----------------------------------------------------
 
         if application.status == "Disbursed":
 
@@ -2023,7 +2001,7 @@ def approve_loan(loan_id):
     )
 
     # Phase 5A:
-    # The approved amount is currently the total repayable amount.
+    # Approved amount is currently the total repayable amount.
     application.total_repayable = (
         approved_amount
     )
@@ -2232,8 +2210,7 @@ def disburse_loan(loan_id):
         2
     )
 
-    # The first deduction will occur on the next
-    # completed payroll after disbursement.
+    # First deduction occurs on the next completed payroll.
     application.next_payment_date = (
         datetime.utcnow().date()
     )
@@ -2401,6 +2378,29 @@ def payroll():
                 "create_payroll.html",
                 employees=employees,
                 company=company,
+            )
+
+        # ----------------------------------------------------
+        # Prevent duplicate payroll period
+        # ----------------------------------------------------
+
+        existing_payroll = PayrollRun.query.filter_by(
+            company_id=company.id,
+            pay_period=pay_period
+        ).first()
+
+        if existing_payroll:
+
+            flash(
+                "A payroll run already exists for this pay period.",
+                "warning"
+            )
+
+            return redirect(
+                url_for(
+                    "main.view_payroll",
+                    payroll_id=existing_payroll.id
+                )
             )
 
         payroll_run = PayrollRun(
@@ -2862,17 +2862,17 @@ def complete_payroll(payroll_id):
             )
         )
 
-    # --------------------------------------------------------
-    # Final payroll calculation
-    # --------------------------------------------------------
+    # ========================================================
+    # FINAL PAYROLL CALCULATION
+    # ========================================================
 
     results = calculate_payroll_run_totals(
         payroll_run
     )
 
-    # --------------------------------------------------------
-    # Remove existing payslips for this payroll
-    # --------------------------------------------------------
+    # ========================================================
+    # REMOVE EXISTING PAYSLIPS FOR THIS PAYROLL
+    # ========================================================
 
     Payslip.query.filter_by(
         payroll_run_id=payroll_run.id
@@ -2880,9 +2880,9 @@ def complete_payroll(payroll_id):
         synchronize_session=False
     )
 
-    # --------------------------------------------------------
-    # Generate payslips
-    # --------------------------------------------------------
+    # ========================================================
+    # GENERATE PAYSLIPS
+    # ========================================================
 
     for calculated in results:
 
@@ -2913,7 +2913,7 @@ def complete_payroll(payroll_id):
         )
 
         # ----------------------------------------------------
-        # Store the actual loan repayment on PayrollInput
+        # Store actual loan repayment on PayrollInput
         # ----------------------------------------------------
 
         payroll_input.loan_repayment = (
@@ -3002,10 +3002,9 @@ def complete_payroll(payroll_id):
             payslip
         )
 
-        # ----------------------------------------------------
-        # PHASE 5A
-        # Apply payroll repayment to loan balance
-        # ----------------------------------------------------
+        # ====================================================
+        # PHASE 5A - APPLY LOAN REPAYMENT
+        # ====================================================
 
         if (
             loan_application
@@ -3189,6 +3188,10 @@ def view_payslip(payslip_id):
             )
         )
 
+    # --------------------------------------------------------
+    # Employee security
+    # --------------------------------------------------------
+
     if user.role == "employee":
 
         if employee.user_id != user.id:
@@ -3203,6 +3206,10 @@ def view_payslip(payslip_id):
                     "main.employee_dashboard"
                 )
             )
+
+    # --------------------------------------------------------
+    # Employer security
+    # --------------------------------------------------------
 
     else:
 
@@ -3260,6 +3267,10 @@ def download_payslip_pdf(payslip_id):
             url_for("main.dashboard")
         )
 
+    # --------------------------------------------------------
+    # Employee security
+    # --------------------------------------------------------
+
     if user.role == "employee":
 
         if employee.user_id != user.id:
@@ -3274,6 +3285,10 @@ def download_payslip_pdf(payslip_id):
                     "main.employee_dashboard"
                 )
             )
+
+    # --------------------------------------------------------
+    # Employer security
+    # --------------------------------------------------------
 
     else:
 
@@ -3300,6 +3315,10 @@ def download_payslip_pdf(payslip_id):
     width, height = A4
 
     y = height - 50
+
+    # ========================================================
+    # HEADER
+    # ========================================================
 
     pdf.setFont(
         "Helvetica-Bold",
