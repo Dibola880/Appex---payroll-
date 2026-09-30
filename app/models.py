@@ -53,11 +53,7 @@ class Company(db.Model):
         cascade="all, delete-orphan"
     )
 
-    # --------------------------------------------------------
     # Phase 5B
-    # Loan products belonging to this company
-    # --------------------------------------------------------
-
     loan_products = db.relationship(
         "LoanProduct",
         back_populates="company",
@@ -264,7 +260,6 @@ class EmployeeInvitation(db.Model):
     )
 
     def is_valid(self):
-
         return (
             not self.used
             and self.expires_at > datetime.utcnow()
@@ -378,7 +373,7 @@ class PayrollInput(db.Model):
     )
 
     # --------------------------------------------------------
-    # Payroll earnings
+    # Earnings
     # --------------------------------------------------------
 
     basic_salary = db.Column(
@@ -407,7 +402,7 @@ class PayrollInput(db.Model):
     )
 
     # --------------------------------------------------------
-    # Payroll deductions
+    # Deductions
     # --------------------------------------------------------
 
     other_deductions = db.Column(
@@ -415,19 +410,11 @@ class PayrollInput(db.Model):
         default=0
     )
 
-    # --------------------------------------------------------
     # Phase 5A
-    # Employee loan repayment deducted through payroll
-    # --------------------------------------------------------
-
     loan_repayment = db.Column(
         db.Float,
         default=0
     )
-
-    # --------------------------------------------------------
-    # Relationships
-    # --------------------------------------------------------
 
     payroll_run = db.relationship(
         "PayrollRun",
@@ -526,11 +513,7 @@ class Payslip(db.Model):
         default=0
     )
 
-    # --------------------------------------------------------
     # Phase 5A
-    # Employee loan repayment
-    # --------------------------------------------------------
-
     loan_repayment = db.Column(
         db.Float,
         default=0
@@ -572,10 +555,6 @@ class Payslip(db.Model):
         db.String(500)
     )
 
-    # --------------------------------------------------------
-    # Relationships
-    # --------------------------------------------------------
-
     employee = db.relationship(
         "Employee",
         back_populates="payslips"
@@ -600,10 +579,6 @@ class LoanProduct(db.Model):
         db.Integer,
         primary_key=True
     )
-
-    # --------------------------------------------------------
-    # Company that owns this loan product
-    # --------------------------------------------------------
 
     company_id = db.Column(
         db.Integer,
@@ -632,24 +607,27 @@ class LoanProduct(db.Model):
 
     minimum_amount = db.Column(
         db.Float,
-        default=0,
+        default=500,
         nullable=False
     )
 
     maximum_amount = db.Column(
         db.Float,
-        default=0,
+        default=3000,
         nullable=False
     )
 
     # --------------------------------------------------------
     # Pricing
-    #
-    # Example:
-    # 40.00 means 40%
     # --------------------------------------------------------
 
     interest_rate = db.Column(
+        db.Float,
+        default=0,
+        nullable=False
+    )
+
+    service_fee = db.Column(
         db.Float,
         default=0,
         nullable=False
@@ -662,6 +640,22 @@ class LoanProduct(db.Model):
     repayment_term_months = db.Column(
         db.Integer,
         default=1,
+        nullable=False
+    )
+
+    # --------------------------------------------------------
+    # Affordability rules
+    # --------------------------------------------------------
+
+    max_deduction_percent = db.Column(
+        db.Float,
+        default=30,
+        nullable=False
+    )
+
+    minimum_employment_months = db.Column(
+        db.Integer,
+        default=0,
         nullable=False
     )
 
@@ -814,88 +808,6 @@ class LoanApplication(db.Model):
     total_repayable = db.Column(
         db.Float,
         nullable=True
-        class LoanProduct(db.Model):
-    __tablename__ = "loan_product"
-
-    id = db.Column(db.Integer, primary_key=True)
-
-    company_id = db.Column(
-        db.Integer,
-        db.ForeignKey("company.id"),
-        nullable=False
-    )
-
-    name = db.Column(
-        db.String(150),
-        nullable=False
-    )
-
-    description = db.Column(
-        db.Text,
-        nullable=True
-    )
-
-    min_amount = db.Column(
-        db.Float,
-        default=500
-    )
-
-    max_amount = db.Column(
-        db.Float,
-        default=3000
-    )
-
-    repayment_term_months = db.Column(
-        db.Integer,
-        default=1
-    )
-
-    interest_rate = db.Column(
-        db.Float,
-        default=0
-    )
-
-    service_fee = db.Column(
-        db.Float,
-        default=0
-    )
-
-    max_deduction_percent = db.Column(
-        db.Float,
-        default=30
-    )
-
-    minimum_employment_months = db.Column(
-        db.Integer,
-        default=0
-    )
-
-    active = db.Column(
-        db.Boolean,
-        default=True
-    )
-
-    created_at = db.Column(
-        db.DateTime,
-        default=datetime.utcnow
-    )
-
-    updated_at = db.Column(
-        db.DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
-
-    company = db.relationship(
-        "Company",
-        backref=db.backref(
-            "loan_products",
-            lazy=True
-        )
-    )
-
-    def __repr__(self):
-        return f"<LoanProduct {self.name}>"
     )
 
     total_paid = db.Column(
