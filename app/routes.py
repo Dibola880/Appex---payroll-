@@ -59,12 +59,10 @@ def current_user():
 
 
 def login_required(view):
-
     @wraps(view)
     def wrapped_view(*args, **kwargs):
 
         if not current_user():
-
             flash(
                 "Please log in to continue.",
                 "warning"
@@ -80,14 +78,12 @@ def login_required(view):
 
 
 def employer_required(view):
-
     @wraps(view)
     def wrapped_view(*args, **kwargs):
 
         user = current_user()
 
         if not user:
-
             flash(
                 "Please log in to continue.",
                 "warning"
@@ -98,7 +94,6 @@ def employer_required(view):
             )
 
         if user.role not in ["employer", "admin"]:
-
             flash(
                 "Employer access required.",
                 "danger"
@@ -116,7 +111,6 @@ def employer_required(view):
 def safe_float(value, default=0.0):
 
     try:
-
         number = float(value)
 
         if number < 0:
@@ -124,11 +118,7 @@ def safe_float(value, default=0.0):
 
         return number
 
-    except (
-        TypeError,
-        ValueError
-    ):
-
+    except (TypeError, ValueError):
         return default
 
 
@@ -158,7 +148,6 @@ def calculate_age_from_dob(date_of_birth):
         )
 
     except Exception:
-
         return None
 
 
@@ -167,17 +156,6 @@ def calculate_age_from_dob(date_of_birth):
 # ============================================================
 
 def parse_repayment_term_months(repayment_term):
-
-    """
-    Convert repayment terms such as:
-
-        1 month
-        3 months
-        6 months
-        12 months
-
-    into an integer number of months.
-    """
 
     text = str(
         repayment_term or ""
@@ -202,10 +180,6 @@ def parse_repayment_term_months(repayment_term):
 
 
 def add_months(value, months):
-
-    """
-    Safely add calendar months to a date.
-    """
 
     if not value:
         return None
@@ -242,12 +216,6 @@ def add_months(value, months):
 
 def get_active_employee_loan(employee_id):
 
-    """
-    Return the employee's currently disbursed loan.
-
-    Phase 5A allows one active disbursed loan per employee.
-    """
-
     return (
         LoanApplication.query
         .filter(
@@ -263,14 +231,6 @@ def get_active_employee_loan(employee_id):
 
 
 def calculate_loan_installment(application):
-
-    """
-    Calculate the normal monthly payroll deduction.
-
-    Phase 5A uses:
-
-        total repayable / repayment term
-    """
 
     if not application:
         return 0.0
@@ -313,13 +273,6 @@ def get_company_loan_or_404(
     loan_id,
     user
 ):
-
-    """
-    Security helper.
-
-    An employer can only access loans belonging
-    to employees in their own company.
-    """
 
     return (
         LoanApplication.query
@@ -370,39 +323,25 @@ def calculate_payroll_input(payroll_input):
     )
 
     gross_pay = safe_float(
-        result.get(
-            "gross_pay",
-            0
-        )
+        result.get("gross_pay", 0)
     )
 
     paye = safe_float(
-        result.get(
-            "paye",
-            0
-        )
+        result.get("paye", 0)
     )
 
     uif = safe_float(
-        result.get(
-            "uif",
-            0
-        )
+        result.get("uif", 0)
     )
 
     other_deductions = safe_float(
-        result.get(
-            "other_deductions",
-            0
-        )
+        result.get("other_deductions", 0)
     )
 
     base_total_deductions = safe_float(
         result.get(
             "total_deductions",
-            paye
-            + uif
-            + other_deductions
+            paye + uif + other_deductions
         )
     )
 
@@ -416,10 +355,6 @@ def calculate_payroll_input(payroll_input):
     loan_outstanding_before = 0.0
 
     payroll_run = payroll_input.payroll_run
-
-    # --------------------------------------------------------
-    # Completed payrolls use the amount already recorded.
-    # --------------------------------------------------------
 
     if (
         payroll_run
@@ -449,9 +384,6 @@ def calculate_payroll_input(payroll_input):
                     loan_application
                 )
             )
-
-            # Never allow the loan deduction to make
-            # the employee's net pay negative.
 
             available_for_loan = max(
                 0.0,
@@ -485,10 +417,7 @@ def calculate_payroll_input(payroll_input):
     )
 
     employer_uif = safe_float(
-        result.get(
-            "employer_uif",
-            0
-        )
+        result.get("employer_uif", 0)
     )
 
     employer_cost = round(
@@ -536,29 +465,13 @@ def calculate_payroll_run_totals(payroll_run):
             payroll_input
         )
 
-        results.append(
-            calculated
-        )
+        results.append(calculated)
 
-        total_gross += calculated[
-            "gross_pay"
-        ]
-
-        total_deductions += calculated[
-            "total_deductions"
-        ]
-
-        total_net += calculated[
-            "net_pay"
-        ]
-
-        total_employer_uif += calculated[
-            "employer_uif"
-        ]
-
-        total_employer_cost += calculated[
-            "employer_cost"
-        ]
+        total_gross += calculated["gross_pay"]
+        total_deductions += calculated["total_deductions"]
+        total_net += calculated["net_pay"]
+        total_employer_uif += calculated["employer_uif"]
+        total_employer_cost += calculated["employer_cost"]
 
     payroll_run.total_gross = round(
         total_gross,
@@ -595,8 +508,7 @@ def get_employee_payroll_value(
 ):
 
     field_name = (
-        field_name
-        or ""
+        field_name or ""
     ).strip()
 
     individual_key = (
@@ -607,10 +519,7 @@ def get_employee_payroll_value(
         individual_key
     )
 
-    if value not in [
-        None,
-        ""
-    ]:
+    if value not in [None, ""]:
 
         return safe_float(
             value,
@@ -621,10 +530,7 @@ def get_employee_payroll_value(
         field_name
     )
 
-    if value not in [
-        None,
-        ""
-    ]:
+    if value not in [None, ""]:
 
         return safe_float(
             value,
@@ -690,9 +596,7 @@ def dashboard():
             PayrollRun.id.desc()
         ).all()
 
-    total_employees = len(
-        employees
-    )
+    total_employees = len(employees)
 
     active_employees = len([
         employee
@@ -737,37 +641,27 @@ def register():
     if request.method == "POST":
 
         company_name = (
-            request.form.get(
-                "company_name"
-            )
+            request.form.get("company_name")
             or ""
         ).strip()
 
         registration_number = (
-            request.form.get(
-                "registration_number"
-            )
+            request.form.get("registration_number")
             or ""
         ).strip()
 
         name = (
-            request.form.get(
-                "name"
-            )
+            request.form.get("name")
             or ""
         ).strip()
 
         email = (
-            request.form.get(
-                "email"
-            )
+            request.form.get("email")
             or ""
         ).strip().lower()
 
         password = (
-            request.form.get(
-                "password"
-            )
+            request.form.get("password")
             or ""
         )
 
@@ -836,10 +730,7 @@ def register():
             payroll_provider="Deel Local Payroll",
         )
 
-        db.session.add(
-            company
-        )
-
+        db.session.add(company)
         db.session.flush()
 
         user = User(
@@ -853,14 +744,10 @@ def register():
             is_active=True,
         )
 
-        db.session.add(
-            user
-        )
-
+        db.session.add(user)
         db.session.commit()
 
         session.clear()
-
         session["user_id"] = user.id
 
         flash(
@@ -890,16 +777,12 @@ def login():
     if request.method == "POST":
 
         email = (
-            request.form.get(
-                "email"
-            )
+            request.form.get("email")
             or ""
         ).strip().lower()
 
         password = (
-            request.form.get(
-                "password"
-            )
+            request.form.get("password")
             or ""
         )
 
@@ -944,7 +827,6 @@ def login():
             )
 
         session.clear()
-
         session["user_id"] = user.id
 
         if user.role == "employee":
@@ -1021,57 +903,41 @@ def new_employee():
     if request.method == "POST":
 
         employee_number = (
-            request.form.get(
-                "employee_number"
-            )
+            request.form.get("employee_number")
             or ""
         ).strip()
 
         first_name = (
-            request.form.get(
-                "first_name"
-            )
+            request.form.get("first_name")
             or ""
         ).strip()
 
         last_name = (
-            request.form.get(
-                "last_name"
-            )
+            request.form.get("last_name")
             or ""
         ).strip()
 
         date_of_birth_value = (
-            request.form.get(
-                "date_of_birth"
-            )
+            request.form.get("date_of_birth")
             or ""
         ).strip()
 
         email = (
-            request.form.get(
-                "email"
-            )
+            request.form.get("email")
             or ""
         ).strip().lower()
 
         job_title = (
-            request.form.get(
-                "job_title"
-            )
+            request.form.get("job_title")
             or ""
         ).strip()
 
         monthly_salary = safe_float(
-            request.form.get(
-                "monthly_salary"
-            )
+            request.form.get("monthly_salary")
         )
 
         status = (
-            request.form.get(
-                "status"
-            )
+            request.form.get("status")
             or "Active"
         ).strip()
 
@@ -1153,10 +1019,7 @@ def new_employee():
             status=status,
         )
 
-        db.session.add(
-            employee
-        )
-
+        db.session.add(employee)
         db.session.commit()
 
         flash(
@@ -1214,10 +1077,7 @@ def invite_employee(employee_id):
         used=False,
     )
 
-    db.session.add(
-        invitation
-    )
-
+    db.session.add(invitation)
     db.session.commit()
 
     invitation_url = url_for(
@@ -1293,24 +1153,18 @@ def accept_invitation(token):
     if request.method == "POST":
 
         name = (
-            request.form.get(
-                "name"
-            )
+            request.form.get("name")
             or ""
         ).strip()
 
         email = (
-            request.form.get(
-                "email"
-            )
+            request.form.get("email")
             or employee.email
             or ""
         ).strip().lower()
 
         password = (
-            request.form.get(
-                "password"
-            )
+            request.form.get("password")
             or ""
         )
 
@@ -1382,16 +1236,12 @@ def accept_invitation(token):
             is_active=True,
         )
 
-        db.session.add(
-            user
-        )
-
+        db.session.add(user)
         db.session.flush()
 
         employee.user_id = user.id
 
         if not employee.email:
-
             employee.email = email
 
         invitation.used = True
@@ -1399,7 +1249,6 @@ def accept_invitation(token):
         db.session.commit()
 
         session.clear()
-
         session["user_id"] = user.id
 
         flash(
@@ -1727,10 +1576,7 @@ def employee_loan_application():
             outstanding_balance=0,
         )
 
-        db.session.add(
-            application
-        )
-
+        db.session.add(application)
         db.session.commit()
 
         flash(
@@ -1750,13 +1596,9 @@ def employee_loan_application():
     )
 
 
-# ------------------------------------------------------------
+# ============================================================
 # COMPATIBILITY ALIAS
-# Supports templates using:
-# main.employee_loan_application
-# while keeping:
-# main.loan_application
-# ------------------------------------------------------------
+# ============================================================
 
 bp.add_url_rule(
     "/employee/loan-application",
@@ -1818,13 +1660,9 @@ def employee_loan_status():
     )
 
 
-# ------------------------------------------------------------
+# ============================================================
 # COMPATIBILITY ALIAS
-# Supports:
-# main.employee_loan_status
-# and:
-# main.loan_status
-# ------------------------------------------------------------
+# ============================================================
 
 bp.add_url_rule(
     "/employee/loan-status",
@@ -1910,9 +1748,9 @@ def employee_repayments():
     )
 
 
-# ------------------------------------------------------------
+# ============================================================
 # COMPATIBILITY ALIAS
-# ------------------------------------------------------------
+# ============================================================
 
 bp.add_url_rule(
     "/employee/repayments",
@@ -1926,9 +1764,7 @@ bp.add_url_rule(
 # EMPLOYER LOAN MANAGEMENT
 # ============================================================
 
-@bp.route(
-    "/loans"
-)
+@bp.route("/loans")
 @employer_required
 def loan_management():
 
@@ -2028,31 +1864,21 @@ def approve_loan(loan_id):
         or ""
     ).strip()
 
-    application.approved_amount = (
-        approved_amount
-    )
+    application.approved_amount = approved_amount
 
-    application.total_repayable = (
-        approved_amount
-    )
+    application.total_repayable = approved_amount
 
     application.total_paid = 0.0
 
-    application.outstanding_balance = (
-        approved_amount
-    )
+    application.outstanding_balance = approved_amount
 
     application.status = "Approved"
 
-    application.reviewed_at = (
-        datetime.utcnow()
-    )
+    application.reviewed_at = datetime.utcnow()
 
     application.reviewed_by = user.id
 
-    application.approval_notes = (
-        approval_notes
-    )
+    application.approval_notes = approval_notes
 
     db.session.commit()
 
@@ -2114,15 +1940,11 @@ def reject_loan(loan_id):
 
     application.status = "Rejected"
 
-    application.reviewed_at = (
-        datetime.utcnow()
-    )
+    application.reviewed_at = datetime.utcnow()
 
     application.reviewed_by = user.id
 
-    application.approval_notes = (
-        rejection_notes
-    )
+    application.approval_notes = rejection_notes
 
     db.session.commit()
 
@@ -2208,19 +2030,15 @@ def disburse_loan(loan_id):
 
     application.status = "Disbursed"
 
-    application.disbursed_at = (
-        datetime.utcnow()
-    )
+    application.disbursed_at = datetime.utcnow()
 
     application.disbursement_reference = (
         disbursement_reference
     )
 
-    application.total_repayable = (
-        safe_float(
-            application.total_repayable,
-            approved_amount
-        )
+    application.total_repayable = safe_float(
+        application.total_repayable,
+        approved_amount
     )
 
     application.total_paid = safe_float(
@@ -2330,23 +2148,17 @@ def payroll():
     if request.method == "POST":
 
         action = (
-            request.form.get(
-                "action"
-            )
+            request.form.get("action")
             or "draft"
         ).strip().lower()
 
         pay_period = (
-            request.form.get(
-                "pay_period"
-            )
+            request.form.get("pay_period")
             or ""
         ).strip()
 
         pay_date_value = (
-            request.form.get(
-                "pay_date"
-            )
+            request.form.get("pay_date")
             or ""
         ).strip()
 
@@ -2440,10 +2252,7 @@ def payroll():
             total_employer_cost=0,
         )
 
-        db.session.add(
-            payroll_run
-        )
-
+        db.session.add(payroll_run)
         db.session.flush()
 
         for employee in employees:
@@ -2487,9 +2296,7 @@ def payroll():
                 loan_repayment=0,
             )
 
-            db.session.add(
-                payroll_input
-            )
+            db.session.add(payroll_input)
 
         db.session.commit()
 
@@ -2599,18 +2406,14 @@ def review_payroll(payroll_id):
         )
 
         return redirect(
-            url_for(
-                "main.payroll"
-            )
+            url_for("main.payroll")
         )
 
     if request.method == "POST":
 
         for payroll_input in payroll_inputs:
 
-            employee_id = (
-                payroll_input.employee_id
-            )
+            employee_id = payroll_input.employee_id
 
             payroll_input.overtime = (
                 get_employee_payroll_value(
@@ -2887,17 +2690,9 @@ def complete_payroll(payroll_id):
             )
         )
 
-    # ========================================================
-    # FINAL PAYROLL CALCULATION
-    # ========================================================
-
     results = calculate_payroll_run_totals(
         payroll_run
     )
-
-    # ========================================================
-    # REMOVE EXISTING PAYSLIPS FOR THIS PAYROLL
-    # ========================================================
 
     Payslip.query.filter_by(
         payroll_run_id=payroll_run.id
@@ -2905,23 +2700,13 @@ def complete_payroll(payroll_id):
         synchronize_session=False
     )
 
-    # ========================================================
-    # GENERATE PAYSLIPS
-    # ========================================================
-
     for calculated in results:
 
-        employee = calculated[
-            "employee"
-        ]
+        employee = calculated["employee"]
 
-        payroll_input = calculated[
-            "payroll_input"
-        ]
+        payroll_input = calculated["payroll_input"]
 
-        result = calculated[
-            "result"
-        ]
+        result = calculated["result"]
 
         loan_application = calculated.get(
             "loan_application"
@@ -2944,9 +2729,7 @@ def complete_payroll(payroll_id):
         payslip = Payslip(
             employee_id=employee.id,
             payroll_run_id=payroll_run.id,
-
             pay_period=payroll_run.pay_period,
-
             pay_date=payroll_run.pay_date,
 
             basic_salary=safe_float(
@@ -2984,17 +2767,11 @@ def complete_payroll(payroll_id):
                 )
             ),
 
-            gross_pay=calculated[
-                "gross_pay"
-            ],
+            gross_pay=calculated["gross_pay"],
 
-            tax_deductions=calculated[
-                "paye"
-            ],
+            tax_deductions=calculated["paye"],
 
-            uif=calculated[
-                "uif"
-            ],
+            uif=calculated["uif"],
 
             other_deductions=calculated[
                 "other_deductions"
@@ -3006,9 +2783,7 @@ def complete_payroll(payroll_id):
                 "total_deductions"
             ],
 
-            net_pay=calculated[
-                "net_pay"
-            ],
+            net_pay=calculated["net_pay"],
 
             employer_uif=calculated[
                 "employer_uif"
@@ -3019,9 +2794,7 @@ def complete_payroll(payroll_id):
             ],
         )
 
-        db.session.add(
-            payslip
-        )
+        db.session.add(payslip)
 
         # ====================================================
         # PHASE 5A - APPLY LOAN REPAYMENT
@@ -3713,9 +3486,7 @@ def payroll_calculator_test():
     if request.method == "POST":
 
         salary = safe_float(
-            request.form.get(
-                "salary"
-            )
+            request.form.get("salary")
         )
 
         try:
