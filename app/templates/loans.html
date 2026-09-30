@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+
+{% block title %}Loan Management - Appex Payroll{% endblock %}
+
+{% block heading %}Employee Loan Management{% endblock %}
+
+{% block content %}
+
+<div class="card">
+
+    <div class="page-header">
+
+        <div>
+            <h2>Employee Loan Applications</h2>
+
+            <p class="muted">
+                Review, approve, reject and manage employee loan
+                applications.
+            </p>
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ============================================================
+     LOAN APPLICATIONS
+     ============================================================ -->
+
+<div class="card">
+
+    <h3>Loan Applications</h3>
+
+    {% if loans %}
+
+    <div class="table-responsive">
+
+        <table class="table">
+
+            <thead>
+
+                <tr>
+
+                    <th>Employee</th>
+
+                    <th>Reference</th>
+
+                    <th>Requested</th>
+
+                    <th>Approved</th>
+
+                    <th>Term</th>
+
+                    <th>Total Repayable</th>
+
+                    <th>Outstanding</th>
+
+                    <th>Status</th>
+
+                    <th>Action</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                {% for loan in loans %}
+
+                <tr>
+
+                    <td>
+
+                        {% if loan.employee %}
+
+                            <strong>
+                                {{ loan.employee.first_name }}
+                                {{ loan.employee.last_name }}
+                            </strong>
+
+                            {% if loan.employee.employee_number %}
+
+                                <br>
+
+                                <small class="muted">
+                                    {{ loan.employee.employee_number }}
+                                </small>
+
+                            {% endif %}
+
+                        {% else %}
+
+                            <span class="muted">
+                                Employee unavailable
+                            </span>
+
+                        {% endif %}
+
+                    </td>
+
+
+                    <td>
+
+                        <strong>
+                            {{ loan.reference }}
+                        </strong>
+
+                    </td>
+
+
+                    <td>
+
+                        R{{ "%.2f"|format(
+                            loan.requested_amount or 0
+                        ) }}
+
+                    </td>
+
+
+                    <td>
+
+                        {% if loan.approved_amount %}
+
+                            R{{ "%.2f"|format(
+                                loan.approved_amount
+                            ) }}
+
+                        {% else %}
+
+                            <span class="muted">
+                                —
+                            </span>
+
+                        {% endif %}
+
+                    </td>
+
+
+                    <td>
+
+                        {% if loan.repayment_term %}
+
+                            {{ loan.repayment_term }}
+
+                        {% else %}
+
+                            <span class="muted">
+                                —
+                            </span>
+
+                        {% endif %}
+
+                    </td>
+
+
+                    <td>
+
+                        {% if loan.total_repayable %}
+
+                            R{{ "%.2f"|format(
+                                loan.total_repayable
+                            ) }}
+
+                        {% else %}
+
+                            <span class="muted">
+                                —
+                            </span>
+
+                        {% endif %}
+
+                    </td>
+
+
+                    <td>
+
+                        {% if loan.outstanding_balance is not none %}
+
+                            R{{ "%.2f"|format(
+                                loan.outstanding_balance or 0
+                            ) }}
+
+                        {% else %}
+
+                            <span class="muted">
+                                —
+                            </span>
+
+                        {% endif %}
+
+                    </td>
+
+
+                    <td>
+
+                        {% if loan.status == "Submitted" %}
+
+                            <span class="badge warning">
+                                Submitted
+                            </span>
+
+                        {% elif loan.status == "Under Review" %}
+
+                            <span class="badge warning">
+                                Under Review
+                            </span>
+
+                        {% elif loan.status == "Approved" %}
+
+                            <span class="badge success">
+                                Approved
+                            </span>
+
+                        {% elif loan.status == "Disbursed" %}
+
+                            <span class="badge success">
+                                Disbursed
+                            </span>
+
+                        {% elif loan.status == "Repaid" %}
+
+                            <span class="badge success">
+                                Repaid
+                            </span>
+
+                        {% elif loan.status == "Rejected" %}
+
+                            <span class="badge danger">
+                                Rejected
+                            </span>
+
+                        {% else %}
+
+                            <span class="badge">
+                                {{ loan.status }}
+                            </span>
+
+                        {% endif %}
+
+                    </td>
+
+
+                    <td>
+
+                        <a
+                            href="{{ url_for(
+                                'main.loan_management',
+                                loan_id=loan.id
+                            ) }}"
+                            class="button"
+                        >
+                            Review
+                        </a>
+
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    {% else %}
+
+        <div class="notice">
+
+            <strong>No loan applications yet.</strong>
+
+            <p>
+                Employee loan applications will appear here when
+                employees submit requests.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+</div>
+
+
+<!-- ============================================================
+     STATUS SUMMARY
+     ============================================================ -->
+
+<div class="card">
+
+    <h3>Loan Management</h3>
+
+    <div class="dashboard-grid">
+
+        <div class="stat-card">
+
+            <span class="stat-label">
+                Total Applications
+            </span>
+
+            <strong class="stat-value">
+                {{ loans|length }}
+            </strong>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <span class="stat-label">
+                Pending Review
+            </span>
+
+            <strong class="stat-value">
+
+                {{
+                    loans
+                    |selectattr("status", "equalto", "Submitted")
+                    |list
+                    |length
+                }}
+
+            </strong>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <span class="stat-label">
+                Approved
+            </span>
+
+            <strong class="stat-value">
+
+                {{
+                    loans
+                    |selectattr("status", "equalto", "Approved")
+                    |list
+                    |length
+                }}
+
+            </strong>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <span class="stat-label">
+                Disbursed
+            </span>
+
+            <strong class="stat-value">
+
+                {{
+                    loans
+                    |selectattr("status", "equalto", "Disbursed")
+                    |list
+                    |length
+                }}
+
+            </strong>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
