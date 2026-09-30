@@ -165,10 +165,6 @@ def calculate_age_from_dob(date_of_birth):
 
 def generate_referral_code():
 
-    """
-    Generate a unique referral code for a company.
-    """
-
     for _ in range(20):
 
         code = (
@@ -189,10 +185,6 @@ def generate_referral_code():
 
 
 def ensure_company_referral_code(company):
-
-    """
-    Make sure an existing company has a referral code.
-    """
 
     if company and not company.referral_code:
 
@@ -1213,28 +1205,102 @@ def accept_invitation(token):
 
     employee = invitation.employee
 
+    if not employee:
+
+        flash(
+            "The employee profile linked to this invitation could not be found.",
+            "danger"
+        )
+
+        return redirect(
+            url_for("main.login")
+        )
+
+    if employee.user_id:
+
+        flash(
+            "This employee already has an account.",
+            "warning"
+        )
+
+        return redirect(
+            url_for("main.login")
+        )
+
     if request.method == "POST":
 
-        name = (
-            request.form.get("name")
-            or ""
-        ).strip()
-
-        email = (
-            request.form.get("email")
-            or employee.email
-            or ""
-        ).strip().lower()
+        # ----------------------------------------------------
+        # The invitation form only asks the employee to create
+        # and confirm a password.
+        # Name and email are taken from the employee record.
+        # ----------------------------------------------------
 
         password = (
             request.form.get("password")
             or ""
         )
 
+        confirm_password = (
+            request.form.get("confirm_password")
+            or ""
+        )
+
+        if not password:
+
+            flash(
+                "Password is required.",
+                "danger"
+            )
+
+            return redirect(
+                url_for(
+                    "main.accept_invitation",
+                    token=token
+                )
+            )
+
+        if len(password) < 8:
+
+            flash(
+                "Password must be at least 8 characters long.",
+                "danger"
+            )
+
+            return redirect(
+                url_for(
+                    "main.accept_invitation",
+                    token=token
+                )
+            )
+
+        if password != confirm_password:
+
+            flash(
+                "Passwords do not match.",
+                "danger"
+            )
+
+            return redirect(
+                url_for(
+                    "main.accept_invitation",
+                    token=token
+                )
+            )
+
+        name = (
+            f"{employee.first_name or ''} "
+            f"{employee.last_name or ''}"
+        ).strip()
+
+        email = (
+            employee.email
+            or ""
+        ).strip().lower()
+
         if not name:
 
             flash(
-                "Name is required.",
+                "The employee profile does not have a valid name.",
                 "danger"
             )
 
@@ -1248,21 +1314,8 @@ def accept_invitation(token):
         if not email:
 
             flash(
-                "Email is required.",
-                "danger"
-            )
-
-            return redirect(
-                url_for(
-                    "main.accept_invitation",
-                    token=token
-                )
-            )
-
-        if not password:
-
-            flash(
-                "Password is required.",
+                "The employee profile does not have an email address. "
+                "Please ask the employer to update the employee record.",
                 "danger"
             )
 
@@ -1303,9 +1356,6 @@ def accept_invitation(token):
         db.session.flush()
 
         employee.user_id = user.id
-
-        if not employee.email:
-            employee.email = email
 
         invitation.used = True
 
@@ -3553,7 +3603,6 @@ def leads():
 
     user = current_user()
 
-    # Sales leads are assigned to the user who created/owns them.
     leads = (
         SalesLead.query
         .filter(
