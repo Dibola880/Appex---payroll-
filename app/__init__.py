@@ -66,6 +66,8 @@ def create_app():
 
     with app.app_context():
 
+        # Import models so SQLAlchemy knows about all tables
+        # before db.create_all() is executed.
         from . import models
 
         # --------------------------------------------------------
@@ -94,7 +96,8 @@ def create_app():
 
                 connection.execute(text("""
                     ALTER TABLE employee
-                    ADD COLUMN IF NOT EXISTS deel_employee_id VARCHAR(200)
+                    ADD COLUMN IF NOT EXISTS deel_employee_id
+                    VARCHAR(200)
                 """))
 
                 connection.execute(text("""
@@ -199,6 +202,98 @@ def create_app():
                 """))
 
                 # =================================================
+                # CLIENT ACQUISITION
+                # COMPANY TABLE
+                # =================================================
+
+                connection.execute(text("""
+                    ALTER TABLE company
+                    ADD COLUMN IF NOT EXISTS contact_person
+                    VARCHAR(200)
+                """))
+
+                connection.execute(text("""
+                    ALTER TABLE company
+                    ADD COLUMN IF NOT EXISTS contact_phone
+                    VARCHAR(50)
+                """))
+
+                connection.execute(text("""
+                    ALTER TABLE company
+                    ADD COLUMN IF NOT EXISTS contact_email
+                    VARCHAR(200)
+                """))
+
+                connection.execute(text("""
+                    ALTER TABLE company
+                    ADD COLUMN IF NOT EXISTS client_status
+                    VARCHAR(50)
+                """))
+
+                connection.execute(text("""
+                    ALTER TABLE company
+                    ADD COLUMN IF NOT EXISTS subscription_plan
+                    VARCHAR(100)
+                """))
+
+                connection.execute(text("""
+                    ALTER TABLE company
+                    ADD COLUMN IF NOT EXISTS subscription_status
+                    VARCHAR(50)
+                """))
+
+                connection.execute(text("""
+                    ALTER TABLE company
+                    ADD COLUMN IF NOT EXISTS onboarding_completed
+                    BOOLEAN
+                """))
+
+                connection.execute(text("""
+                    ALTER TABLE company
+                    ADD COLUMN IF NOT EXISTS referral_code
+                    VARCHAR(50)
+                """))
+
+                # -------------------------------------------------
+                # Give existing companies safe default values
+                # -------------------------------------------------
+
+                connection.execute(text("""
+                    UPDATE company
+                    SET client_status = 'Trial'
+                    WHERE client_status IS NULL
+                """))
+
+                connection.execute(text("""
+                    UPDATE company
+                    SET subscription_plan = 'Free Trial'
+                    WHERE subscription_plan IS NULL
+                """))
+
+                connection.execute(text("""
+                    UPDATE company
+                    SET subscription_status = 'Trial'
+                    WHERE subscription_status IS NULL
+                """))
+
+                connection.execute(text("""
+                    UPDATE company
+                    SET onboarding_completed = FALSE
+                    WHERE onboarding_completed IS NULL
+                """))
+
+                # -------------------------------------------------
+                # Referral code index
+                # -------------------------------------------------
+
+                connection.execute(text("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS
+                    ix_company_referral_code_unique
+                    ON company(referral_code)
+                    WHERE referral_code IS NOT NULL
+                """))
+
+                # =================================================
                 # Phase 5B
                 # LOAN PRODUCT
                 # =================================================
@@ -207,7 +302,7 @@ def create_app():
                 # db.create_all() from the LoanProduct model.
 
                 # =================================================
-                # Phase 5B
+                # PHASE 5B
                 # LOAN APPLICATION PRODUCT
                 # =================================================
 
