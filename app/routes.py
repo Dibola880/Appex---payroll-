@@ -37,6 +37,8 @@ from .models import (
     PayrollInput,
     Payslip,
     LoanApplication,
+    SalesLead,
+    ClientReferral,
 )
 
 from .payroll_calculator import calculate_payroll
@@ -63,6 +65,7 @@ def login_required(view):
     def wrapped_view(*args, **kwargs):
 
         if not current_user():
+
             flash(
                 "Please log in to continue.",
                 "warning"
@@ -84,6 +87,7 @@ def employer_required(view):
         user = current_user()
 
         if not user:
+
             flash(
                 "Please log in to continue.",
                 "warning"
@@ -94,6 +98,7 @@ def employer_required(view):
             )
 
         if user.role not in ["employer", "admin"]:
+
             flash(
                 "Employer access required.",
                 "danger"
@@ -111,6 +116,7 @@ def employer_required(view):
 def safe_float(value, default=0.0):
 
     try:
+
         number = float(value)
 
         if number < 0:
@@ -119,6 +125,7 @@ def safe_float(value, default=0.0):
         return number
 
     except (TypeError, ValueError):
+
         return default
 
 
@@ -148,7 +155,54 @@ def calculate_age_from_dob(date_of_birth):
         )
 
     except Exception:
+
         return None
+
+
+# ============================================================
+# CLIENT ACQUISITION HELPERS
+# ============================================================
+
+def generate_referral_code():
+
+    """
+    Generate a unique referral code for a company.
+    """
+
+    for _ in range(20):
+
+        code = (
+            "APX-"
+            + secrets.token_hex(4).upper()
+        )
+
+        existing = Company.query.filter_by(
+            referral_code=code
+        ).first()
+
+        if not existing:
+            return code
+
+    raise RuntimeError(
+        "Unable to generate a unique referral code."
+    )
+
+
+def ensure_company_referral_code(company):
+
+    """
+    Make sure an existing company has a referral code.
+    """
+
+    if company and not company.referral_code:
+
+        company.referral_code = (
+            generate_referral_code()
+        )
+
+        db.session.commit()
+
+    return company.referral_code
 
 
 # ============================================================
@@ -344,10 +398,6 @@ def calculate_payroll_input(payroll_input):
             paye + uif + other_deductions
         )
     )
-
-    # ========================================================
-    # PHASE 5A - LOAN REPAYMENT
-    # ========================================================
 
     loan_application = None
     scheduled_loan_repayment = 0.0
@@ -581,6 +631,9 @@ def dashboard():
 
     company = user.company
 
+    if company:
+        ensure_company_referral_code(company)
+
     employees = []
     payroll_runs = []
 
@@ -728,6 +781,16 @@ def register():
             name=company_name,
             registration_number=registration_number,
             payroll_provider="Deel Local Payroll",
+            contact_person=name,
+            contact_email=email,
+            client_status="Trial",
+            subscription_plan="Free Trial",
+            subscription_status="Trial",
+            onboarding_completed=False,
+        )
+
+        company.referral_code = (
+            generate_referral_code()
         )
 
         db.session.add(company)
@@ -751,7 +814,7 @@ def register():
         session["user_id"] = user.id
 
         flash(
-            "Registration successful.",
+            "Registration successful. Your free trial has started.",
             "success"
         )
 
@@ -1865,19 +1928,12 @@ def approve_loan(loan_id):
     ).strip()
 
     application.approved_amount = approved_amount
-
     application.total_repayable = approved_amount
-
     application.total_paid = 0.0
-
     application.outstanding_balance = approved_amount
-
     application.status = "Approved"
-
     application.reviewed_at = datetime.utcnow()
-
     application.reviewed_by = user.id
-
     application.approval_notes = approval_notes
 
     db.session.commit()
@@ -1939,11 +1995,8 @@ def reject_loan(loan_id):
     ).strip()
 
     application.status = "Rejected"
-
     application.reviewed_at = datetime.utcnow()
-
     application.reviewed_by = user.id
-
     application.approval_notes = rejection_notes
 
     db.session.commit()
@@ -2029,9 +2082,7 @@ def disburse_loan(loan_id):
         )
 
     application.status = "Disbursed"
-
     application.disbursed_at = datetime.utcnow()
-
     application.disbursement_reference = (
         disbursement_reference
     )
@@ -2796,10 +2847,6 @@ def complete_payroll(payroll_id):
 
         db.session.add(payslip)
 
-        # ====================================================
-        # PHASE 5A - APPLY LOAN REPAYMENT
-        # ====================================================
-
         if (
             loan_application
             and loan_repayment > 0
@@ -3094,10 +3141,6 @@ def download_payslip_pdf(payslip_id):
 
     y = height - 50
 
-    # ========================================================
-    # HEADER
-    # ========================================================
-
     pdf.setFont(
         "Helvetica-Bold",
         18
@@ -3163,10 +3206,6 @@ def download_payslip_pdf(payslip_id):
     )
 
     y -= 40
-
-    # ========================================================
-    # EARNINGS
-    # ========================================================
 
     pdf.setFont(
         "Helvetica-Bold",
@@ -3275,10 +3314,6 @@ def download_payslip_pdf(payslip_id):
 
     y -= 40
 
-    # ========================================================
-    # DEDUCTIONS
-    # ========================================================
-
     pdf.drawString(
         50,
         y,
@@ -3367,10 +3402,6 @@ def download_payslip_pdf(payslip_id):
 
     y -= 35
 
-    # ========================================================
-    # NET PAY
-    # ========================================================
-
     pdf.setFont(
         "Helvetica-Bold",
         14
@@ -3389,10 +3420,6 @@ def download_payslip_pdf(payslip_id):
     )
 
     y -= 35
-
-    # ========================================================
-    # EMPLOYER COST
-    # ========================================================
 
     pdf.setFont(
         "Helvetica",
@@ -3513,4 +3540,552 @@ def payroll_calculator_test():
     return render_template(
         "payroll_calculator_test.html",
         result=result,
+    )
+
+
+# ============================================================
+# CLIENT ACQUISITION
+# ============================================================
+
+@bp.route("/leads")
+@employer_required
+def leads():
+
+    user = current_user()
+
+    # Sales leads are assigned to the user who created/owns them.
+    leads = (
+        SalesLead.query
+        .filter(
+            SalesLead.assigned_to == user.id
+        )
+        .order_by(
+            SalesLead.created_at.desc()
+        )
+        .all()
+    )
+
+    total_leads = len(leads)
+
+    new_leads = len([
+        lead for lead in leads
+        if lead.status == "New Lead"
+    ])
+
+    contacted_leads = len([
+        lead for lead in leads
+        if lead.status == "Contacted"
+    ])
+
+    demo_leads = len([
+        lead for lead in leads
+        if lead.status == "Demo"
+    ])
+
+    trial_leads = len([
+        lead for lead in leads
+        if lead.status == "Trial"
+    ])
+
+    converted_leads = len([
+        lead for lead in leads
+        if lead.status == "Converted"
+    ])
+
+    return render_template(
+        "leads.html",
+        leads=leads,
+        total_leads=total_leads,
+        new_leads=new_leads,
+        contacted_leads=contacted_leads,
+        demo_leads=demo_leads,
+        trial_leads=trial_leads,
+        converted_leads=converted_leads,
+    )
+
+
+# ============================================================
+# NEW SALES LEAD
+# ============================================================
+
+@bp.route(
+    "/leads/new",
+    methods=["GET", "POST"]
+)
+@employer_required
+def new_lead():
+
+    user = current_user()
+
+    if request.method == "POST":
+
+        company_name = (
+            request.form.get("company_name")
+            or ""
+        ).strip()
+
+        registration_number = (
+            request.form.get("registration_number")
+            or ""
+        ).strip()
+
+        contact_person = (
+            request.form.get("contact_person")
+            or ""
+        ).strip()
+
+        email = (
+            request.form.get("email")
+            or ""
+        ).strip().lower()
+
+        phone = (
+            request.form.get("phone")
+            or ""
+        ).strip()
+
+        number_of_employees = request.form.get(
+            "number_of_employees"
+        )
+
+        source = (
+            request.form.get("source")
+            or "Direct"
+        ).strip()
+
+        notes = (
+            request.form.get("notes")
+            or ""
+        ).strip()
+
+        try:
+
+            number_of_employees = int(
+                number_of_employees or 0
+            )
+
+        except ValueError:
+
+            number_of_employees = 0
+
+        if number_of_employees < 0:
+            number_of_employees = 0
+
+        if not company_name:
+
+            flash(
+                "Company name is required.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.new_lead")
+            )
+
+        if not contact_person:
+
+            flash(
+                "Contact person is required.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.new_lead")
+            )
+
+        if not email:
+
+            flash(
+                "Email address is required.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.new_lead")
+            )
+
+        lead = SalesLead(
+            company_name=company_name,
+            registration_number=registration_number,
+            contact_person=contact_person,
+            email=email,
+            phone=phone,
+            number_of_employees=number_of_employees,
+            status="New Lead",
+            source=source,
+            notes=notes,
+            assigned_to=user.id,
+        )
+
+        db.session.add(lead)
+        db.session.commit()
+
+        flash(
+            "New client lead added successfully.",
+            "success"
+        )
+
+        return redirect(
+            url_for("main.leads")
+        )
+
+    return render_template(
+        "new_lead.html"
+    )
+
+
+# ============================================================
+# UPDATE LEAD STATUS
+# ============================================================
+
+@bp.route(
+    "/leads/<int:lead_id>/status",
+    methods=["POST"]
+)
+@employer_required
+def update_lead_status(lead_id):
+
+    user = current_user()
+
+    lead = SalesLead.query.filter_by(
+        id=lead_id,
+        assigned_to=user.id
+    ).first_or_404()
+
+    status = (
+        request.form.get("status")
+        or ""
+    ).strip()
+
+    allowed_statuses = [
+        "New Lead",
+        "Contacted",
+        "Demo",
+        "Trial",
+        "Registered",
+        "Active Client",
+        "Converted",
+        "Lost",
+    ]
+
+    if status not in allowed_statuses:
+
+        flash(
+            "Invalid lead status.",
+            "danger"
+        )
+
+        return redirect(
+            url_for("main.leads")
+        )
+
+    lead.status = status
+
+    db.session.commit()
+
+    flash(
+        f"Lead status updated to {status}.",
+        "success"
+    )
+
+    return redirect(
+        url_for("main.leads")
+    )
+
+
+# ============================================================
+# CLIENT REFERRALS
+# ============================================================
+
+@bp.route("/referrals")
+@employer_required
+def referrals():
+
+    user = current_user()
+
+    company = user.company
+
+    ensure_company_referral_code(company)
+
+    referrals = (
+        ClientReferral.query
+        .filter_by(
+            referrer_company_id=company.id
+        )
+        .order_by(
+            ClientReferral.created_at.desc()
+        )
+        .all()
+    )
+
+    return render_template(
+        "referrals.html",
+        company=company,
+        referrals=referrals,
+    )
+
+
+# ============================================================
+# NEW REFERRAL
+# ============================================================
+
+@bp.route(
+    "/referrals/new",
+    methods=["GET", "POST"]
+)
+@employer_required
+def new_referral():
+
+    user = current_user()
+
+    company = user.company
+
+    ensure_company_referral_code(company)
+
+    if request.method == "POST":
+
+        referred_company_name = (
+            request.form.get(
+                "referred_company_name"
+            )
+            or ""
+        ).strip()
+
+        referred_contact_person = (
+            request.form.get(
+                "referred_contact_person"
+            )
+            or ""
+        ).strip()
+
+        referred_email = (
+            request.form.get(
+                "referred_email"
+            )
+            or ""
+        ).strip().lower()
+
+        referred_phone = (
+            request.form.get(
+                "referred_phone"
+            )
+            or ""
+        ).strip()
+
+        if not referred_company_name:
+
+            flash(
+                "Referred company name is required.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.new_referral")
+            )
+
+        if not referred_contact_person:
+
+            flash(
+                "Contact person is required.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.new_referral")
+            )
+
+        if not referred_email:
+
+            flash(
+                "Email address is required.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.new_referral")
+            )
+
+        referral = ClientReferral(
+            referrer_company_id=company.id,
+            referred_company_name=referred_company_name,
+            referred_contact_person=referred_contact_person,
+            referred_email=referred_email,
+            referred_phone=referred_phone,
+            status="Submitted",
+        )
+
+        db.session.add(referral)
+        db.session.commit()
+
+        flash(
+            "Client referral submitted successfully.",
+            "success"
+        )
+
+        return redirect(
+            url_for("main.referrals")
+        )
+
+    return render_template(
+        "new_referral.html",
+        company=company,
+    )
+
+
+# ============================================================
+# CLIENT ONBOARDING
+# ============================================================
+
+@bp.route(
+    "/client-onboarding",
+    methods=["GET", "POST"]
+)
+@employer_required
+def client_onboarding():
+
+    user = current_user()
+
+    company = user.company
+
+    if request.method == "POST":
+
+        company.name = (
+            request.form.get("company_name")
+            or company.name
+        ).strip()
+
+        company.registration_number = (
+            request.form.get(
+                "registration_number"
+            )
+            or company.registration_number
+            or ""
+        ).strip()
+
+        company.contact_person = (
+            request.form.get(
+                "contact_person"
+            )
+            or company.contact_person
+            or ""
+        ).strip()
+
+        company.contact_phone = (
+            request.form.get(
+                "contact_phone"
+            )
+            or company.contact_phone
+            or ""
+        ).strip()
+
+        company.contact_email = (
+            request.form.get(
+                "contact_email"
+            )
+            or company.contact_email
+            or ""
+        ).strip().lower()
+
+        company.onboarding_completed = True
+
+        if company.client_status in [
+            None,
+            "",
+            "Prospect",
+        ]:
+
+            company.client_status = "Trial"
+
+        if not company.subscription_status:
+
+            company.subscription_status = "Trial"
+
+        if not company.subscription_plan:
+
+            company.subscription_plan = "Free Trial"
+
+        ensure_company_referral_code(company)
+
+        db.session.commit()
+
+        flash(
+            "Company onboarding has been completed.",
+            "success"
+        )
+
+        return redirect(
+            url_for("main.dashboard")
+        )
+
+    ensure_company_referral_code(company)
+
+    return render_template(
+        "client_onboarding.html",
+        company=company,
+    )
+
+
+# ============================================================
+# CLIENT ACQUISITION DASHBOARD
+# ============================================================
+
+@bp.route(
+    "/client-acquisition"
+)
+@employer_required
+def client_acquisition():
+
+    user = current_user()
+
+    company = user.company
+
+    ensure_company_referral_code(company)
+
+    leads = (
+        SalesLead.query
+        .filter(
+            SalesLead.assigned_to == user.id
+        )
+        .order_by(
+            SalesLead.created_at.desc()
+        )
+        .all()
+    )
+
+    referrals = (
+        ClientReferral.query
+        .filter_by(
+            referrer_company_id=company.id
+        )
+        .order_by(
+            ClientReferral.created_at.desc()
+        )
+        .all()
+    )
+
+    lead_counts = {
+        "New Lead": 0,
+        "Contacted": 0,
+        "Demo": 0,
+        "Trial": 0,
+        "Registered": 0,
+        "Active Client": 0,
+        "Converted": 0,
+        "Lost": 0,
+    }
+
+    for lead in leads:
+
+        if lead.status in lead_counts:
+
+            lead_counts[
+                lead.status
+            ] += 1
+
+    return render_template(
+        "client_acquisition.html",
+        company=company,
+        leads=leads,
+        referrals=referrals,
+        lead_counts=lead_counts,
     )
