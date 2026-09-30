@@ -814,6 +814,88 @@ class LoanApplication(db.Model):
     total_repayable = db.Column(
         db.Float,
         nullable=True
+        class LoanProduct(db.Model):
+    __tablename__ = "loan_product"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    company_id = db.Column(
+        db.Integer,
+        db.ForeignKey("company.id"),
+        nullable=False
+    )
+
+    name = db.Column(
+        db.String(150),
+        nullable=False
+    )
+
+    description = db.Column(
+        db.Text,
+        nullable=True
+    )
+
+    min_amount = db.Column(
+        db.Float,
+        default=500
+    )
+
+    max_amount = db.Column(
+        db.Float,
+        default=3000
+    )
+
+    repayment_term_months = db.Column(
+        db.Integer,
+        default=1
+    )
+
+    interest_rate = db.Column(
+        db.Float,
+        default=0
+    )
+
+    service_fee = db.Column(
+        db.Float,
+        default=0
+    )
+
+    max_deduction_percent = db.Column(
+        db.Float,
+        default=30
+    )
+
+    minimum_employment_months = db.Column(
+        db.Integer,
+        default=0
+    )
+
+    active = db.Column(
+        db.Boolean,
+        default=True
+    )
+
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow
+    )
+
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
+    )
+
+    company = db.relationship(
+        "Company",
+        backref=db.backref(
+            "loan_products",
+            lazy=True
+        )
+    )
+
+    def __repr__(self):
+        return f"<LoanProduct {self.name}>"
     )
 
     total_paid = db.Column(
