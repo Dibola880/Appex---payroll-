@@ -198,6 +198,61 @@ def create_app():
                     DOUBLE PRECISION DEFAULT 0
                 """))
 
+                # =================================================
+                # Phase 5B
+                # LOAN PRODUCT
+                # =================================================
+
+                # The loan_product table itself is created by
+                # db.create_all() from the LoanProduct model.
+
+                # =================================================
+                # Phase 5B
+                # LOAN APPLICATION PRODUCT
+                # =================================================
+
+                connection.execute(text("""
+                    ALTER TABLE loan_application
+                    ADD COLUMN IF NOT EXISTS product_id INTEGER
+                """))
+
+                # -------------------------------------------------
+                # Foreign key
+                #
+                # Only create it if it does not already exist.
+                # -------------------------------------------------
+
+                connection.execute(text("""
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1
+                            FROM pg_constraint
+                            WHERE conname =
+                                'fk_loan_application_product'
+                        ) THEN
+
+                            ALTER TABLE loan_application
+                            ADD CONSTRAINT
+                                fk_loan_application_product
+                            FOREIGN KEY (product_id)
+                            REFERENCES loan_product(id);
+
+                        END IF;
+                    END
+                    $$;
+                """))
+
+                # -------------------------------------------------
+                # Index
+                # -------------------------------------------------
+
+                connection.execute(text("""
+                    CREATE INDEX IF NOT EXISTS
+                    ix_loan_application_product_id
+                    ON loan_application(product_id)
+                """))
+
     # ============================================================
     # RETURN APPLICATION
     # ============================================================
