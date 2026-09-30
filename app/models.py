@@ -8,7 +8,6 @@ from . import db
 # ============================================================
 
 class Company(db.Model):
-
     __tablename__ = "company"
 
     id = db.Column(
@@ -30,10 +29,57 @@ class Company(db.Model):
         default="Deel Local Payroll"
     )
 
+    # ========================================================
+    # CLIENT ACQUISITION / ONBOARDING
+    # ========================================================
+
+    contact_person = db.Column(
+        db.String(200)
+    )
+
+    contact_phone = db.Column(
+        db.String(50)
+    )
+
+    contact_email = db.Column(
+        db.String(200)
+    )
+
+    client_status = db.Column(
+        db.String(50),
+        default="Trial"
+    )
+
+    subscription_plan = db.Column(
+        db.String(100),
+        default="Free Trial"
+    )
+
+    subscription_status = db.Column(
+        db.String(50),
+        default="Trial"
+    )
+
+    onboarding_completed = db.Column(
+        db.Boolean,
+        default=False
+    )
+
+    referral_code = db.Column(
+        db.String(50),
+        unique=True,
+        nullable=True,
+        index=True
+    )
+
     created_at = db.Column(
         db.DateTime,
         default=datetime.utcnow
     )
+
+    # ========================================================
+    # RELATIONSHIPS
+    # ========================================================
 
     users = db.relationship(
         "User",
@@ -53,11 +99,29 @@ class Company(db.Model):
         cascade="all, delete-orphan"
     )
 
-    # Phase 5B
     loan_products = db.relationship(
         "LoanProduct",
         back_populates="company",
         cascade="all, delete-orphan"
+    )
+
+    sales_leads = db.relationship(
+        "SalesLead",
+        foreign_keys="SalesLead.converted_company_id",
+        back_populates="converted_company"
+    )
+
+    referrals_made = db.relationship(
+        "ClientReferral",
+        foreign_keys="ClientReferral.referrer_company_id",
+        back_populates="referrer_company",
+        cascade="all, delete-orphan"
+    )
+
+    referrals_received = db.relationship(
+        "ClientReferral",
+        foreign_keys="ClientReferral.converted_company_id",
+        back_populates="converted_company"
     )
 
 
@@ -66,7 +130,6 @@ class Company(db.Model):
 # ============================================================
 
 class User(db.Model):
-
     __tablename__ = "user"
 
     id = db.Column(
@@ -123,7 +186,6 @@ class User(db.Model):
 # ============================================================
 
 class Employee(db.Model):
-
     __tablename__ = "employee"
 
     id = db.Column(
@@ -224,7 +286,6 @@ class Employee(db.Model):
 # ============================================================
 
 class EmployeeInvitation(db.Model):
-
     __tablename__ = "employee_invitation"
 
     id = db.Column(
@@ -271,7 +332,6 @@ class EmployeeInvitation(db.Model):
 # ============================================================
 
 class PayrollRun(db.Model):
-
     __tablename__ = "payroll_run"
 
     id = db.Column(
@@ -350,7 +410,6 @@ class PayrollRun(db.Model):
 # ============================================================
 
 class PayrollInput(db.Model):
-
     __tablename__ = "payroll_input"
 
     id = db.Column(
@@ -371,10 +430,6 @@ class PayrollInput(db.Model):
         nullable=False,
         index=True
     )
-
-    # --------------------------------------------------------
-    # Earnings
-    # --------------------------------------------------------
 
     basic_salary = db.Column(
         db.Float,
@@ -401,16 +456,11 @@ class PayrollInput(db.Model):
         default=0
     )
 
-    # --------------------------------------------------------
-    # Deductions
-    # --------------------------------------------------------
-
     other_deductions = db.Column(
         db.Float,
         default=0
     )
 
-    # Phase 5A
     loan_repayment = db.Column(
         db.Float,
         default=0
@@ -432,7 +482,6 @@ class PayrollInput(db.Model):
 # ============================================================
 
 class Payslip(db.Model):
-
     __tablename__ = "payslip"
 
     id = db.Column(
@@ -459,10 +508,6 @@ class Payslip(db.Model):
     pay_date = db.Column(
         db.Date
     )
-
-    # --------------------------------------------------------
-    # Earnings
-    # --------------------------------------------------------
 
     basic_salary = db.Column(
         db.Float,
@@ -494,10 +539,6 @@ class Payslip(db.Model):
         default=0
     )
 
-    # --------------------------------------------------------
-    # Deductions
-    # --------------------------------------------------------
-
     tax_deductions = db.Column(
         db.Float,
         default=0
@@ -513,7 +554,6 @@ class Payslip(db.Model):
         default=0
     )
 
-    # Phase 5A
     loan_repayment = db.Column(
         db.Float,
         default=0
@@ -529,10 +569,6 @@ class Payslip(db.Model):
         default=0
     )
 
-    # --------------------------------------------------------
-    # Employer costs
-    # --------------------------------------------------------
-
     employer_uif = db.Column(
         db.Float,
         default=0
@@ -542,10 +578,6 @@ class Payslip(db.Model):
         db.Float,
         default=0
     )
-
-    # --------------------------------------------------------
-    # Deel / document fields
-    # --------------------------------------------------------
 
     deel_payslip_id = db.Column(
         db.String(200)
@@ -567,12 +599,10 @@ class Payslip(db.Model):
 
 
 # ============================================================
-# PHASE 5B
 # LOAN PRODUCT
 # ============================================================
 
 class LoanProduct(db.Model):
-
     __tablename__ = "loan_product"
 
     id = db.Column(
@@ -587,10 +617,6 @@ class LoanProduct(db.Model):
         index=True
     )
 
-    # --------------------------------------------------------
-    # Product information
-    # --------------------------------------------------------
-
     name = db.Column(
         db.String(150),
         nullable=False
@@ -600,10 +626,6 @@ class LoanProduct(db.Model):
         db.Text,
         nullable=True
     )
-
-    # --------------------------------------------------------
-    # Loan limits
-    # --------------------------------------------------------
 
     minimum_amount = db.Column(
         db.Float,
@@ -617,10 +639,6 @@ class LoanProduct(db.Model):
         nullable=False
     )
 
-    # --------------------------------------------------------
-    # Pricing
-    # --------------------------------------------------------
-
     interest_rate = db.Column(
         db.Float,
         default=0,
@@ -633,19 +651,11 @@ class LoanProduct(db.Model):
         nullable=False
     )
 
-    # --------------------------------------------------------
-    # Repayment
-    # --------------------------------------------------------
-
     repayment_term_months = db.Column(
         db.Integer,
         default=1,
         nullable=False
     )
-
-    # --------------------------------------------------------
-    # Affordability rules
-    # --------------------------------------------------------
 
     max_deduction_percent = db.Column(
         db.Float,
@@ -659,19 +669,11 @@ class LoanProduct(db.Model):
         nullable=False
     )
 
-    # --------------------------------------------------------
-    # Product status
-    # --------------------------------------------------------
-
     active = db.Column(
         db.Boolean,
         default=True,
         nullable=False
     )
-
-    # --------------------------------------------------------
-    # Timestamps
-    # --------------------------------------------------------
 
     created_at = db.Column(
         db.DateTime,
@@ -685,10 +687,6 @@ class LoanProduct(db.Model):
         onupdate=datetime.utcnow,
         nullable=False
     )
-
-    # --------------------------------------------------------
-    # Relationships
-    # --------------------------------------------------------
 
     company = db.relationship(
         "Company",
@@ -706,7 +704,6 @@ class LoanProduct(db.Model):
 # ============================================================
 
 class LoanApplication(db.Model):
-
     __tablename__ = "loan_application"
 
     id = db.Column(
@@ -720,14 +717,6 @@ class LoanApplication(db.Model):
         nullable=False,
         index=True
     )
-
-    # --------------------------------------------------------
-    # Phase 5B
-    # Selected loan product
-    #
-    # Nullable so existing Phase 5A applications
-    # continue working.
-    # --------------------------------------------------------
 
     product_id = db.Column(
         db.Integer,
@@ -838,10 +827,6 @@ class LoanApplication(db.Model):
         nullable=False
     )
 
-    # --------------------------------------------------------
-    # Relationships
-    # --------------------------------------------------------
-
     employee = db.relationship(
         "Employee",
         back_populates="loan_applications"
@@ -855,4 +840,179 @@ class LoanApplication(db.Model):
     reviewer = db.relationship(
         "User",
         foreign_keys=[reviewed_by]
+    )
+
+
+# ============================================================
+# SALES LEAD
+# ============================================================
+
+class SalesLead(db.Model):
+    __tablename__ = "sales_lead"
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
+
+    company_name = db.Column(
+        db.String(200),
+        nullable=False
+    )
+
+    registration_number = db.Column(
+        db.String(100),
+        nullable=True
+    )
+
+    contact_person = db.Column(
+        db.String(200),
+        nullable=False
+    )
+
+    email = db.Column(
+        db.String(200),
+        nullable=False
+    )
+
+    phone = db.Column(
+        db.String(50),
+        nullable=True
+    )
+
+    number_of_employees = db.Column(
+        db.Integer,
+        default=0
+    )
+
+    status = db.Column(
+        db.String(50),
+        default="New Lead",
+        nullable=False,
+        index=True
+    )
+
+    source = db.Column(
+        db.String(100),
+        default="Direct",
+        nullable=False
+    )
+
+    notes = db.Column(
+        db.Text,
+        nullable=True
+    )
+
+    assigned_to = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=True
+    )
+
+    converted_company_id = db.Column(
+        db.Integer,
+        db.ForeignKey("company.id"),
+        nullable=True
+    )
+
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        nullable=False
+    )
+
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False
+    )
+
+    assigned_user = db.relationship(
+        "User",
+        foreign_keys=[assigned_to]
+    )
+
+    converted_company = db.relationship(
+        "Company",
+        foreign_keys=[converted_company_id],
+        back_populates="sales_leads"
+    )
+
+
+# ============================================================
+# CLIENT REFERRAL
+# ============================================================
+
+class ClientReferral(db.Model):
+    __tablename__ = "client_referral"
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
+
+    referrer_company_id = db.Column(
+        db.Integer,
+        db.ForeignKey("company.id"),
+        nullable=False,
+        index=True
+    )
+
+    referred_company_name = db.Column(
+        db.String(200),
+        nullable=False
+    )
+
+    referred_contact_person = db.Column(
+        db.String(200),
+        nullable=False
+    )
+
+    referred_email = db.Column(
+        db.String(200),
+        nullable=False
+    )
+
+    referred_phone = db.Column(
+        db.String(50),
+        nullable=True
+    )
+
+    status = db.Column(
+        db.String(50),
+        default="Submitted",
+        nullable=False,
+        index=True
+    )
+
+    converted_company_id = db.Column(
+        db.Integer,
+        db.ForeignKey("company.id"),
+        nullable=True
+    )
+
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        nullable=False
+    )
+
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False
+    )
+
+    referrer_company = db.relationship(
+        "Company",
+        foreign_keys=[referrer_company_id],
+        back_populates="referrals_made"
+    )
+
+    converted_company = db.relationship(
+        "Company",
+        foreign_keys=[converted_company_id],
+        back_populates="referrals_received"
     )
