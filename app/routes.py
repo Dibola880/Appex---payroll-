@@ -36,6 +36,7 @@ from .models import (
     PayrollRun,
     PayrollInput,
     Payslip,
+    LoanProduct,
     LoanApplication,
     SalesLead,
     ClientReferral,
@@ -198,7 +199,7 @@ def ensure_company_referral_code(company):
 
 
 # ============================================================
-# PHASE 5A - LOAN HELPERS
+# LOAN HELPERS
 # ============================================================
 
 def parse_repayment_term_months(repayment_term):
@@ -274,6 +275,108 @@ def get_active_employee_loan(employee_id):
         )
         .first()
     )
+
+
+def get_company_loan_product_or_none(
+    product_id,
+    company_id
+):
+
+    if not product_id:
+        return None
+
+    try:
+        product_id = int(product_id)
+    except (TypeError, ValueError):
+        return None
+
+    return (
+        LoanProduct.query
+        .filter(
+            LoanProduct.id == product_id,
+            LoanProduct.company_id == company_id,
+            LoanProduct.active.is_(True)
+        )
+        .first()
+    )
+
+
+def get_default_loan_product(company_id):
+
+    return (
+        LoanProduct.query
+        .filter(
+            LoanProduct.company_id == company_id,
+            LoanProduct.active.is_(True)
+        )
+        .order_by(
+            LoanProduct.id.asc()
+        )
+        .first()
+    )
+
+
+def calculate_product_repayment(
+    principal,
+    product,
+    term_months=None
+):
+
+    principal = safe_float(principal)
+
+    if not product or principal <= 0:
+        return {
+            "principal": principal,
+            "interest": 0.0,
+            "service_fee": 0.0,
+            "total_repayable": principal,
+            "term_months": term_months or 1,
+            "monthly_installment": principal,
+        }
+
+    if term_months is None:
+        term_months = product.repayment_term_months or 1
+
+    term_months = max(
+        1,
+        min(int(term_months), 60)
+    )
+
+    interest_rate = safe_float(
+        product.interest_rate
+    )
+
+    service_fee = safe_float(
+        product.service_fee
+    )
+
+    # Interest rate is treated as a percentage per month.
+    interest = (
+        principal
+        * (interest_rate / 100.0)
+        * term_months
+    )
+
+    total_repayable = round(
+        principal
+        + interest
+        + service_fee,
+        2
+    )
+
+    monthly_installment = round(
+        total_repayable / term_months,
+        2
+    )
+
+    return {
+        "principal": round(principal, 2),
+        "interest": round(interest, 2),
+        "service_fee": round(service_fee, 2),
+        "total_repayable": total_repayable,
+        "term_months": term_months,
+        "monthly_installment": monthly_installment,
+    }
 
 
 def calculate_loan_installment(application):
@@ -433,9 +536,35 @@ def calculate_payroll_input(payroll_input):
                 - base_total_deductions
             )
 
+            # Respect the loan product's maximum payroll
+            # deduction percentage when a product exists.
+            deduction_limit = available_for_loan
+
+            if loan_application.loan_product:
+
+                max_deduction_percent = safe_float(
+                    loan_application.loan_product.max_deduction_percent,
+                    30
+                )
+
+                if max_deduction_percent > 0:
+
+                    percentage_limit = (
+                        gross_pay
+                        * (
+                            max_deduction_percent
+                            / 100.0
+                        )
+                    )
+
+                    deduction_limit = min(
+                        available_for_loan,
+                        percentage_limit
+                    )
+
             loan_repayment = min(
                 scheduled_loan_repayment,
-                available_for_loan
+                deduction_limit
             )
 
             loan_repayment = round(
@@ -1229,12 +1358,6 @@ def accept_invitation(token):
 
     if request.method == "POST":
 
-        # ----------------------------------------------------
-        # The invitation form only asks the employee to create
-        # and confirm a password.
-        # Name and email are taken from the employee record.
-        # ----------------------------------------------------
-
         password = (
             request.form.get("password")
             or ""
@@ -1461,10 +1584,23 @@ def financial_services():
         .first()
     )
 
+    products = (
+        LoanProduct.query
+        .filter(
+            LoanProduct.company_id == employee.company_id,
+            LoanProduct.active.is_(True)
+        )
+        .order_by(
+            LoanProduct.id.asc()
+        )
+        .all()
+    )
+
     return render_template(
         "financial_services.html",
         employee=employee,
         application=application,
+        products=products,
     )
 
 
@@ -1502,6 +1638,18 @@ def employee_loan_application():
                 "main.employee_dashboard"
             )
         )
+
+    products = (
+        LoanProduct.query
+        .filter(
+            LoanProduct.company_id == employee.company_id,
+            LoanProduct.active.is_(True)
+        )
+        .order_by(
+            LoanProduct.id.asc()
+        )
+        .all()
+    )
 
     if request.method == "POST":
 
@@ -1555,6 +1703,27 @@ def employee_loan_application():
             )
         )
 
+        product_id = request.form.get(
+            "product_id"
+        )
+
+        selected_product = (
+            get_company_loan_product_or_none(
+                product_id,
+                employee.company_id
+            )
+        )
+
+        # ----------------------------------------------------
+        # Compatibility with older loan forms.
+        # If no product was selected, use the first active
+        # product for the employee's company.
+        # ----------------------------------------------------
+
+        if not selected_product and products:
+
+            selected_product = products[0]
+
         if requested_amount <= 0:
 
             flash(
@@ -1568,18 +1737,67 @@ def employee_loan_application():
                 )
             )
 
-        if requested_amount > 3000:
+        if selected_product:
 
-            flash(
-                "The maximum employee loan amount is R3,000.",
-                "danger"
+            minimum_amount = safe_float(
+                selected_product.minimum_amount
             )
 
-            return redirect(
-                url_for(
-                    "main.loan_application"
+            maximum_amount = safe_float(
+                selected_product.maximum_amount
+            )
+
+            if (
+                minimum_amount > 0
+                and requested_amount < minimum_amount
+            ):
+
+                flash(
+                    f"The minimum amount for "
+                    f"{selected_product.name} is "
+                    f"R {minimum_amount:,.2f}.",
+                    "danger"
                 )
-            )
+
+                return redirect(
+                    url_for(
+                        "main.loan_application"
+                    )
+                )
+
+            if (
+                maximum_amount > 0
+                and requested_amount > maximum_amount
+            ):
+
+                flash(
+                    f"The maximum amount for "
+                    f"{selected_product.name} is "
+                    f"R {maximum_amount:,.2f}.",
+                    "danger"
+                )
+
+                return redirect(
+                    url_for(
+                        "main.loan_application"
+                    )
+                )
+
+        else:
+
+            # Existing Appex employee-loan fallback.
+            if requested_amount > 3000:
+
+                flash(
+                    "The maximum employee loan amount is R3,000.",
+                    "danger"
+                )
+
+                return redirect(
+                    url_for(
+                        "main.loan_application"
+                    )
+                )
 
         if not loan_purpose:
 
@@ -1596,16 +1814,25 @@ def employee_loan_application():
 
         if not repayment_term:
 
-            flash(
-                "Please select a repayment term.",
-                "danger"
-            )
+            if selected_product:
 
-            return redirect(
-                url_for(
-                    "main.loan_application"
+                repayment_term = (
+                    f"{selected_product.repayment_term_months} "
+                    f"Month(s)"
                 )
-            )
+
+            else:
+
+                flash(
+                    "Please select a repayment term.",
+                    "danger"
+                )
+
+                return redirect(
+                    url_for(
+                        "main.loan_application"
+                    )
+                )
 
         if monthly_income <= 0:
 
@@ -1676,16 +1903,33 @@ def employee_loan_application():
 
         application = LoanApplication(
             employee_id=employee.id,
+
+            product_id=(
+                selected_product.id
+                if selected_product
+                else None
+            ),
+
             reference=reference,
+
             requested_amount=requested_amount,
+
             approved_amount=None,
+
             loan_purpose=loan_purpose,
+
             repayment_term=repayment_term,
+
             monthly_income=monthly_income,
+
             monthly_expenses=monthly_expenses,
+
             status="Submitted",
+
             total_repayable=None,
+
             total_paid=0,
+
             outstanding_balance=0,
         )
 
@@ -1706,6 +1950,7 @@ def employee_loan_application():
     return render_template(
         "employee_loan_application.html",
         employee=employee,
+        products=products,
     )
 
 
@@ -1874,6 +2119,288 @@ bp.add_url_rule(
 
 
 # ============================================================
+# EMPLOYER LOAN PRODUCT MANAGEMENT
+# ============================================================
+
+@bp.route(
+    "/loan-products"
+)
+@employer_required
+def loan_products():
+
+    user = current_user()
+
+    products = (
+        LoanProduct.query
+        .filter_by(
+            company_id=user.company_id
+        )
+        .order_by(
+            LoanProduct.id.asc()
+        )
+        .all()
+    )
+
+    return render_template(
+        "loan_products.html",
+        products=products,
+    )
+
+
+# ============================================================
+# NEW LOAN PRODUCT
+# ============================================================
+
+@bp.route(
+    "/loan-products/new",
+    methods=["GET", "POST"]
+)
+@employer_required
+def new_loan_product():
+
+    user = current_user()
+
+    if request.method == "POST":
+
+        name = (
+            request.form.get("name")
+            or ""
+        ).strip()
+
+        description = (
+            request.form.get("description")
+            or ""
+        ).strip()
+
+        minimum_amount = safe_float(
+            request.form.get(
+                "minimum_amount"
+            ),
+            500
+        )
+
+        maximum_amount = safe_float(
+            request.form.get(
+                "maximum_amount"
+            ),
+            3000
+        )
+
+        interest_rate = safe_float(
+            request.form.get(
+                "interest_rate"
+            )
+        )
+
+        service_fee = safe_float(
+            request.form.get(
+                "service_fee"
+            )
+        )
+
+        repayment_term_months = request.form.get(
+            "repayment_term_months"
+        )
+
+        max_deduction_percent = safe_float(
+            request.form.get(
+                "max_deduction_percent"
+            ),
+            30
+        )
+
+        minimum_employment_months = request.form.get(
+            "minimum_employment_months"
+        )
+
+        active_value = (
+            request.form.get("active")
+            or "on"
+        )
+
+        try:
+            repayment_term_months = int(
+                repayment_term_months or 1
+            )
+        except (TypeError, ValueError):
+            repayment_term_months = 1
+
+        try:
+            minimum_employment_months = int(
+                minimum_employment_months or 0
+            )
+        except (TypeError, ValueError):
+            minimum_employment_months = 0
+
+        if not name:
+
+            flash(
+                "Loan product name is required.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.new_loan_product")
+            )
+
+        if minimum_amount < 0:
+
+            flash(
+                "Minimum loan amount cannot be negative.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.new_loan_product")
+            )
+
+        if maximum_amount <= 0:
+
+            flash(
+                "Maximum loan amount must be greater than zero.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.new_loan_product")
+            )
+
+        if maximum_amount < minimum_amount:
+
+            flash(
+                "Maximum loan amount cannot be lower than minimum amount.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.new_loan_product")
+            )
+
+        if interest_rate < 0:
+
+            flash(
+                "Interest rate cannot be negative.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.new_loan_product")
+            )
+
+        if service_fee < 0:
+
+            flash(
+                "Service fee cannot be negative.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.new_loan_product")
+            )
+
+        if repayment_term_months < 1:
+
+            flash(
+                "Repayment term must be at least one month.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.new_loan_product")
+            )
+
+        if max_deduction_percent < 0:
+
+            flash(
+                "Maximum deduction percentage cannot be negative.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("main.new_loan_product")
+            )
+
+        if max_deduction_percent > 100:
+
+            max_deduction_percent = 100
+
+        if minimum_employment_months < 0:
+
+            minimum_employment_months = 0
+
+        product = LoanProduct(
+            company_id=user.company_id,
+            name=name,
+            description=description,
+            minimum_amount=minimum_amount,
+            maximum_amount=maximum_amount,
+            interest_rate=interest_rate,
+            service_fee=service_fee,
+            repayment_term_months=repayment_term_months,
+            max_deduction_percent=max_deduction_percent,
+            minimum_employment_months=minimum_employment_months,
+            active=(
+                active_value
+                in ["on", "1", "true", "yes"]
+            ),
+        )
+
+        db.session.add(product)
+        db.session.commit()
+
+        flash(
+            "Loan product created successfully.",
+            "success"
+        )
+
+        return redirect(
+            url_for("main.loan_products")
+        )
+
+    return render_template(
+        "new_loan_product.html"
+    )
+
+
+# ============================================================
+# TOGGLE LOAN PRODUCT
+# ============================================================
+
+@bp.route(
+    "/loan-products/<int:product_id>/toggle",
+    methods=["POST"]
+)
+@employer_required
+def toggle_loan_product(product_id):
+
+    user = current_user()
+
+    product = LoanProduct.query.filter_by(
+        id=product_id,
+        company_id=user.company_id
+    ).first_or_404()
+
+    product.active = not product.active
+
+    db.session.commit()
+
+    state = (
+        "activated"
+        if product.active
+        else "deactivated"
+    )
+
+    flash(
+        f"Loan product '{product.name}' has been {state}.",
+        "success"
+    )
+
+    return redirect(
+        url_for("main.loan_products")
+    )
+
+
+# ============================================================
 # EMPLOYER LOAN MANAGEMENT
 # ============================================================
 
@@ -1970,6 +2497,71 @@ def approve_loan(loan_id):
             )
         )
 
+    product = None
+
+    if application.product_id:
+
+        product = (
+            LoanProduct.query
+            .filter_by(
+                id=application.product_id,
+                company_id=user.company_id
+            )
+            .first()
+        )
+
+    # --------------------------------------------------------
+    # Check product limits again at approval stage.
+    # This prevents a changed/invalid application from being
+    # approved outside the product configuration.
+    # --------------------------------------------------------
+
+    if product:
+
+        minimum_amount = safe_float(
+            product.minimum_amount
+        )
+
+        maximum_amount = safe_float(
+            product.maximum_amount
+        )
+
+        if (
+            minimum_amount > 0
+            and approved_amount < minimum_amount
+        ):
+
+            flash(
+                f"Approved amount cannot be below "
+                f"R {minimum_amount:,.2f} for "
+                f"{product.name}.",
+                "danger"
+            )
+
+            return redirect(
+                url_for(
+                    "main.loan_management"
+                )
+            )
+
+        if (
+            maximum_amount > 0
+            and approved_amount > maximum_amount
+        ):
+
+            flash(
+                f"Approved amount cannot exceed "
+                f"R {maximum_amount:,.2f} for "
+                f"{product.name}.",
+                "danger"
+            )
+
+            return redirect(
+                url_for(
+                    "main.loan_management"
+                )
+            )
+
     approval_notes = (
         request.form.get(
             "approval_notes"
@@ -1977,21 +2569,104 @@ def approve_loan(loan_id):
         or ""
     ).strip()
 
-    application.approved_amount = approved_amount
-    application.total_repayable = approved_amount
+    # --------------------------------------------------------
+    # Determine repayment term.
+    # --------------------------------------------------------
+
+    requested_term_months = (
+        parse_repayment_term_months(
+            application.repayment_term
+        )
+    )
+
+    if product:
+
+        configured_term_months = (
+            product.repayment_term_months or 1
+        )
+
+        # Use the product configuration when available.
+        repayment_term_months = max(
+            1,
+            min(
+                int(configured_term_months),
+                60
+            )
+        )
+
+        application.repayment_term = (
+            f"{repayment_term_months} Month(s)"
+        )
+
+    else:
+
+        repayment_term_months = (
+            requested_term_months
+        )
+
+    # --------------------------------------------------------
+    # Calculate total repayment.
+    # --------------------------------------------------------
+
+    if product:
+
+        repayment = calculate_product_repayment(
+            approved_amount,
+            product,
+            repayment_term_months
+        )
+
+        total_repayable = repayment[
+            "total_repayable"
+        ]
+
+    else:
+
+        # Compatibility fallback for applications created
+        # before LoanProduct was connected.
+        total_repayable = approved_amount
+
+    application.approved_amount = (
+        round(approved_amount, 2)
+    )
+
+    application.total_repayable = (
+        round(total_repayable, 2)
+    )
+
     application.total_paid = 0.0
-    application.outstanding_balance = approved_amount
+
+    application.outstanding_balance = (
+        round(total_repayable, 2)
+    )
+
     application.status = "Approved"
+
     application.reviewed_at = datetime.utcnow()
+
     application.reviewed_by = user.id
+
     application.approval_notes = approval_notes
 
     db.session.commit()
 
-    flash(
-        f"Loan {application.reference} approved for R {approved_amount:,.2f}.",
-        "success"
-    )
+    if product:
+
+        flash(
+            f"Loan {application.reference} approved for "
+            f"R {approved_amount:,.2f}. "
+            f"Total repayable: "
+            f"R {total_repayable:,.2f}.",
+            "success"
+        )
+
+    else:
+
+        flash(
+            f"Loan {application.reference} approved for "
+            f"R {approved_amount:,.2f}.",
+            "success"
+        )
 
     return redirect(
         url_for(
@@ -2045,9 +2720,16 @@ def reject_loan(loan_id):
     ).strip()
 
     application.status = "Rejected"
-    application.reviewed_at = datetime.utcnow()
+
+    application.reviewed_at = (
+        datetime.utcnow()
+    )
+
     application.reviewed_by = user.id
-    application.approval_notes = rejection_notes
+
+    application.approval_notes = (
+        rejection_notes
+    )
 
     db.session.commit()
 
@@ -2132,7 +2814,11 @@ def disburse_loan(loan_id):
         )
 
     application.status = "Disbursed"
-    application.disbursed_at = datetime.utcnow()
+
+    application.disbursed_at = (
+        datetime.utcnow()
+    )
+
     application.disbursement_reference = (
         disbursement_reference
     )
