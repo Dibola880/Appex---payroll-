@@ -280,6 +280,12 @@ class Employee(db.Model):
         cascade="all, delete-orphan"
     )
 
+    loan_repayments = db.relationship(
+        "LoanRepayment",
+        back_populates="employee",
+        cascade="all, delete-orphan"
+    )
+
 
 # ============================================================
 # EMPLOYEE INVITATION
@@ -402,6 +408,11 @@ class PayrollRun(db.Model):
         "Payslip",
         back_populates="payroll_run",
         cascade="all, delete-orphan"
+    )
+
+    loan_repayments = db.relationship(
+        "LoanRepayment",
+        back_populates="payroll_run"
     )
 
 
@@ -840,6 +851,118 @@ class LoanApplication(db.Model):
     reviewer = db.relationship(
         "User",
         foreign_keys=[reviewed_by]
+    )
+
+    repayments = db.relationship(
+        "LoanRepayment",
+        back_populates="loan_application",
+        cascade="all, delete-orphan"
+    )
+
+
+# ============================================================
+# LOAN REPAYMENT LEDGER
+# ============================================================
+
+class LoanRepayment(db.Model):
+    __tablename__ = "loan_repayment"
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
+
+    loan_application_id = db.Column(
+        db.Integer,
+        db.ForeignKey("loan_application.id"),
+        nullable=False,
+        index=True
+    )
+
+    employee_id = db.Column(
+        db.Integer,
+        db.ForeignKey("employee.id"),
+        nullable=False,
+        index=True
+    )
+
+    payroll_run_id = db.Column(
+        db.Integer,
+        db.ForeignKey("payroll_run.id"),
+        nullable=True,
+        index=True
+    )
+
+    payslip_id = db.Column(
+        db.Integer,
+        db.ForeignKey("payslip.id"),
+        nullable=True,
+        index=True
+    )
+
+    amount = db.Column(
+        db.Float,
+        nullable=False,
+        default=0
+    )
+
+    repayment_date = db.Column(
+        db.Date,
+        default=lambda: datetime.utcnow().date(),
+        nullable=False
+    )
+
+    payment_method = db.Column(
+        db.String(50),
+        default="Payroll Deduction",
+        nullable=False
+    )
+
+    reference = db.Column(
+        db.String(100),
+        unique=True,
+        nullable=True,
+        index=True
+    )
+
+    status = db.Column(
+        db.String(50),
+        default="Completed",
+        nullable=False
+    )
+
+    notes = db.Column(
+        db.Text,
+        nullable=True
+    )
+
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        nullable=False
+    )
+
+    # ========================================================
+    # RELATIONSHIPS
+    # ========================================================
+
+    loan_application = db.relationship(
+        "LoanApplication",
+        back_populates="repayments"
+    )
+
+    employee = db.relationship(
+        "Employee",
+        back_populates="loan_repayments"
+    )
+
+    payroll_run = db.relationship(
+        "PayrollRun",
+        back_populates="loan_repayments"
+    )
+
+    payslip = db.relationship(
+        "Payslip"
     )
 
 
