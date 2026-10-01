@@ -1955,18 +1955,6 @@ def employee_loan_application():
 
 
 # ============================================================
-# COMPATIBILITY ALIAS
-# ============================================================
-
-bp.add_url_rule(
-    "/employee/loan-application",
-    endpoint="employee_loan_application",
-    view_func=employee_loan_application,
-    methods=["GET", "POST"]
-)
-
-
-# ============================================================
 # EMPLOYEE LOAN STATUS
 # ============================================================
 
@@ -2019,23 +2007,12 @@ def employee_loan_status():
 
 
 # ============================================================
-# COMPATIBILITY ALIAS
-# ============================================================
-
-bp.add_url_rule(
-    "/employee/loan-status",
-    endpoint="employee_loan_status",
-    view_func=employee_loan_status,
-    methods=["GET"]
-)
-
-
-# ============================================================
 # EMPLOYEE REPAYMENTS
 # ============================================================
 
 @bp.route(
-    "/employee/repayments"
+    "/employee/repayments",
+    endpoint="repayments"
 )
 @login_required
 def employee_repayments():
@@ -2104,18 +2081,6 @@ def employee_repayments():
         amount_paid=amount_paid,
         monthly_installment=monthly_installment,
     )
-
-
-# ============================================================
-# COMPATIBILITY ALIAS
-# ============================================================
-
-bp.add_url_rule(
-    "/employee/repayments",
-    endpoint="repayments",
-    view_func=employee_repayments,
-    methods=["GET"]
-)
 
 
 # ============================================================
