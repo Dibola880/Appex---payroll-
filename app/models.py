@@ -242,6 +242,7 @@ class Employee(db.Model):
         default="Active"
     )
 
+    # Deel integration
     deel_employee_id = db.Column(
         db.String(200)
     )
@@ -472,6 +473,10 @@ class PayrollInput(db.Model):
         default=0
     )
 
+    # ========================================================
+    # PHASE 5 LOAN DEDUCTION
+    # ========================================================
+
     loan_repayment = db.Column(
         db.Float,
         default=0
@@ -564,6 +569,10 @@ class Payslip(db.Model):
         db.Float,
         default=0
     )
+
+    # ========================================================
+    # PHASE 5 LOAN DEDUCTION
+    # ========================================================
 
     loan_repayment = db.Column(
         db.Float,
@@ -711,7 +720,7 @@ class LoanProduct(db.Model):
 
 
 # ============================================================
-# LOAN APPLICATION
+# LOAN APPLICATION / LOAN ACCOUNT
 # ============================================================
 
 class LoanApplication(db.Model):
@@ -743,6 +752,10 @@ class LoanApplication(db.Model):
         index=True
     )
 
+    # ========================================================
+    # APPLICATION AMOUNTS
+    # ========================================================
+
     requested_amount = db.Column(
         db.Float,
         nullable=False,
@@ -754,12 +767,21 @@ class LoanApplication(db.Model):
         nullable=True
     )
 
+    # ========================================================
+    # LOAN INFORMATION
+    # ========================================================
+
     loan_purpose = db.Column(
         db.String(255)
     )
 
     repayment_term = db.Column(
         db.String(100)
+    )
+
+    repayment_frequency = db.Column(
+        db.String(50),
+        default="Monthly"
     )
 
     monthly_income = db.Column(
@@ -772,12 +794,32 @@ class LoanApplication(db.Model):
         default=0
     )
 
+    # ========================================================
+    # STATUS
+    # ========================================================
+
     status = db.Column(
         db.String(50),
         default="Submitted",
         nullable=False,
         index=True
     )
+
+    # Possible statuses:
+    #
+    # Submitted
+    # Under Review
+    # Approved
+    # Rejected
+    # Disbursed
+    # Active
+    # Paid
+    # Cancelled
+    #
+
+    # ========================================================
+    # APPROVAL INFORMATION
+    # ========================================================
 
     reviewed_at = db.Column(
         db.DateTime,
@@ -795,6 +837,15 @@ class LoanApplication(db.Model):
         nullable=True
     )
 
+    approved_at = db.Column(
+        db.DateTime,
+        nullable=True
+    )
+
+    # ========================================================
+    # DISBURSEMENT
+    # ========================================================
+
     disbursed_at = db.Column(
         db.DateTime,
         nullable=True
@@ -805,25 +856,74 @@ class LoanApplication(db.Model):
         nullable=True
     )
 
+    # ========================================================
+    # REPAYMENT CALCULATION
+    # ========================================================
+
+    principal_amount = db.Column(
+        db.Float,
+        default=0,
+        nullable=False
+    )
+
+    interest_amount = db.Column(
+        db.Float,
+        default=0,
+        nullable=False
+    )
+
+    service_fee_amount = db.Column(
+        db.Float,
+        default=0,
+        nullable=False
+    )
+
     total_repayable = db.Column(
         db.Float,
         nullable=True
     )
 
+    scheduled_installment = db.Column(
+        db.Float,
+        default=0,
+        nullable=False
+    )
+
+    # ========================================================
+    # REPAYMENT TRACKING
+    # ========================================================
+
     total_paid = db.Column(
         db.Float,
-        default=0
+        default=0,
+        nullable=False
     )
 
     outstanding_balance = db.Column(
         db.Float,
-        default=0
+        default=0,
+        nullable=False
+    )
+
+    number_of_payments = db.Column(
+        db.Integer,
+        default=0,
+        nullable=False
     )
 
     next_payment_date = db.Column(
         db.Date,
         nullable=True
     )
+
+    last_payment_date = db.Column(
+        db.Date,
+        nullable=True
+    )
+
+    # ========================================================
+    # TIMESTAMPS
+    # ========================================================
 
     created_at = db.Column(
         db.DateTime,
@@ -837,6 +937,10 @@ class LoanApplication(db.Model):
         onupdate=datetime.utcnow,
         nullable=False
     )
+
+    # ========================================================
+    # RELATIONSHIPS
+    # ========================================================
 
     employee = db.relationship(
         "Employee",
@@ -856,7 +960,8 @@ class LoanApplication(db.Model):
     repayments = db.relationship(
         "LoanRepayment",
         back_populates="loan_application",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        order_by="LoanRepayment.repayment_date"
     )
 
 
@@ -872,6 +977,10 @@ class LoanRepayment(db.Model):
         primary_key=True
     )
 
+    # ========================================================
+    # LOAN
+    # ========================================================
+
     loan_application_id = db.Column(
         db.Integer,
         db.ForeignKey("loan_application.id"),
@@ -879,12 +988,20 @@ class LoanRepayment(db.Model):
         index=True
     )
 
+    # ========================================================
+    # EMPLOYEE
+    # ========================================================
+
     employee_id = db.Column(
         db.Integer,
         db.ForeignKey("employee.id"),
         nullable=False,
         index=True
     )
+
+    # ========================================================
+    # PAYROLL LINK
+    # ========================================================
 
     payroll_run_id = db.Column(
         db.Integer,
@@ -900,11 +1017,45 @@ class LoanRepayment(db.Model):
         index=True
     )
 
+    # ========================================================
+    # REPAYMENT AMOUNT
+    # ========================================================
+
     amount = db.Column(
         db.Float,
         nullable=False,
         default=0
     )
+
+    # ========================================================
+    # BALANCE TRACKING
+    # ========================================================
+
+    balance_before = db.Column(
+        db.Float,
+        default=0,
+        nullable=False
+    )
+
+    balance_after = db.Column(
+        db.Float,
+        default=0,
+        nullable=False
+    )
+
+    # ========================================================
+    # PAYMENT SEQUENCE
+    # ========================================================
+
+    payment_number = db.Column(
+        db.Integer,
+        default=1,
+        nullable=False
+    )
+
+    # ========================================================
+    # REPAYMENT DATE
+    # ========================================================
 
     repayment_date = db.Column(
         db.Date,
@@ -912,11 +1063,39 @@ class LoanRepayment(db.Model):
         nullable=False
     )
 
+    # ========================================================
+    # PAYMENT METHOD
+    # ========================================================
+
     payment_method = db.Column(
         db.String(50),
         default="Payroll Deduction",
         nullable=False
     )
+
+    # Possible methods:
+    #
+    # Payroll Deduction
+    # Bank Transfer
+    # Debit Order
+    # EFT
+    # Manual Payment
+    # Other
+    #
+
+    # ========================================================
+    # SOURCE
+    # ========================================================
+
+    source = db.Column(
+        db.String(50),
+        default="Payroll",
+        nullable=False
+    )
+
+    # ========================================================
+    # REFERENCE
+    # ========================================================
 
     reference = db.Column(
         db.String(100),
@@ -925,16 +1104,37 @@ class LoanRepayment(db.Model):
         index=True
     )
 
+    # ========================================================
+    # STATUS
+    # ========================================================
+
     status = db.Column(
         db.String(50),
         default="Completed",
         nullable=False
     )
 
+    # Possible statuses:
+    #
+    # Pending
+    # Completed
+    # Failed
+    # Reversed
+    # Cancelled
+    #
+
+    # ========================================================
+    # NOTES
+    # ========================================================
+
     notes = db.Column(
         db.Text,
         nullable=True
     )
+
+    # ========================================================
+    # TIMESTAMP
+    # ========================================================
 
     created_at = db.Column(
         db.DateTime,
