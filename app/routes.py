@@ -395,13 +395,8 @@ def create_loan_repayment_ledger_entry(
     payslip,
     amount
 ):
-    """Create the Phase 5 LoanRepayment ledger entry.
+    """Create a Phase 5 LoanRepayment ledger entry."""
 
-    The helper only writes fields that actually exist on the installed
-    LoanRepayment model. This keeps routes.py compatible with the Phase 5
-    ledger model while retaining the core loan, employee, payroll and
-    payslip links.
-    """
     amount = round(
         max(0.0, safe_float(amount)),
         2
@@ -427,6 +422,40 @@ def create_loan_repayment_ledger_entry(
         or datetime.utcnow().date()
     )
 
+    balance_before = round(
+        max(
+            0.0,
+            safe_float(
+                loan_application.outstanding_balance
+            )
+        ),
+        2
+    )
+
+    balance_after = round(
+        max(
+            0.0,
+            balance_before - amount
+        ),
+        2
+    )
+
+    previous_payments = 0
+
+    if "loan_application_id" in columns:
+        previous_payments = (
+            LoanRepayment.query
+            .filter(
+                LoanRepayment.loan_application_id
+                == loan_application.id,
+                LoanRepayment.status
+                == "Completed"
+            )
+            .count()
+        )
+
+    payment_number = previous_payments + 1
+
     reference = (
         "APX-LOAN-"
         + str(loan_application.id)
@@ -442,26 +471,29 @@ def create_loan_repayment_ledger_entry(
         "payroll_run_id": payroll_run.id,
         "payslip_id": payslip.id,
         "amount": amount,
-        "repayment_amount": amount,
+        "balance_before": balance_before,
+        "balance_after": balance_after,
+        "payment_number": payment_number,
         "repayment_date": pay_date,
-        "payment_date": pay_date,
-        "method": "Payroll Deduction",
         "payment_method": "Payroll Deduction",
+        "source": "Payroll",
         "reference": reference,
-        "status": "Posted",
+        "status": "Completed",
         "notes": "Loan repayment deducted through payroll.",
-        "description": "Loan repayment deducted through payroll.",
         "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow(),
     }
 
     for field, value in values.items():
         if field in columns:
-            setattr(repayment, field, value)
+            setattr(
+                repayment,
+                field,
+                value
+            )
 
     db.session.add(repayment)
-    return repayment
 
+    return repayment
 
 def get_employee_loan_repayment_ledger(employee_id):
     """Return an employee's Phase 5 repayment ledger entries."""
@@ -2857,6 +2889,24 @@ def complete_payroll(payroll_id):
         company_id=user.company_id
     ).first_or_404()
 
+    # --------------------------------------------------------
+    # Payroll must be approved before completion.
+    # Completed payroll is permanently locked.
+    # --------------------------------------------------------
+    if payroll_run.status == "Completed":
+
+        flash(
+            "This payroll has already been completed and is locked.",
+            "warning"
+        )
+
+        return redirect(
+            url_for(
+                "main.view_payroll",
+                payroll_id=payroll_run.id
+            )
+        )
+
     if payroll_run.status != "Approved":
 
         flash(
@@ -2871,6 +2921,9 @@ def complete_payroll(payroll_id):
             )
         )
 
+    # --------------------------------------------------------
+    # Payroll inputs
+    # --------------------------------------------------------
     payroll_inputs = PayrollInput.query.filter_by(
         payroll_run_id=payroll_run.id
     ).all()
@@ -2889,16 +2942,26 @@ def complete_payroll(payroll_id):
             )
         )
 
+    # --------------------------------------------------------
+    # Calculate final payroll totals
+    # --------------------------------------------------------
     results = calculate_payroll_run_totals(
         payroll_run
     )
 
+    # --------------------------------------------------------
+    # Remove any previously generated payslips for this run.
+    # The payroll itself is still Approved at this point.
+    # --------------------------------------------------------
     Payslip.query.filter_by(
         payroll_run_id=payroll_run.id
     ).delete(
         synchronize_session=False
     )
 
+    # --------------------------------------------------------
+    # Create final payslips and process loan deductions.
+    # --------------------------------------------------------
     for calculated in results:
 
         employee = calculated["employee"]
@@ -2912,10 +2975,13 @@ def complete_payroll(payroll_id):
         )
 
         loan_repayment = round(
-            safe_float(
-                calculated.get(
-                    "loan_repayment",
-                    0
+            max(
+                0.0,
+                safe_float(
+                    calculated.get(
+                        "loan_repayment",
+                        0
+                    )
                 )
             ),
             2
@@ -2994,13 +3060,19 @@ def complete_payroll(payroll_id):
         )
 
         db.session.add(payslip)
+
+        # Payslip ID is required by the Phase 5 ledger.
         db.session.flush()
 
+        # ----------------------------------------------------
+        # Phase 5 loan repayment ledger
+        # ----------------------------------------------------
         if (
             loan_application
             and loan_repayment > 0
             and loan_application.status == "Disbursed"
         ):
+
             create_loan_repayment_ledger_entry(
                 loan_application=loan_application,
                 employee=employee,
@@ -3009,6 +3081,9 @@ def complete_payroll(payroll_id):
                 amount=loan_repayment,
             )
 
+            # ------------------------------------------------
+            # Update loan totals
+            # ------------------------------------------------
             current_total_paid = safe_float(
                 loan_application.total_paid
             )
@@ -3040,7 +3115,14 @@ def complete_payroll(payroll_id):
                 new_outstanding
             )
 
+            # ------------------------------------------------
+            # Fully repaid loan
+            # ------------------------------------------------
             if new_outstanding <= 0.01:
+
+                loan_application.total_paid = (
+                    total_repayable
+                )
 
                 loan_application.outstanding_balance = 0.0
 
@@ -3048,6 +3130,9 @@ def complete_payroll(payroll_id):
 
                 loan_application.next_payment_date = None
 
+            # ------------------------------------------------
+            # Loan still active
+            # ------------------------------------------------
             else:
 
                 loan_application.status = "Disbursed"
@@ -3060,6 +3145,9 @@ def complete_payroll(payroll_id):
                     )
                 )
 
+    # --------------------------------------------------------
+    # Payroll is now permanently completed.
+    # --------------------------------------------------------
     payroll_run.status = "Completed"
 
     db.session.commit()
