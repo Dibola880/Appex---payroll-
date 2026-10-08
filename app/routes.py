@@ -395,7 +395,13 @@ def create_loan_repayment_ledger_entry(
     payslip,
     amount
 ):
-    """Create a Phase 5 LoanRepayment ledger entry."""
+    """Create a Phase 5 LoanRepayment ledger entry.
+
+    Returns:
+        (repayment, True) when a new entry is created.
+        (existing, False) when the entry already exists.
+        (None, False) when the amount is not valid.
+    """
 
     amount = round(
         max(0.0, safe_float(amount)),
@@ -403,7 +409,7 @@ def create_loan_repayment_ledger_entry(
     )
 
     if amount <= 0:
-        return None
+        return None, False
 
     existing = find_loan_ledger_entry(
         loan_application.id,
@@ -412,7 +418,7 @@ def create_loan_repayment_ledger_entry(
     )
 
     if existing:
-        return existing
+        return existing, False
 
     columns = _loan_repayment_columns()
     repayment = LoanRepayment()
@@ -493,7 +499,8 @@ def create_loan_repayment_ledger_entry(
 
     db.session.add(repayment)
 
-    return repayment
+    return repayment, True
+
 
 def get_employee_loan_repayment_ledger(employee_id):
     """Return an employee's Phase 5 repayment ledger entries."""
@@ -3073,77 +3080,83 @@ def complete_payroll(payroll_id):
             and loan_application.status == "Disbursed"
         ):
 
-            create_loan_repayment_ledger_entry(
-                loan_application=loan_application,
-                employee=employee,
-                payroll_run=payroll_run,
-                payslip=payslip,
-                amount=loan_repayment,
+            ledger_entry, ledger_created = (
+                create_loan_repayment_ledger_entry(
+                    loan_application=loan_application,
+                    employee=employee,
+                    payroll_run=payroll_run,
+                    payslip=payslip,
+                    amount=loan_repayment,
+                )
             )
 
             # ------------------------------------------------
-            # Update loan totals
+            # Update loan totals only when a NEW ledger entry
+            # was created. An existing ledger entry must not
+            # reduce the loan balance a second time.
             # ------------------------------------------------
-            current_total_paid = safe_float(
-                loan_application.total_paid
-            )
+            if ledger_created:
 
-            total_repayable = safe_float(
-                loan_application.total_repayable
-            )
+                current_total_paid = safe_float(
+                    loan_application.total_paid
+                )
 
-            new_total_paid = round(
-                current_total_paid
-                + loan_repayment,
-                2
-            )
+                total_repayable = safe_float(
+                    loan_application.total_repayable
+                )
 
-            new_outstanding = round(
-                max(
-                    0.0,
-                    total_repayable
-                    - new_total_paid
-                ),
-                2
-            )
+                new_total_paid = round(
+                    current_total_paid
+                    + loan_repayment,
+                    2
+                )
 
-            loan_application.total_paid = (
-                new_total_paid
-            )
-
-            loan_application.outstanding_balance = (
-                new_outstanding
-            )
-
-            # ------------------------------------------------
-            # Fully repaid loan
-            # ------------------------------------------------
-            if new_outstanding <= 0.01:
+                new_outstanding = round(
+                    max(
+                        0.0,
+                        total_repayable
+                        - new_total_paid
+                    ),
+                    2
+                )
 
                 loan_application.total_paid = (
-                    total_repayable
+                    new_total_paid
                 )
 
-                loan_application.outstanding_balance = 0.0
+                loan_application.outstanding_balance = (
+                    new_outstanding
+                )
 
-                loan_application.status = "Repaid"
+                # ------------------------------------------------
+                # Fully repaid loan
+                # ------------------------------------------------
+                if new_outstanding <= 0.01:
 
-                loan_application.next_payment_date = None
-
-            # ------------------------------------------------
-            # Loan still active
-            # ------------------------------------------------
-            else:
-
-                loan_application.status = "Disbursed"
-
-                loan_application.next_payment_date = (
-                    add_months(
-                        payroll_run.pay_date
-                        or datetime.utcnow().date(),
-                        1
+                    loan_application.total_paid = (
+                        total_repayable
                     )
-                )
+
+                    loan_application.outstanding_balance = 0.0
+
+                    loan_application.status = "Repaid"
+
+                    loan_application.next_payment_date = None
+
+                # ------------------------------------------------
+                # Loan still active
+                # ------------------------------------------------
+                else:
+
+                    loan_application.status = "Disbursed"
+
+                    loan_application.next_payment_date = (
+                        add_months(
+                            payroll_run.pay_date
+                            or datetime.utcnow().date(),
+                            1
+                        )
+                    )
 
     # --------------------------------------------------------
     # Payroll is now permanently completed.
