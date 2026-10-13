@@ -340,185 +340,82 @@ def get_company_loan_or_404(
     )
 
 
-def _loan_repayment_columns():
-    """Return the column names available on the Phase 5 ledger model."""
-    return set(
-        LoanRepayment.__table__.columns.keys()
-    )
+# ============================================================
+# PHASE 5 - LOAN REPAYMENT LEDGER HELPERS
+# ============================================================
 
-
-def find_loan_ledger_entry(
-    loan_application_id,
-    employee_id,
-    payroll_run_id
-):
-    """Find an existing payroll repayment ledger entry.
-
-    The lookup is deliberately limited to the payroll run and employee so
-    the same payroll deduction cannot be posted twice to the loan ledger.
-    """
-    columns = _loan_repayment_columns()
-
-    if "payroll_run_id" not in columns:
-        return None
-
-    query = LoanRepayment.query.filter(
-        getattr(
-            LoanRepayment,
-            "payroll_run_id"
-        ) == payroll_run_id
-    )
-
-    if "employee_id" in columns:
-        query = query.filter(
-            getattr(
-                LoanRepayment,
-                "employee_id"
-            ) == employee_id
-        )
-
-    if "loan_application_id" in columns:
-        query = query.filter(
-            getattr(
-                LoanRepayment,
-                "loan_application_id"
-            ) == loan_application_id
-        )
-
-    return query.first()
+def find_loan_ledger_entry(loan_application_id, employee_id, payroll_run_id):
+    """Find an existing ledger row for this loan/employee/payroll run."""
+    return LoanRepayment.query.filter_by(
+        loan_application_id=loan_application_id,
+        employee_id=employee_id,
+        payroll_run_id=payroll_run_id,
+    ).first()
 
 
 def create_loan_repayment_ledger_entry(
-    loan_application,
-    employee,
-    payroll_run,
-    payslip,
-    amount
+    loan_application, employee, payroll_run, payslip, amount
 ):
-    """Create a Phase 5 LoanRepayment ledger entry.
-
-    Returns:
-        (repayment, True) when a new entry is created.
-        (existing, False) when the entry already exists.
-        (None, False) when the amount is not valid.
-    """
-
-    amount = round(
-        max(0.0, safe_float(amount)),
-        2
-    )
-
+    """Create one payroll repayment ledger row; never intentionally duplicate."""
+    amount = round(max(0.0, safe_float(amount)), 2)
     if amount <= 0:
         return None, False
 
     existing = find_loan_ledger_entry(
-        loan_application.id,
-        employee.id,
-        payroll_run.id
+        loan_application.id, employee.id, payroll_run.id
     )
-
     if existing:
         return existing, False
 
-    columns = _loan_repayment_columns()
-    repayment = LoanRepayment()
-
-    pay_date = (
-        payroll_run.pay_date
-        or datetime.utcnow().date()
+    outstanding = round(
+        max(0.0, safe_float(loan_application.outstanding_balance)), 2
     )
-
-    balance_before = round(
-        max(
-            0.0,
-            safe_float(
-                loan_application.outstanding_balance
-            )
-        ),
-        2
-    )
-
-    balance_after = round(
-        max(
-            0.0,
-            balance_before - amount
-        ),
-        2
-    )
-
-    previous_payments = 0
-
-    if "loan_application_id" in columns:
-        previous_payments = (
-            LoanRepayment.query
-            .filter(
-                LoanRepayment.loan_application_id
-                == loan_application.id,
-                LoanRepayment.status
-                == "Completed"
-            )
-            .count()
-        )
-
-    payment_number = previous_payments + 1
+    amount = round(min(amount, outstanding), 2)
+    if amount <= 0:
+        return None, False
 
     reference = (
-        "APX-LOAN-"
-        + str(loan_application.id)
-        + "-PAY-"
-        + str(payroll_run.id)
-        + "-EMP-"
-        + str(employee.id)
+        f"APX-LOAN-{loan_application.id}-PAY-{payroll_run.id}"
+        f"-EMP-{employee.id}"
     )
+    existing_reference = LoanRepayment.query.filter_by(
+        reference=reference
+    ).first()
+    if existing_reference:
+        return existing_reference, False
 
-    values = {
-        "loan_application_id": loan_application.id,
-        "employee_id": employee.id,
-        "payroll_run_id": payroll_run.id,
-        "payslip_id": payslip.id,
-        "amount": amount,
-        "balance_before": balance_before,
-        "balance_after": balance_after,
-        "payment_number": payment_number,
-        "repayment_date": pay_date,
-        "payment_method": "Payroll Deduction",
-        "source": "Payroll",
-        "reference": reference,
-        "status": "Completed",
-        "notes": "Loan repayment deducted through payroll.",
-        "created_at": datetime.utcnow(),
-    }
+    payment_number = LoanRepayment.query.filter_by(
+        loan_application_id=loan_application.id,
+        status="Completed",
+    ).count() + 1
 
-    for field, value in values.items():
-        if field in columns:
-            setattr(
-                repayment,
-                field,
-                value
-            )
-
+    repayment = LoanRepayment(
+        loan_application_id=loan_application.id,
+        employee_id=employee.id,
+        payroll_run_id=payroll_run.id,
+        payslip_id=payslip.id,
+        amount=amount,
+        balance_before=outstanding,
+        balance_after=round(max(0.0, outstanding - amount), 2),
+        payment_number=payment_number,
+        repayment_date=payroll_run.pay_date or datetime.utcnow().date(),
+        payment_method="Payroll Deduction",
+        source="Payroll",
+        reference=reference,
+        status="Completed",
+        notes="Loan repayment deducted through payroll.",
+        created_at=datetime.utcnow(),
+    )
     db.session.add(repayment)
-
+    db.session.flush()
     return repayment, True
 
 
 def get_employee_loan_repayment_ledger(employee_id):
-    """Return an employee's Phase 5 repayment ledger entries."""
-    columns = _loan_repayment_columns()
-
-    if "employee_id" not in columns:
-        return []
-
-    return (
-        LoanRepayment.query
-        .filter(
-            getattr(LoanRepayment, "employee_id") == employee_id
-        )
-        .order_by(
-            getattr(LoanRepayment, "id").desc()
-        )
-        .all()
-    )
+    """Return an employee's ledger rows, newest first."""
+    return LoanRepayment.query.filter_by(
+        employee_id=employee_id
+    ).order_by(LoanRepayment.id.desc()).all()
 
 
 # ============================================================
@@ -1983,15 +1880,10 @@ def employee_repayments():
                 )
             )
 
-    repayments = get_employee_loan_repayment_ledger(
-        employee.id
-    )
-
     return render_template(
         "employee_repayments.html",
         employee=employee,
         application=application,
-        repayments=repayments,
         outstanding_balance=outstanding_balance,
         amount_paid=amount_paid,
         monthly_installment=monthly_installment,
@@ -2888,293 +2780,176 @@ def approve_payroll(payroll_id):
 )
 @employer_required
 def complete_payroll(payroll_id):
-
     user = current_user()
 
     payroll_run = PayrollRun.query.filter_by(
         id=payroll_id,
-        company_id=user.company_id
+        company_id=user.company_id,
     ).first_or_404()
 
-    # --------------------------------------------------------
-    # Payroll must be approved before completion.
-    # Completed payroll is permanently locked.
-    # --------------------------------------------------------
     if payroll_run.status == "Completed":
-
-        flash(
-            "This payroll has already been completed and is locked.",
-            "warning"
-        )
-
+        flash("This payroll has already been completed.", "warning")
         return redirect(
-            url_for(
-                "main.view_payroll",
-                payroll_id=payroll_run.id
-            )
+            url_for("main.view_payroll", payroll_id=payroll_run.id)
         )
 
     if payroll_run.status != "Approved":
-
-        flash(
-            "Only approved payroll can be completed.",
-            "warning"
-        )
-
+        flash("Only approved payroll can be completed.", "warning")
         return redirect(
-            url_for(
-                "main.view_payroll",
-                payroll_id=payroll_run.id
-            )
+            url_for("main.view_payroll", payroll_id=payroll_run.id)
         )
 
-    # --------------------------------------------------------
-    # Payroll inputs
-    # --------------------------------------------------------
     payroll_inputs = PayrollInput.query.filter_by(
         payroll_run_id=payroll_run.id
     ).all()
 
     if not payroll_inputs:
-
-        flash(
-            "This payroll has no employee inputs.",
-            "danger"
-        )
-
+        flash("This payroll has no employee inputs.", "danger")
         return redirect(
-            url_for(
-                "main.view_payroll",
-                payroll_id=payroll_run.id
+            url_for("main.view_payroll", payroll_id=payroll_run.id)
+        )
+
+    try:
+        # Preserve existing payslips because ledger rows may reference them.
+        if Payslip.query.filter_by(
+            payroll_run_id=payroll_run.id
+        ).count():
+            flash(
+                "This payroll already has payslips. No changes were made. "
+                "Review the existing records before retrying.",
+                "warning",
             )
-        )
+            return redirect(
+                url_for("main.view_payroll", payroll_id=payroll_run.id)
+            )
 
-    # --------------------------------------------------------
-    # Calculate final payroll totals
-    # --------------------------------------------------------
-    results = calculate_payroll_run_totals(
-        payroll_run
-    )
+        results = calculate_payroll_run_totals(payroll_run)
 
-    # --------------------------------------------------------
-    # Remove any previously generated payslips for this run.
-    # The payroll itself is still Approved at this point.
-    # --------------------------------------------------------
-    Payslip.query.filter_by(
-        payroll_run_id=payroll_run.id
-    ).delete(
-        synchronize_session=False
-    )
+        for calculated in results:
+            employee = calculated["employee"]
+            payroll_input = calculated["payroll_input"]
+            result = calculated["result"]
+            loan_application = calculated.get("loan_application")
 
-    # --------------------------------------------------------
-    # Create final payslips and process loan deductions.
-    # --------------------------------------------------------
-    for calculated in results:
+            loan_repayment = round(
+                max(0.0, safe_float(calculated.get("loan_repayment", 0))),
+                2,
+            )
 
-        employee = calculated["employee"]
-
-        payroll_input = calculated["payroll_input"]
-
-        result = calculated["result"]
-
-        loan_application = calculated.get(
-            "loan_application"
-        )
-
-        loan_repayment = round(
-            max(
-                0.0,
-                safe_float(
-                    calculated.get(
-                        "loan_repayment",
-                        0
-                    )
+            if loan_application and loan_application.status == "Disbursed":
+                loan_repayment = round(
+                    min(
+                        loan_repayment,
+                        max(0.0, safe_float(loan_application.outstanding_balance)),
+                    ),
+                    2,
                 )
-            ),
-            2
-        )
+            else:
+                loan_application = None
+                loan_repayment = 0.0
 
-        payroll_input.loan_repayment = (
-            loan_repayment
-        )
+            payroll_input.loan_repayment = loan_repayment
 
-        payslip = Payslip(
-            employee_id=employee.id,
-            payroll_run_id=payroll_run.id,
-            pay_period=payroll_run.pay_period,
-            pay_date=payroll_run.pay_date,
+            payslip = Payslip(
+                employee_id=employee.id,
+                payroll_run_id=payroll_run.id,
+                pay_period=payroll_run.pay_period,
+                pay_date=payroll_run.pay_date,
+                basic_salary=safe_float(
+                    result.get("basic_salary", payroll_input.basic_salary)
+                ),
+                overtime=safe_float(result.get("overtime", payroll_input.overtime)),
+                bonus=safe_float(result.get("bonus", payroll_input.bonus)),
+                commission=safe_float(
+                    result.get("commission", payroll_input.commission)
+                ),
+                other_earnings=safe_float(
+                    result.get("other_earnings", payroll_input.other_earnings)
+                ),
+                gross_pay=calculated["gross_pay"],
+                tax_deductions=calculated["paye"],
+                uif=calculated["uif"],
+                other_deductions=calculated["other_deductions"],
+                loan_repayment=loan_repayment,
+                total_deductions=calculated["total_deductions"],
+                net_pay=calculated["net_pay"],
+                employer_uif=calculated["employer_uif"],
+                employer_cost=calculated["employer_cost"],
+            )
+            db.session.add(payslip)
+            db.session.flush()
 
-            basic_salary=safe_float(
-                result.get(
-                    "basic_salary",
-                    payroll_input.basic_salary
-                )
-            ),
-
-            overtime=safe_float(
-                result.get(
-                    "overtime",
-                    payroll_input.overtime
-                )
-            ),
-
-            bonus=safe_float(
-                result.get(
-                    "bonus",
-                    payroll_input.bonus
-                )
-            ),
-
-            commission=safe_float(
-                result.get(
-                    "commission",
-                    payroll_input.commission
-                )
-            ),
-
-            other_earnings=safe_float(
-                result.get(
-                    "other_earnings",
-                    payroll_input.other_earnings
-                )
-            ),
-
-            gross_pay=calculated["gross_pay"],
-
-            tax_deductions=calculated["paye"],
-
-            uif=calculated["uif"],
-
-            other_deductions=calculated[
-                "other_deductions"
-            ],
-
-            loan_repayment=loan_repayment,
-
-            total_deductions=calculated[
-                "total_deductions"
-            ],
-
-            net_pay=calculated["net_pay"],
-
-            employer_uif=calculated[
-                "employer_uif"
-            ],
-
-            employer_cost=calculated[
-                "employer_cost"
-            ],
-        )
-
-        db.session.add(payslip)
-
-        # Payslip ID is required by the Phase 5 ledger.
-        db.session.flush()
-
-        # ----------------------------------------------------
-        # Phase 5 loan repayment ledger
-        # ----------------------------------------------------
-        if (
-            loan_application
-            and loan_repayment > 0
-            and loan_application.status == "Disbursed"
-        ):
-
-            ledger_entry, ledger_created = (
-                create_loan_repayment_ledger_entry(
+            if loan_application and loan_repayment > 0:
+                ledger_entry, ledger_created = create_loan_repayment_ledger_entry(
                     loan_application=loan_application,
                     employee=employee,
                     payroll_run=payroll_run,
                     payslip=payslip,
                     amount=loan_repayment,
                 )
-            )
 
-            # ------------------------------------------------
-            # Update loan totals only when a NEW ledger entry
-            # was created. An existing ledger entry must not
-            # reduce the loan balance a second time.
-            # ------------------------------------------------
-            if ledger_created:
+                # If an entry already exists, roll back this whole attempt.
+                if not ledger_created:
+                    raise ValueError(
+                        "A repayment ledger entry already exists for this payroll."
+                    )
 
-                current_total_paid = safe_float(
-                    loan_application.total_paid
-                )
-
-                total_repayable = safe_float(
-                    loan_application.total_repayable
-                )
-
-                new_total_paid = round(
-                    current_total_paid
-                    + loan_repayment,
-                    2
-                )
-
-                new_outstanding = round(
-                    max(
-                        0.0,
-                        total_repayable
-                        - new_total_paid
+                recorded_amount = round(
+                    min(
+                        loan_repayment,
+                        max(0.0, safe_float(loan_application.outstanding_balance)),
                     ),
-                    2
+                    2,
+                )
+                total_repayable = max(
+                    0.0, safe_float(loan_application.total_repayable)
+                )
+                new_total_paid = round(
+                    min(
+                        total_repayable,
+                        max(0.0, safe_float(loan_application.total_paid))
+                        + recorded_amount,
+                    ),
+                    2,
+                )
+                new_outstanding = round(
+                    max(0.0, total_repayable - new_total_paid), 2
                 )
 
-                loan_application.total_paid = (
-                    new_total_paid
-                )
+                loan_application.total_paid = new_total_paid
+                loan_application.outstanding_balance = new_outstanding
 
-                loan_application.outstanding_balance = (
-                    new_outstanding
-                )
-
-                # ------------------------------------------------
-                # Fully repaid loan
-                # ------------------------------------------------
                 if new_outstanding <= 0.01:
-
-                    loan_application.total_paid = (
-                        total_repayable
-                    )
-
+                    loan_application.total_paid = total_repayable
                     loan_application.outstanding_balance = 0.0
-
                     loan_application.status = "Repaid"
-
                     loan_application.next_payment_date = None
-
-                # ------------------------------------------------
-                # Loan still active
-                # ------------------------------------------------
                 else:
-
                     loan_application.status = "Disbursed"
-
-                    loan_application.next_payment_date = (
-                        add_months(
-                            payroll_run.pay_date
-                            or datetime.utcnow().date(),
-                            1
-                        )
+                    loan_application.next_payment_date = add_months(
+                        payroll_run.pay_date or datetime.utcnow().date(), 1
                     )
 
-    # --------------------------------------------------------
-    # Payroll is now permanently completed.
-    # --------------------------------------------------------
-    payroll_run.status = "Completed"
+        payroll_run.status = "Completed"
+        db.session.commit()
 
-    db.session.commit()
+    except Exception:
+        db.session.rollback()
+        flash(
+            "Payroll completion failed. This attempt was rolled back. "
+            "Review the payroll and ledger records before retrying.",
+            "danger",
+        )
+        return redirect(
+            url_for("main.view_payroll", payroll_id=payroll_run.id)
+        )
 
     flash(
         "Payroll completed successfully. Loan repayments have been recorded.",
-        "success"
+        "success",
     )
-
     return redirect(
-        url_for(
-            "main.view_payroll",
-            payroll_id=payroll_run.id
-        )
+        url_for("main.view_payroll", payroll_id=payroll_run.id)
     )
 
 
