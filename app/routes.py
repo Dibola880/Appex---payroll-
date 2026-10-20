@@ -2809,6 +2809,45 @@ def complete_payroll(payroll_id):
             url_for("main.view_payroll", payroll_id=payroll_run.id)
         )
 
+    # Prevent duplicate payslips by rejecting duplicate employee inputs.
+    employee_ids = [
+        payroll_input.employee_id
+        for payroll_input in payroll_inputs
+    ]
+
+    if len(employee_ids) != len(set(employee_ids)):
+        flash(
+            "This payroll contains duplicate inputs for one or more "
+            "employees. No changes were made. Review and remove the "
+            "duplicate inputs before completing payroll.",
+            "danger",
+        )
+        return redirect(
+            url_for("main.view_payroll", payroll_id=payroll_run.id)
+        )
+
+    # Reject payroll inputs for employees outside this company.
+    employees_by_id = {
+        employee.id: employee
+        for employee in Employee.query.filter(
+            Employee.id.in_(employee_ids)
+        ).all()
+    }
+
+    if any(
+        employee_id not in employees_by_id
+        or employees_by_id[employee_id].company_id != payroll_run.company_id
+        for employee_id in employee_ids
+    ):
+        flash(
+            "This payroll contains an employee who does not belong to "
+            "this company. No changes were made.",
+            "danger",
+        )
+        return redirect(
+            url_for("main.view_payroll", payroll_id=payroll_run.id)
+        )
+
     try:
         # Preserve existing payslips because ledger rows may reference them.
         if Payslip.query.filter_by(
