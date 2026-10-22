@@ -424,9 +424,239 @@ try:
             f"payslips={count}",
         )
 
+
+    print("\nTEST 7: Loan approval")
+    with app.app_context():
+        approval_loan = make(
+            LoanApplication,
+            employee_id=loan_employee_id,
+            reference="PHASE5-APPROVAL-TEST",
+            requested_amount=1000,
+            status="Submitted",
+            principal_amount=0,
+            interest_amount=0,
+            service_fee_amount=0,
+            total_paid=0,
+            outstanding_balance=0,
+        )
+        approval_loan_id = approval_loan.id
+        db.session.commit()
+
+    login(employer_id)
+    response = client.post(
+        f"/loans/{approval_loan_id}/approve",
+        data={
+            "approved_amount": "800",
+            "approval_notes": "Regression test approval",
+        },
+    )
+
+    with app.app_context():
+        row = db.session.get(LoanApplication, approval_loan_id)
+        record(
+            "Valid approval records amount, status and reviewer",
+            response.status_code == 302
+            and row.status == "Approved"
+            and round(float(row.approved_amount or 0), 2) == 800
+            and round(float(row.total_repayable or 0), 2) == 800
+            and round(float(row.outstanding_balance or 0), 2) == 800
+            and row.reviewed_by == employer_id
+            and row.approval_notes == "Regression test approval",
+            f"HTTP={response.status_code}; status={row.status}; "
+            f"approved={row.approved_amount}; "
+            f"outstanding={row.outstanding_balance}",
+        )
+
+    print("\nTEST 8: Invalid approval amount")
+    with app.app_context():
+        invalid_loan = make(
+            LoanApplication,
+            employee_id=loan_employee_id,
+            reference="PHASE5-INVALID-APPROVAL-TEST",
+            requested_amount=500,
+            status="Submitted",
+            principal_amount=0,
+            interest_amount=0,
+            service_fee_amount=0,
+            total_paid=0,
+            outstanding_balance=0,
+        )
+        invalid_loan_id = invalid_loan.id
+        db.session.commit()
+
+    login(employer_id)
+    response = client.post(
+        f"/loans/{invalid_loan_id}/approve",
+        data={"approved_amount": "501"},
+    )
+
+    with app.app_context():
+        row = db.session.get(LoanApplication, invalid_loan_id)
+        record(
+            "Approval above requested amount is rejected",
+            response.status_code == 302
+            and row.status == "Submitted"
+            and row.approved_amount is None,
+            f"HTTP={response.status_code}; status={row.status}; "
+            f"approved={row.approved_amount}",
+        )
+
+    print("\nTEST 9: Loan rejection")
+    with app.app_context():
+        rejection_loan = make(
+            LoanApplication,
+            employee_id=loan_employee_id,
+            reference="PHASE5-REJECTION-TEST",
+            requested_amount=700,
+            status="Under Review",
+            principal_amount=0,
+            interest_amount=0,
+            service_fee_amount=0,
+            total_paid=0,
+            outstanding_balance=0,
+        )
+        rejection_loan_id = rejection_loan.id
+        db.session.commit()
+
+    login(employer_id)
+    response = client.post(
+        f"/loans/{rejection_loan_id}/reject",
+        data={"rejection_reason": "Regression test rejection"},
+    )
+
+    with app.app_context():
+        row = db.session.get(LoanApplication, rejection_loan_id)
+        record(
+            "Rejection records status, reviewer and reason",
+            response.status_code == 302
+            and row.status == "Rejected"
+            and row.reviewed_by == employer_id
+            and row.approval_notes == "Regression test rejection",
+            f"HTTP={response.status_code}; status={row.status}; "
+            f"reviewer={row.reviewed_by}; notes={row.approval_notes}",
+        )
+
+    print("\nTEST 10: Loan disbursement")
+    with app.app_context():
+        disbursement_loan = make(
+            LoanApplication,
+            employee_id=loan_employee_id,
+            reference="PHASE5-DISBURSE-TEST",
+            requested_amount=900,
+            approved_amount=900,
+            status="Approved",
+            principal_amount=900,
+            interest_amount=100,
+            service_fee_amount=0,
+            total_repayable=1000,
+            total_paid=0,
+            outstanding_balance=900,
+        )
+        disbursement_loan_id = disbursement_loan.id
+        db.session.commit()
+
+    login(employer_id)
+    response = client.post(
+        f"/loans/{disbursement_loan_id}/disburse",
+        data={"disbursement_reference": "PHASE5-DISB-REF-001"},
+    )
+
+    with app.app_context():
+        row = db.session.get(LoanApplication, disbursement_loan_id)
+        record(
+            "Approved loan disburses with reference and balance",
+            response.status_code == 302
+            and row.status == "Disbursed"
+            and row.disbursed_at is not None
+            and row.disbursement_reference == "PHASE5-DISB-REF-001"
+            and round(float(row.outstanding_balance or 0), 2) == 1000,
+            f"HTTP={response.status_code}; status={row.status}; "
+            f"reference={row.disbursement_reference}; "
+            f"outstanding={row.outstanding_balance}",
+        )
+        original_reference = row.disbursement_reference
+        original_disbursed_at = row.disbursed_at
+
+    print("\nTEST 11: Repeat disbursement")
+    login(employer_id)
+    response = client.post(
+        f"/loans/{disbursement_loan_id}/disburse",
+        data={"disbursement_reference": "PHASE5-DISB-REF-SECOND"},
+    )
+
+    with app.app_context():
+        row = db.session.get(LoanApplication, disbursement_loan_id)
+        record(
+            "Repeat disbursement does not replace original disbursement",
+            response.status_code == 302
+            and row.status == "Disbursed"
+            and row.disbursement_reference == original_reference
+            and row.disbursed_at == original_disbursed_at,
+            f"HTTP={response.status_code}; status={row.status}; "
+            f"reference={row.disbursement_reference}",
+        )
+
+    print("\nTEST 12: Cross-company loan access")
+    with app.app_context():
+        foreign_company_id = db.session.query(Company.id).filter_by(
+            name="Phase 5 Test Company B",
+        ).scalar()
+
+        if foreign_company_id is None:
+            raise RuntimeError(
+                "Cross-company fixture company could not be found."
+            )
+
+        foreign_employee_id = db.session.query(Employee.id).filter_by(
+            first_name="Foreign",
+            last_name="Employee",
+            company_id=foreign_company_id,
+        ).scalar()
+
+        if foreign_employee_id is None:
+            raise RuntimeError(
+                "Cross-company fixture employee could not be found."
+            )
+
+        foreign_loan = make(
+            LoanApplication,
+            employee_id=foreign_employee_id,
+            reference="PHASE5-FOREIGN-LOAN-TEST",
+            requested_amount=600,
+            status="Submitted",
+            principal_amount=0,
+            interest_amount=0,
+            service_fee_amount=0,
+            total_paid=0,
+            outstanding_balance=0,
+        )
+        foreign_loan_id = foreign_loan.id
+        db.session.commit()
+
+    login(employer_id)
+    response = client.post(
+        f"/loans/{foreign_loan_id}/approve",
+        data={"approved_amount": "600"},
+    )
+
+    with app.app_context():
+        row = db.session.get(LoanApplication, foreign_loan_id)
+        record(
+            "Company A cannot approve Company B loan",
+            response.status_code == 404
+            and row.status == "Submitted"
+            and row.approved_amount is None,
+            f"HTTP={response.status_code}; status={row.status}; "
+            f"approved={row.approved_amount}",
+        )
+
 except Exception as exc:
     print("\n[TEST SCRIPT ERROR]", type(exc).__name__ + ":", exc)
     traceback.print_exc()
+    results.append((
+        "Test script completed without unexpected exceptions",
+        False,
+    ))
 
 finally:
     if app is not None and db is not None:
@@ -454,4 +684,10 @@ finally:
     print(f"Total:  {len(results)}")
     if failed:
         print("Review the FAIL lines above before changing application code.")
+    else:
+        print("RESULT: PASSED — all tests completed without script errors.")
     print("Isolated test run finished.")
+
+if failed:
+    sys.exit(1)
+sys.exit(0)

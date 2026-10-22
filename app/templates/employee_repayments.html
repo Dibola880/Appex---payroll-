@@ -95,9 +95,8 @@
     </p>
 
     <p class="muted">
-        Detailed repayment schedules and payment
-        records will be displayed here once they are
-        available.
+        Your recorded repayment transactions are listed
+        in the repayment history below.
     </p>
 
 {% elif application.status == "Submitted" %}
@@ -142,6 +141,52 @@
 </div>
 
 </div>{% endif %}
+
+<div class="card">
+    <h2>Repayment History</h2>
+
+    {% if repayment_entries %}
+        <p class="muted">
+            Your recorded loan repayments, with balances before
+            and after each transaction.
+        </p>
+
+        <div style="overflow-x: auto; width: 100%;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th scope="col">Date</th>
+                        <th scope="col">Amount Paid</th>
+                        <th scope="col">Balance Before</th>
+                        <th scope="col">Balance After</th>
+                        <th scope="col">Payment Method</th>
+                        <th scope="col">Reference</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in repayment_entries %}
+                    <tr>
+                        <td>
+                            {{ entry.repayment_date.strftime('%Y-%m-%d')
+                               if entry.repayment_date else '—' }}
+                        </td>
+                        <td>R {{ "%.2f"|format(entry.amount or 0) }}</td>
+                        <td>R {{ "%.2f"|format(entry.balance_before or 0) }}</td>
+                        <td>R {{ "%.2f"|format(entry.balance_after or 0) }}</td>
+                        <td>{{ entry.payment_method or '—' }}</td>
+                        <td>{{ entry.reference or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="muted">
+            No repayment transactions have been recorded yet.
+            Your history will appear here when repayments are recorded.
+        </p>
+    {% endif %}
+</div>
 
 <div class="card"><h2>Need Help?</h2>
 

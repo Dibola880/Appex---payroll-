@@ -269,9 +269,8 @@ def add_months(value, months):
     )
 
 
-def get_active_employee_loan(employee_id):
-
-    return (
+def get_active_employee_loan(employee_id, lock_for_update=False):
+    query = (
         LoanApplication.query
         .filter(
             LoanApplication.employee_id == employee_id,
@@ -281,8 +280,12 @@ def get_active_employee_loan(employee_id):
         .order_by(
             LoanApplication.created_at.asc()
         )
-        .first()
     )
+
+    if lock_for_update:
+        query = query.with_for_update().populate_existing()
+
+    return query.first()
 
 
 def calculate_loan_installment(application):
@@ -326,18 +329,24 @@ def calculate_loan_installment(application):
 
 def get_company_loan_or_404(
     loan_id,
-    user
+    user,
+    lock_for_update=False
 ):
-
-    return (
+    query = (
         LoanApplication.query
         .join(Employee)
         .filter(
             LoanApplication.id == loan_id,
             Employee.company_id == user.company_id
         )
-        .first_or_404()
     )
+
+    if lock_for_update:
+        query = query.with_for_update(
+            of=LoanApplication
+        ).populate_existing()
+
+    return query.first_or_404()
 
 
 # ============================================================
@@ -384,10 +393,15 @@ def create_loan_repayment_ledger_entry(
     if existing_reference:
         return existing_reference, False
 
-    payment_number = LoanRepayment.query.filter_by(
+    last_completed_repayment = LoanRepayment.query.filter_by(
         loan_application_id=loan_application.id,
         status="Completed",
-    ).count() + 1
+    ).order_by(LoanRepayment.payment_number.desc()).first()
+    payment_number = (
+        last_completed_repayment.payment_number + 1
+        if last_completed_repayment
+        else 1
+    )
 
     repayment = LoanRepayment(
         loan_application_id=loan_application.id,
@@ -422,7 +436,7 @@ def get_employee_loan_repayment_ledger(employee_id):
 # PAYROLL CALCULATION
 # ============================================================
 
-def calculate_payroll_input(payroll_input):
+def calculate_payroll_input(payroll_input, lock_loan=False):
 
     employee = payroll_input.employee
 
@@ -496,10 +510,9 @@ def calculate_payroll_input(payroll_input):
 
     else:
 
-        loan_application = (
-            get_active_employee_loan(
-                employee.id
-            )
+        loan_application = get_active_employee_loan(
+            employee.id,
+            lock_for_update=lock_loan,
         )
 
         if loan_application:
@@ -574,7 +587,7 @@ def calculate_payroll_input(payroll_input):
     }
 
 
-def calculate_payroll_run_totals(payroll_run):
+def calculate_payroll_run_totals(payroll_run, lock_loans=False):
 
     payroll_inputs = PayrollInput.query.filter_by(
         payroll_run_id=payroll_run.id
@@ -590,9 +603,13 @@ def calculate_payroll_run_totals(payroll_run):
 
     for payroll_input in payroll_inputs:
 
-        calculated = calculate_payroll_input(
-            payroll_input
-        )
+        if lock_loans:
+            calculated = calculate_payroll_input(
+                payroll_input,
+                lock_loan=True,
+            )
+        else:
+            calculated = calculate_payroll_input(payroll_input)
 
         results.append(calculated)
 
@@ -1887,6 +1904,7 @@ def employee_repayments():
         outstanding_balance=outstanding_balance,
         amount_paid=amount_paid,
         monthly_installment=monthly_installment,
+        repayment_entries=get_employee_loan_repayment_ledger(employee.id),
     )
 
 
@@ -1945,7 +1963,8 @@ def approve_loan(loan_id):
 
     application = get_company_loan_or_404(
         loan_id,
-        user
+        user,
+        lock_for_update=True
     )
 
     if application.status not in [
@@ -2044,7 +2063,8 @@ def reject_loan(loan_id):
 
     application = get_company_loan_or_404(
         loan_id,
-        user
+        user,
+        lock_for_update=True
     )
 
     if application.status not in [
@@ -2107,7 +2127,8 @@ def disburse_loan(loan_id):
 
     application = get_company_loan_or_404(
         loan_id,
-        user
+        user,
+        lock_for_update=True
     )
 
     if application.status != "Approved":
@@ -2782,10 +2803,16 @@ def approve_payroll(payroll_id):
 def complete_payroll(payroll_id):
     user = current_user()
 
-    payroll_run = PayrollRun.query.filter_by(
-        id=payroll_id,
-        company_id=user.company_id,
-    ).first_or_404()
+    payroll_run = (
+        PayrollRun.query
+        .filter_by(
+            id=payroll_id,
+            company_id=user.company_id,
+        )
+        .with_for_update()
+        .populate_existing()
+        .first_or_404()
+    )
 
     if payroll_run.status == "Completed":
         flash("This payroll has already been completed.", "warning")
@@ -2862,7 +2889,10 @@ def complete_payroll(payroll_id):
                 url_for("main.view_payroll", payroll_id=payroll_run.id)
             )
 
-        results = calculate_payroll_run_totals(payroll_run)
+        results = calculate_payroll_run_totals(
+            payroll_run,
+            lock_loans=True,
+        )
 
         for calculated in results:
             employee = calculated["employee"]
