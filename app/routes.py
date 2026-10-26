@@ -8,6 +8,7 @@ from io import BytesIO
 
 from flask import (
     Blueprint,
+    current_app,
     render_template,
     request,
     redirect,
@@ -1286,146 +1287,128 @@ def accept_invitation(token):
     ).first()
 
     if not invitation:
-
-        flash(
-            "Invalid invitation.",
-            "danger"
-        )
-
-        return redirect(
-            url_for("main.login")
-        )
+        flash("Invalid invitation.", "danger")
+        return redirect(url_for("main.login"))
 
     if not invitation.is_valid():
-
         flash(
             "This invitation has expired or has already been used.",
             "danger"
         )
-
-        return redirect(
-            url_for("main.login")
-        )
+        return redirect(url_for("main.login"))
 
     employee = invitation.employee
 
+    if not employee or employee.user_id:
+        flash(
+            "This invitation cannot be used. Please ask your employer for a new invitation.",
+            "danger"
+        )
+        return redirect(url_for("main.login"))
+
     if request.method == "POST":
-
-        name = (
-            request.form.get("name")
-            or ""
-        ).strip()
-
+        name = (request.form.get("name") or "").strip()
         email = (
             request.form.get("email")
             or employee.email
             or ""
         ).strip().lower()
-
-        password = (
-            request.form.get("password")
-            or ""
-        )
+        password = request.form.get("password") or ""
+        confirm_password = request.form.get("confirm_password") or ""
 
         if not name:
-
-            flash(
-                "Name is required.",
-                "danger"
-            )
-
+            flash("Full name is required.", "danger")
             return redirect(
-                url_for(
-                    "main.accept_invitation",
-                    token=token
-                )
+                url_for("main.accept_invitation", token=token)
             )
 
         if not email:
+            flash("Email address is required.", "danger")
+            return redirect(
+                url_for("main.accept_invitation", token=token)
+            )
 
+        if len(email) > 200 or "@" not in email:
+            flash("Please enter a valid email address.", "danger")
+            return redirect(
+                url_for("main.accept_invitation", token=token)
+            )
+
+        if len(password) < 8:
             flash(
-                "Email is required.",
+                "Your password must be at least 8 characters long.",
                 "danger"
             )
-
             return redirect(
-                url_for(
-                    "main.accept_invitation",
-                    token=token
-                )
+                url_for("main.accept_invitation", token=token)
             )
 
-        if not password:
-
-            flash(
-                "Password is required.",
-                "danger"
-            )
-
+        if password != confirm_password:
+            flash("The passwords do not match.", "danger")
             return redirect(
-                url_for(
-                    "main.accept_invitation",
-                    token=token
-                )
+                url_for("main.accept_invitation", token=token)
             )
 
-        existing_user = User.query.filter_by(
-            email=email
-        ).first()
+        existing_user = User.query.filter_by(email=email).first()
 
         if existing_user:
-
             flash(
-                "An account with this email already exists.",
+                "An account with this email already exists. Please use another email or contact your employer.",
                 "danger"
             )
-
             return redirect(
-                url_for("main.login")
+                url_for("main.accept_invitation", token=token)
             )
 
-        user = User(
-            company_id=employee.company_id,
-            name=name,
-            email=email,
-            password_hash=generate_password_hash(
-                password
-            ),
-            role="employee",
-            is_active=True,
-        )
+        name_parts = name.split()
+        first_name = name_parts[0]
+        last_name = " ".join(name_parts[1:]) or first_name
 
-        db.session.add(user)
-        db.session.flush()
+        try:
+            user = User(
+                company_id=employee.company_id,
+                name=name,
+                email=email,
+                password_hash=generate_password_hash(password),
+                role="employee",
+                is_active=True,
+            )
+            db.session.add(user)
+            db.session.flush()
 
-        employee.user_id = user.id
-
-        if not employee.email:
+            employee.user_id = user.id
+            employee.first_name = first_name
+            employee.last_name = last_name
             employee.email = email
+            invitation.used = True
 
-        invitation.used = True
+            db.session.commit()
 
-        db.session.commit()
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception(
+                "Employee invitation account creation failed."
+            )
+            flash(
+                "We could not create your account. Please try again or contact your employer.",
+                "danger"
+            )
+            return redirect(
+                url_for("main.accept_invitation", token=token)
+            )
 
         session.clear()
         session["user_id"] = user.id
 
-        flash(
-            "Employee account created successfully.",
-            "success"
-        )
-
-        return redirect(
-            url_for(
-                "main.employee_dashboard"
-            )
-        )
+        flash("Employee account created successfully.", "success")
+        return redirect(url_for("main.employee_dashboard"))
 
     return render_template(
         "accept_invitation.html",
         invitation=invitation,
         employee=employee,
     )
+
 
 
 # ============================================================

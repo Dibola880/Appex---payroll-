@@ -1,84 +1,81 @@
 {% extends "base.html" %}
-
 {% block title %}Accept Invitation - Appex Payroll{% endblock %}
-
 {% block heading %}Employee Account Setup{% endblock %}
 
 {% block content %}
-
 <div class="card">
+  <h2>Welcome to Appex Payroll</h2>
+  <p>
+    You have been invited to join the employee portal.
+    Confirm your details and create a password to activate your account.
+  </p>
 
-    <h2>Welcome to Appex Payroll</h2>
+  <form method="POST">
+    <div class="form-group">
+      <label for="name">Full Name</label>
+      <input
+        type="text"
+        id="name"
+        name="name"
+        value="{{ (employee.first_name ~ ' ' ~ employee.last_name)|trim }}"
+        autocomplete="name"
+        required
+      >
+    </div>
 
-    <p>
-        You have been invited to join the employee portal.
-        Please create your account password below.
-    </p>
+    <div class="form-group">
+      <label for="email">Email Address</label>
+      <input
+        type="email"
+        id="email"
+        name="email"
+        value="{{ employee.email or '' }}"
+        autocomplete="email"
+        required
+      >
+    </div>
 
-    <form method="POST">
+    <div class="form-group">
+      <label for="password">Create Password</label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        minlength="8"
+        autocomplete="new-password"
+        required
+      >
+    </div>
 
-        <div class="form-group">
-            <label for="password">
-                Create Password
-            </label>
+    <div class="form-group">
+      <label for="confirm_password">Confirm Password</label>
+      <input
+        type="password"
+        id="confirm_password"
+        name="confirm_password"
+        minlength="8"
+        autocomplete="new-password"
+        required
+      >
+    </div>
 
-            <input
-                type="password"
-                id="password"
-                name="password"
-                placeholder="Enter a secure password"
-                minlength="8"
-                required
-            >
-        </div>
+    <div class="notice">
+      <strong>Password requirements:</strong>
+      <ul>
+        <li>At least 8 characters</li>
+        <li>Use a strong, unique password</li>
+        <li>Do not share your password with anyone</li>
+      </ul>
+    </div>
 
-
-        <div class="form-group">
-            <label for="confirm_password">
-                Confirm Password
-            </label>
-
-            <input
-                type="password"
-                id="confirm_password"
-                name="confirm_password"
-                placeholder="Re-enter your password"
-                minlength="8"
-                required
-            >
-        </div>
-
-
-        <div class="notice">
-            <strong>Password requirements:</strong>
-            <ul>
-                <li>At least 8 characters</li>
-                <li>Use a combination of letters and numbers</li>
-                <li>Do not share your password with anyone</li>
-            </ul>
-        </div>
-
-
-        <div class="form-actions">
-
-            <button
-                type="submit"
-                class="button"
-            >
-                Create Employee Account
-            </button>
-
-            <a
-                href="{{ url_for('main.login') }}"
-                class="button secondary"
-            >
-                Back to Login
-            </a>
-
-        </div>
-
-    </form>
-
+    <div class="form-actions">
+      <button type="submit" class="button">
+        Create Employee Account
+      </button>
+      <a href="{{ url_for('main.login') }}" class="button secondary">
+        Back to Login
+      </a>
+    </div>
+  </form>
 </div>
-
 {% endblock %}
