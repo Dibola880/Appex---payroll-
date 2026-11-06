@@ -155,11 +155,11 @@ try:
             "admin",
         )
 
-        # New company-admin role is deliberately not an employer role.
+        # Company administrators have company-scoped operational access.
         check_status(
-            "Company admin cannot use employer decorator",
+            "Company admin can use operational decorator",
             "/__auth_test/employer",
-            302,
+            200,
             "company_admin",
         )
         check_status(
@@ -202,14 +202,21 @@ try:
             "employee",
         )
 
-        # New administrator roles must not fall through to employer dashboard.
-        for role in ("company_admin", "platform_super_admin"):
-            check_status(
-                f"{role} is denied employer dashboard",
-                "/",
-                403,
-                role,
-            )
+        # Company admins access their own company dashboard.
+        check_status(
+            "Company admin can access company dashboard",
+            "/",
+            200,
+            "company_admin",
+        )
+
+        # Platform administrators do not enter company dashboards.
+        check_status(
+            "Platform super admin is denied company dashboard",
+            "/",
+            403,
+            "platform_super_admin",
+        )
 
         # Employee dashboard redirection remains unchanged.
         response = check_status(

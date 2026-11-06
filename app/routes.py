@@ -47,7 +47,7 @@ from .models import (
 from .roles import (
     PLATFORM_SUPER_ADMIN,
     COMPANY_ADMIN_ROLES,
-    EMPLOYER_ROLES,
+    COMPANY_OPERATIONAL_ROLES,
     EMPLOYEE,
 )
 
@@ -107,10 +107,10 @@ def employer_required(view):
                 url_for("main.login")
             )
 
-        if user.role not in EMPLOYER_ROLES:
+        if user.role not in COMPANY_OPERATIONAL_ROLES:
 
             flash(
-                "Employer access required.",
+                "Company operational access required.",
                 "danger"
             )
 
@@ -780,7 +780,7 @@ def dashboard():
             )
         )
 
-    if user.role not in EMPLOYER_ROLES:
+    if user.role not in COMPANY_OPERATIONAL_ROLES:
         abort(403)
 
     company = user.company

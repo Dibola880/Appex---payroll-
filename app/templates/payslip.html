@@ -226,7 +226,7 @@
     <!-- ACTIONS -->
     <div class="payslip-actions no-print">
 
-        {% if current_user.role in ["employer", "admin"] %}
+        {% if current_user.role in ["employer", "admin", "company_admin"] %}
 
             <a
                 class="btn secondary"

@@ -53,7 +53,7 @@
                      EMPLOYER / ADMIN MENU
                 ================================================= -->
 
-                {% if current_user.role in ["employer", "admin"] %}
+                {% if current_user.role in ["employer", "admin", "company_admin"] %}
 
                     <a
                         href="{{ url_for('main.dashboard') }}"

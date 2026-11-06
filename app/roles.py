@@ -6,12 +6,18 @@ EMPLOYER = "employer"
 EMPLOYEE = "employee"
 LEGACY_ADMIN = "admin"
 
-# Existing employer access is preserved during this milestone.
-# Company administrators are deliberately excluded until route-level
-# company ownership checks have been reviewed.
+# Existing employer and legacy-admin role semantics are preserved.
 EMPLOYER_ROLES = frozenset({
     EMPLOYER,
     LEGACY_ADMIN,
+})
+
+# Company administrators receive the same company-scoped operational
+# access as employers. Platform-wide administration remains separate.
+COMPANY_OPERATIONAL_ROLES = frozenset({
+    EMPLOYER,
+    LEGACY_ADMIN,
+    COMPANY_ADMIN,
 })
 
 COMPANY_ADMIN_ROLES = frozenset({
