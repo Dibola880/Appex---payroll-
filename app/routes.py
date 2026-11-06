@@ -8,6 +8,7 @@ from io import BytesIO
 
 from flask import (
     Blueprint,
+    abort,
     current_app,
     render_template,
     request,
@@ -41,6 +42,13 @@ from .models import (
     LoanRepayment,
     SalesLead,
     ClientReferral,
+)
+
+from .roles import (
+    PLATFORM_SUPER_ADMIN,
+    COMPANY_ADMIN_ROLES,
+    EMPLOYER_ROLES,
+    EMPLOYEE,
 )
 
 from .payroll_calculator import calculate_payroll
@@ -99,7 +107,7 @@ def employer_required(view):
                 url_for("main.login")
             )
 
-        if user.role not in ["employer", "admin"]:
+        if user.role not in EMPLOYER_ROLES:
 
             flash(
                 "Employer access required.",
@@ -109,6 +117,52 @@ def employer_required(view):
             return redirect(
                 url_for("main.employee_dashboard")
             )
+
+        return view(*args, **kwargs)
+
+    return wrapped_view
+
+
+def company_admin_required(view):
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+
+        user = current_user()
+
+        if not user:
+            flash(
+                "Please log in to continue.",
+                "warning"
+            )
+            return redirect(url_for("main.login"))
+
+        if (
+            user.role not in COMPANY_ADMIN_ROLES
+            or not user.company_id
+            or user.company is None
+        ):
+            abort(403)
+
+        return view(*args, **kwargs)
+
+    return wrapped_view
+
+
+def platform_super_admin_required(view):
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+
+        user = current_user()
+
+        if not user:
+            flash(
+                "Please log in to continue.",
+                "warning"
+            )
+            return redirect(url_for("main.login"))
+
+        if user.role != PLATFORM_SUPER_ADMIN:
+            abort(403)
 
         return view(*args, **kwargs)
 
@@ -718,13 +772,16 @@ def dashboard():
 
     user = current_user()
 
-    if user.role == "employee":
+    if user.role == EMPLOYEE:
 
         return redirect(
             url_for(
                 "main.employee_dashboard"
             )
         )
+
+    if user.role not in EMPLOYER_ROLES:
+        abort(403)
 
     company = user.company
 
