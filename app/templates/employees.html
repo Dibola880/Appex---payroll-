@@ -92,12 +92,10 @@
 
                         {% else %}
 
-                            <a
-                                class="btn small"
-                                href="{{ url_for('main.create_invitation', employee_id=employee.id) }}"
-                            >
-                                Invite
-                            </a>
+                            <form method="POST" action="{{ url_for('main.create_invitation', employee_id=employee.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn small">Invite</button>
+                            </form>
 
                         {% endif %}
 

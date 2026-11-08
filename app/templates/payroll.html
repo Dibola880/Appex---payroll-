@@ -90,6 +90,7 @@
         method="POST"
         action="{{ url_for('main.create_payroll') }}"
     >
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <!-- =================================================
              PAYROLL PERIOD

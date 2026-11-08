@@ -139,7 +139,7 @@ try:
         )
 
         print("\nTEST 3: Employee login")
-        client.get("/logout")
+        client.post("/logout")
         response = client.post(
             "/login",
             data={

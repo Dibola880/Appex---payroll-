@@ -3,11 +3,13 @@ import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_wtf.csrf import CSRFProtect
 from sqlalchemy import text
 
 
 db = SQLAlchemy()
 migrate = Migrate()
+csrf = CSRFProtect()
 
 
 def create_app():
@@ -17,10 +19,17 @@ def create_app():
     # APPLICATION CONFIGURATION
     # ============================================================
 
-    app.config["SECRET_KEY"] = os.getenv(
-        "SECRET_KEY",
-        "dev-secret-key-change-this"
-    )
+    environment = os.getenv("APP_ENV", "development").strip().lower()
+    secret_key = os.getenv("SECRET_KEY")
+
+    if not secret_key or not secret_key.strip():
+        if environment == "production":
+            raise RuntimeError(
+                "SECRET_KEY must be configured in production."
+            )
+        secret_key = "dev-secret-key-change-this"
+
+    app.config["SECRET_KEY"] = secret_key
 
     database_url = os.getenv(
         "DATABASE_URL",
@@ -44,11 +53,15 @@ def create_app():
 
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["SESSION_COOKIE_SECURE"] = (
+        environment == "production"
+    )
 
     # ============================================================
     # INITIALIZE EXTENSIONS
     # ============================================================
 
+    csrf.init_app(app)
     db.init_app(app)
     migrate.init_app(app, db)
 

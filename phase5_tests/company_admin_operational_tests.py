@@ -226,7 +226,7 @@ try:
         ).first()
 
         def test_invite_own_employee():
-            response = client.get(
+            response = client.post(
                 f"/employees/{new_employee.id}/invite"
             )
             assert response.status_code in (200, 302)
@@ -246,7 +246,7 @@ try:
         ).order_by(EmployeeInvitation.id.desc()).first()
 
         def test_foreign_employee_invitation_denied():
-            response = client.get(
+            response = client.post(
                 f"/employees/{employee_b.id}/invite"
             )
             assert response.status_code == 404

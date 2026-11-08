@@ -24,6 +24,7 @@
     <h2>Payroll Period</h2>
 
     <form method="POST" action="{{ url_for('main.payroll') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <input
             type="hidden"

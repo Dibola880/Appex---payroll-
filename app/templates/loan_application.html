@@ -55,6 +55,7 @@ Apply For Loan - Appex Payroll
             method="POST"
             action="{{ url_for('main.loan_application') }}"
         >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
 
             <!-- Loan Amount -->

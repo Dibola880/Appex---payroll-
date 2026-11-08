@@ -67,7 +67,13 @@ def current_user():
     if not user_id:
         return None
 
-    return User.query.get(user_id)
+    user = User.query.get(user_id)
+
+    if user is None or not user.is_active:
+        session.clear()
+        return None
+
+    return user
 
 
 def login_required(view):
@@ -1067,7 +1073,7 @@ def login():
 # LOGOUT
 # ============================================================
 
-@bp.route("/logout")
+@bp.route("/logout", methods=["POST"])
 def logout():
 
     session.clear()
@@ -1259,7 +1265,7 @@ def new_employee():
 
 @bp.route(
     "/employees/<int:employee_id>/invite",
-    methods=["GET", "POST"]
+    methods=["POST"]
 )
 @employer_required
 def invite_employee(employee_id):
@@ -1319,7 +1325,7 @@ def invite_employee(employee_id):
 
 @bp.route(
     "/employees/<int:employee_id>/create-invitation",
-    methods=["GET", "POST"]
+    methods=["POST"]
 )
 @employer_required
 def create_invitation(employee_id):
@@ -1488,13 +1494,15 @@ def employee_dashboard():
 
     if not employee:
 
+        session.clear()
+
         flash(
             "No employee profile is linked to this account.",
             "danger"
         )
 
         return redirect(
-            url_for("main.logout")
+            url_for("main.login")
         )
 
     return render_template(

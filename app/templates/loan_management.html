@@ -239,6 +239,7 @@
                                     action="{{ url_for('main.approve_loan', loan_id=application.id) }}"
                                     class="loan-action-form"
                                 >
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                                     <label>
                                         Approved Amount
@@ -280,6 +281,7 @@
                                     action="{{ url_for('main.reject_loan', loan_id=application.id) }}"
                                     class="loan-action-form"
                                 >
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                                     <label>
                                         Rejection Reason
@@ -308,6 +310,7 @@
                                     action="{{ url_for('main.disburse_loan', loan_id=application.id) }}"
                                     class="loan-action-form"
                                 >
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                                     <label>
                                         Disbursement Reference
