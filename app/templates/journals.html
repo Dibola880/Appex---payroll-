@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Journal Register | Appex{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Journal Register</h1>
+    <p>Company accounting journal entries</p>
+    <a class="btn" href="{{ url_for('main.journal_create') }}">
+        New manual journal
+    </a>
+</div>
+
+<div class="card">
+    {% if rows %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Journal No.</th>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Financial Year / Period</th>
+                    <th>Currency</th>
+                    <th>Source</th>
+                    <th>Status</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for journal, period, financial_year in rows %}
+                <tr>
+                    <td>{{ journal.journal_number }}</td>
+                    <td>{{ journal.journal_date.strftime("%d %b %Y") }}</td>
+                    <td>{{ journal.description }}</td>
+                    <td>
+                        {% if financial_year %}{{ financial_year.name }}{% endif %}
+                        {% if period %}<br><small>{{ period.name }}</small>{% endif %}
+                        {% if not period %}—{% endif %}
+                    </td>
+                    <td>{{ journal.currency }}</td>
+                    <td>{{ journal.source_type }}{% if journal.source_id %} #{{ journal.source_id }}{% endif %}</td>
+                    <td><span class="badge">{{ journal.status }}</span></td>
+                    <td>
+                        <a class="btn small"
+                           href="{{ url_for('main.journal_detail', journal_id=journal.id) }}">
+                            View
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>No journal entries have been recorded for this company.</p>
+    {% endif %}
+</div>
+{% endblock %}

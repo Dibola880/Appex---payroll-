@@ -53,7 +53,22 @@
                      EMPLOYER / ADMIN MENU
                 ================================================= -->
 
-                {% if current_user.role in ["employer", "admin", "company_admin"] %}
+                {% if current_user.role == "platform_super_admin" %}
+                <a href="{{ url_for('main.platform_companies') }}">Companies</a>
+                <a href="{{ url_for('main.platform_integrations') }}">Platform Integrations</a>
+                <a href="{{ url_for('main.platform_subscription_plans') }}">Subscription Plans</a>
+                <a href="{{ url_for('main.platform_subscription_invoices') }}">Subscription Billing</a>
+                <a href="{{ url_for('main.platform_audit_logs') }}">Audit Logs</a>
+            {% elif current_user.role in ["employer", "admin", "company_admin"] %}
+                    {% if current_user.role == "company_admin" %}
+                        <a href="{{ url_for('main.company_subscription') }}">Subscription</a>
+                        <a href="{{ url_for('main.company_subscription_invoices') }}">Subscription Invoices</a>
+                        <a href="{{ url_for('main.company_partner_consents') }}">Partner Consent</a>
+                        <a href="{{ url_for('main.company_partner_requests') }}">Partner Requests</a>
+                        <a href="{{ url_for('main.accounting_setup') }}">Accounting Setup</a>
+    <a href="{{ url_for('main.accounting_calendar') }}">Accounting Calendar</a>
+                        <a href="{{ url_for('main.journal_list') }}">Accounting</a>
+                    {% endif %}
 
                     <a
                         href="{{ url_for('main.dashboard') }}"

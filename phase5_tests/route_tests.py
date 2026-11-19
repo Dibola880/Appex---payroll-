@@ -83,6 +83,7 @@ try:
 
         employee_normal = make(
             Employee,
+            employee_number="P5-ROUTE-001",
             company_id=company_a.id,
             first_name="Normal",
             last_name="Employee",
@@ -92,6 +93,7 @@ try:
 
         employee_loan = make(
             Employee,
+            employee_number="P5-ROUTE-002",
             company_id=company_a.id,
             first_name="Loan",
             last_name="Employee",
@@ -101,6 +103,7 @@ try:
 
         employee_duplicate = make(
             Employee,
+            employee_number="P5-ROUTE-003",
             company_id=company_a.id,
             first_name="Duplicate",
             last_name="Employee",
@@ -110,6 +113,7 @@ try:
 
         employee_rollback = make(
             Employee,
+            employee_number="P5-ROUTE-004",
             company_id=company_a.id,
             first_name="Rollback",
             last_name="Employee",
@@ -119,6 +123,7 @@ try:
 
         employee_foreign = make(
             Employee,
+            employee_number="P5-ROUTE-005",
             company_id=company_b.id,
             first_name="Foreign",
             last_name="Employee",
@@ -167,7 +172,7 @@ try:
             status="Disbursed",
             principal_amount=1000,
             interest_amount=200,
-            service_fee=0,
+            service_fee_amount=0,
             total_repayable=1200,
             scheduled_installment=600,
             total_paid=200,
@@ -193,7 +198,7 @@ try:
             status="Disbursed",
             principal_amount=1000,
             interest_amount=200,
-            service_fee=0,
+            service_fee_amount=0,
             total_repayable=1200,
             scheduled_installment=600,
             total_paid=200,

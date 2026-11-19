@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}{% if journal %}Edit {{ journal.journal_number }}{% else %}New Manual Journal{% endif %} | Appex{% endblock %}
+{% block content %}
+{% set values = form_values|default({}) %}
+<div class="page-header">
+    <h1>{% if journal %}Edit manual journal draft{% else %}New manual journal{% endif %}</h1>
+    <p>{% if journal %}Update this company's draft journal.{% else %}Create a draft journal for your company.{% endif %}</p>
+</div>
+
+<div class="card">
+    {% if not accounts %}
+        <p>No eligible manual-posting accounts are available.</p>
+    {% endif %}
+    {% if not periods %}
+        <p>No open accounting periods are available.</p>
+    {% endif %}
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if journal %}
+        <input type="hidden" name="snapshot_token" value="{{ snapshot_token|default('') }}">
+        {% endif %}
+
+        <div class="form-group">
+            <label for="journal_number">Journal number</label>
+            <input id="journal_number" name="journal_number" type="text"
+                   maxlength="40" required
+                   value="{{ values.get('journal_number', journal.journal_number if journal else '') }}">
+        </div>
+
+        <div class="form-group">
+            <label for="journal_date">Journal date</label>
+            <input id="journal_date" name="journal_date" type="date" required
+                   value="{{ values.get('journal_date', journal.journal_date.isoformat() if journal else '') }}">
+        </div>
+
+        <div class="form-group">
+            <label for="accounting_period_id">Accounting period</label>
+            <select id="accounting_period_id" name="accounting_period_id" required>
+                <option value="">Select an open period</option>
+                {% for period, financial_year in periods %}
+                    <option value="{{ period.id }}"
+                        {% if values.get('accounting_period_id', journal.accounting_period_id|string if journal else '') == period.id|string %}selected{% endif %}>
+                        {{ financial_year.start_date }} to {{ financial_year.end_date }} —
+                        {{ period.name }} ({{ period.start_date }} to {{ period.end_date }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="description">Journal description</label>
+            <textarea id="description" name="description" maxlength="500"
+                      rows="3" required>{{ values.get('description', journal.description if journal else '') }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="currency">Currency</label>
+            <input id="currency" name="currency" type="text"
+                   value="{{ values.get('currency', journal.currency if journal else 'ZAR') }}"
+                   minlength="3" maxlength="3" required>
+        </div>
+
+        {% if journal %}
+        <div class="form-group">
+            <label for="reason">Reason for edit (optional)</label>
+            <input id="reason" name="reason" type="text" maxlength="500" value="{{ values.get('reason', '') }}">
+        </div>
+        {% endif %}
+
+        <h3>Journal lines</h3>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Account</th>
+                        <th>Description</th>
+                        <th>Debit</th>
+                        <th>Credit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in range([6, form_lines|length]|max) %}
+                    {% set existing_line = form_lines[row] if row < form_lines|length else none %}
+                    <tr>
+                        <td>
+                            <select name="account_id">
+                                <option value="">Select account</option>
+                                {% for account in accounts %}
+                                <option value="{{ account.id }}"
+                                    {% if existing_line and existing_line.account_id|string == account.id|string %}selected{% endif %}>
+                                    {{ account.account_code }} — {{ account.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input name="line_description" type="text" maxlength="300"
+                                   value="{{ existing_line.description if existing_line and existing_line.description else '' }}">
+                        </td>
+                        <td>
+                            <input name="debit" type="number" min="0" step="0.01"
+                                   inputmode="decimal"
+                                   value="{{ existing_line.debit if existing_line else '' }}">
+                        </td>
+                        <td>
+                            <input name="credit" type="number" min="0" step="0.01"
+                                   inputmode="decimal"
+                                   value="{{ existing_line.credit if existing_line else '' }}">
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <button type="submit"
+            {% if not accounts or not periods %}disabled{% endif %}>
+            {% if journal %}Save draft changes{% else %}Save draft{% endif %}
+        </button>
+        {% if journal %}
+            <a href="{{ url_for('main.journal_detail', journal_id=journal.id) }}">Cancel</a>
+            <a href="{{ url_for('main.journal_edit', journal_id=journal.id) }}">Reload current draft</a>
+        {% else %}
+            <a href="{{ url_for('main.journal_list') }}">Cancel</a>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <h1>Company subscription</h1>
+    <p>Company: {{ company.name }}</p>
+
+    <h2>Current subscription</h2>
+    {% if current_subscription %}
+        <p><strong>Plan:</strong> {{ current_subscription.plan.name }}</p>
+        <p><strong>Status:</strong> {{ current_subscription.status }}</p>
+        <p><strong>Billing interval:</strong> {{ current_subscription.billing_interval }}</p>
+        <p><strong>Recorded amount:</strong> {{ current_subscription.currency }} {{ current_subscription.amount }}</p>
+        <p><strong>Started:</strong> {{ current_subscription.starts_at or "—" }}</p>
+        <p><strong>Trial ends:</strong> {{ current_subscription.trial_ends_at or "—" }}</p>
+        <p><strong>Current period ends:</strong> {{ current_subscription.current_period_end or current_subscription.trial_ends_at or "—" }}</p>
+        {% if current_subscription.cancel_at_period_end %}
+            <p><strong>Cancellation:</strong> Scheduled for the end of this subscription period.</p>
+        {% elif current_subscription.status|lower in ["trial", "active"] %}
+            <form method="post" action="{{ url_for('main.company_subscription_cancel') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-outline-danger"
+                        onclick="return confirm('Schedule cancellation at the end of the current subscription period?');">
+                    Schedule cancellation
+                </button>
+            </form>
+        {% endif %}
+    {% else %}
+        <p>No current subscription record was found. Your legacy subscription information is not changed by this page.</p>
+        <p><strong>Legacy plan:</strong> {{ company.subscription_plan or "—" }}</p>
+        <p><strong>Legacy status:</strong> {{ company.subscription_status or "—" }}</p>
+    {% endif %}
+
+    <h2>Current access</h2>
+    <p><strong>Access active:</strong> {{ "Yes" if entitlements.is_access_active else "No" }}</p>
+    {% if entitlements.features %}
+        <ul>
+        {% for feature, enabled in entitlements.features.items() %}
+            <li>{{ feature }}: {{ "Enabled" if enabled else "Disabled" }}</li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>No active feature grants are available.</p>
+    {% endif %}
+
+    <h2>Subscription history</h2>
+    {% if subscription_history %}
+    <table>
+        <thead><tr><th>Plan</th><th>Status</th><th>Interval</th><th>Amount snapshot</th><th>Start</th><th>End</th><th>Current</th></tr></thead>
+        <tbody>
+        {% for item in subscription_history %}
+            <tr>
+                <td>{{ item.plan.name }}</td>
+                <td>{{ item.status }}</td>
+                <td>{{ item.billing_interval }}</td>
+                <td>{{ item.currency }} {{ item.amount }}</td>
+                <td>{{ item.starts_at or "—" }}</td>
+                <td>{{ item.ended_at or item.current_period_end or "—" }}</td>
+                <td>{{ "Yes" if item.is_current else "No" }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>No subscription history is recorded yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

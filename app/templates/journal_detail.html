@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}{{ journal.journal_number }} | Appex Accounting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Journal {{ journal.journal_number }}</h1>
+    <p>
+        <a href="{{ url_for('main.journal_list') }}">Accounting / Journal Register</a>
+    </p>
+</div>
+
+<div class="card">
+    <h2>Journal Information</h2>
+    <p><strong>Date:</strong> {{ journal.journal_date.strftime("%d %b %Y") }}</p>
+    <p><strong>Description:</strong> {{ journal.description }}</p>
+    <p><strong>Currency:</strong> {{ journal.currency }}</p>
+    <p><strong>Status:</strong> <span class="badge">{{ journal.status }}</span></p>
+    {% if journal.status == "draft"
+          and not journal.reversal_of_id
+          and journal.source_type != "reversal" %}
+    <p>
+        <a href="{{ url_for('main.journal_edit', journal_id=journal.id) }}">
+            Edit draft
+        </a>
+    </p>
+    {% endif %}
+
+    {% if journal.status == "draft"
+        and not journal.reversal_of_id
+        and journal.source_type != "reversal" %}
+    <form
+        method="POST"
+        action="{{ url_for('main.journal_post', journal_id=journal.id) }}"
+        onsubmit="return confirm('Post this journal? A posted journal cannot be edited.');"
+    >
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Post Journal</button>
+    </form>
+    {% endif %}
+    {% if reversal_journal %}
+    <p>
+        <strong>Reversal:</strong>
+        <a href="{{ url_for('main.journal_detail', journal_id=reversal_journal.id) }}">
+            {{ reversal_journal.journal_number }} ({{ reversal_journal.status }})
+        </a>
+    </p>
+    {% elif journal.status == "posted"
+        and not journal.reversal_of_id
+        and journal.source_type != "reversal" %}
+    <p>
+        <a href="{{ url_for('main.journal_reverse_create', journal_id=journal.id) }}">
+            Create reversal
+        </a>
+    </p>
+    {% endif %}
+
+    {% if journal.status == "draft"
+        and journal.reversal_of_id
+        and journal.source_type == "reversal" %}
+    <form
+        method="POST"
+        action="{{ url_for(
+            'main.journal_reverse_post',
+            original_journal_id=journal.reversal_of_id,
+            reversal_journal_id=journal.id
+        ) }}"
+        onsubmit="return confirm('Post this reversal and mark the original journal as reversed?');"
+    >
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="reversal-post-reason">Posting reason</label>
+        <input
+            type="text"
+            id="reversal-post-reason"
+            name="reason"
+            maxlength="500"
+            required
+        >
+        <button type="submit">Post Reversal</button>
+    </form>
+    {% endif %}
+
+    <p><strong>Source:</strong> {{ journal.source_type }}{% if journal.source_id %} #{{ journal.source_id }}{% endif %}</p>
+
+    {% if period_row %}
+    <p><strong>Accounting period:</strong> {{ period_row[0].name }}</p>
+    {% if period_row[1] %}
+    <p><strong>Financial year:</strong> {{ period_row[1].name }}</p>
+    {% endif %}
+    {% else %}
+    <p><strong>Accounting period:</strong> Not assigned</p>
+    {% endif %}
+
+    {% if journal.reversal_of_id %}
+    <p>
+        <strong>Reverses:</strong>
+        {% if original_journal %}
+        <a href="{{ url_for('main.journal_detail', journal_id=original_journal.id) }}">
+            {{ original_journal.journal_number }} ({{ original_journal.status }})
+        </a>
+        {% else %}
+        Original journal unavailable
+        {% endif %}
+    </p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Journal Lines</h2>
+    {% if line_rows %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Line</th>
+                    <th>Account Code</th>
+                    <th>Account</th>
+                    <th>Description</th>
+                    <th>Debit ({{ journal.currency }})</th>
+                    <th>Credit ({{ journal.currency }})</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set total_debit = namespace(value=0) %}
+                {% set total_credit = namespace(value=0) %}
+                {% for line, account in line_rows %}
+                {% set total_debit.value = total_debit.value + line.debit %}
+                {% set total_credit.value = total_credit.value + line.credit %}
+                <tr>
+                    <td>{{ line.line_number }}</td>
+                    <td>{{ account.account_code }}</td>
+                    <td>{{ account.name }}</td>
+                    <td>{{ line.description or "—" }}</td>
+                    <td>{{ "%.2f"|format(line.debit) }}</td>
+                    <td>{{ "%.2f"|format(line.credit) }}</td>
+                </tr>
+                {% endfor %}
+                <tr>
+                    <th colspan="4">Total</th>
+                    <th>{{ "%.2f"|format(total_debit.value) }}</th>
+                    <th>{{ "%.2f"|format(total_credit.value) }}</th>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>No journal lines were found.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Audit History</h2>
+    {% if audit_rows %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date and Time</th>
+                    <th>Event</th>
+                    <th>Performed By</th>
+                    <th>Reason</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event, actor in audit_rows %}
+                <tr>
+                    <td>{{ event.performed_at.strftime("%d %b %Y %H:%M:%S") if event.performed_at else "—" }}</td>
+                    <td>{{ event.event_type }}</td>
+                    <td>{{ actor.email }}</td>
+                    <td>{{ event.reason or "—" }}</td>
+                    <td>
+                        {% if event.details %}
+                            <pre>{{ event.details | tojson(indent=2) }}</pre>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>No audit events were found for this journal.</p>
+    {% endif %}
+</div>
+{% endblock %}

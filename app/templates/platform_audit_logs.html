@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Platform Audit Logs</h1>
+    <p>
+        Read-only record of platform administrative actions.
+        Audit entries cannot be edited or deleted from this page.
+    </p>
+
+    <form method="GET" action="{{ url_for('main.platform_audit_logs') }}"
+          class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <label for="company_id" class="form-label">Company</label>
+                    <select name="company_id" id="company_id"
+                            class="form-select">
+                        <option value="">All companies</option>
+                        {% for company in companies %}
+                        <option value="{{ company.id }}"
+                            {% if selected_company_id == company.id %}selected{% endif %}>
+                            {{ company.name }} (ID {{ company.id }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-5">
+                    <label for="action" class="form-label">Action</label>
+                    <select name="action" id="action" class="form-select">
+                        <option value="">All actions</option>
+                        {% for item in actions %}
+                        <option value="{{ item }}"
+                            {% if selected_action == item %}selected{% endif %}>
+                            {{ item }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        Filter
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <p>
+        Showing {{ pagination.items|length }} of
+        {{ pagination.total }} matching audit events.
+    </p>
+
+    {% for event in audit_events %}
+    <article class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between flex-wrap gap-2">
+                <h2 class="h5">{{ event.action }}</h2>
+                <span>{{ event.created_at }}</span>
+            </div>
+
+            <dl class="row mb-2">
+                <dt class="col-sm-3">Audit event ID</dt>
+                <dd class="col-sm-9">{{ event.id }}</dd>
+
+                <dt class="col-sm-3">Actor</dt>
+                <dd class="col-sm-9">
+                    {% if event.actor_user_id %}
+                        User ID {{ event.actor_user_id }}
+                    {% else %}
+                        Actor account unavailable
+                    {% endif %}
+                    — {{ event.actor_role }}
+                </dd>
+
+                <dt class="col-sm-3">Company ID</dt>
+                <dd class="col-sm-9">
+                    {{ event.company_id if event.company_id else "Not applicable" }}
+                </dd>
+
+                <dt class="col-sm-3">Target</dt>
+                <dd class="col-sm-9">
+                    {{ event.target_type or "Not specified" }}
+                    {% if event.target_id %} — {{ event.target_id }}{% endif %}
+                </dd>
+
+                <dt class="col-sm-3">Reason</dt>
+                <dd class="col-sm-9">{{ event.reason or "Not recorded" }}</dd>
+            </dl>
+
+            <details>
+                <summary>View recorded before/after snapshots</summary>
+
+                <div class="mt-3">
+                    <h3 class="h6">Before</h3>
+                    <pre class="border rounded p-2 text-wrap">{{ event.before_data | tojson(indent=2) if event.before_data is not none else "No before snapshot" }}</pre>
+
+                    <h3 class="h6">After</h3>
+                    <pre class="border rounded p-2 text-wrap">{{ event.after_data | tojson(indent=2) if event.after_data is not none else "No after snapshot" }}</pre>
+                </div>
+            </details>
+        </div>
+    </article>
+    {% else %}
+    <div class="alert alert-info">
+        No audit events match the selected filters.
+    </div>
+    {% endfor %}
+
+    {% if pagination.pages > 1 %}
+    <nav aria-label="Audit log pages">
+        <ul class="pagination">
+            {% if pagination.has_prev %}
+            <li class="page-item">
+                <a class="page-link"
+                   href="{{ url_for('main.platform_audit_logs',
+                       page=pagination.prev_num,
+                       company_id=selected_company_id,
+                       action=selected_action) }}">
+                    Previous
+                </a>
+            </li>
+            {% endif %}
+
+            <li class="page-item disabled">
+                <span class="page-link">
+                    Page {{ pagination.page }} of {{ pagination.pages }}
+                </span>
+            </li>
+
+            {% if pagination.has_next %}
+            <li class="page-item">
+                <a class="page-link"
+                   href="{{ url_for('main.platform_audit_logs',
+                       page=pagination.next_num,
+                       company_id=selected_company_id,
+                       action=selected_action) }}">
+                    Next
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Accounting Calendar - Appex Payroll{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h1>Accounting Calendar</h1>
+        <p>
+            Review financial years and manage the closing and reopening
+            of accounting periods.
+        </p>
+    </div>
+
+    <a class="btn secondary" href="{{ url_for('main.accounting_setup') }}">
+        Accounting Setup
+    </a>
+</div>
+
+{% if financial_years %}
+
+    {% for year in financial_years %}
+        {% set periods = year.periods|list %}
+        {% set all_periods_closed = periods|length > 0 and (periods|selectattr('status', 'equalto', 'closed')|list|length == periods|length) %}
+
+        <div class="card">
+            <div class="page-header">
+                <div>
+                    <h2>{{ year.name }}</h2>
+                    <p>
+                        {{ year.start_date.strftime('%d %b %Y') }}
+                        –
+                        {{ year.end_date.strftime('%d %b %Y') }}
+                    </p>
+                    <p>
+                        Status:
+                        <strong>{{ year.status|capitalize }}</strong>
+                    </p>
+                    {% if year.closed_at %}
+                        <p>
+                            Closed:
+                            {{ year.closed_at.strftime('%d %b %Y %H:%M') }}
+                        </p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    {% if year.status == 'open' and all_periods_closed %}
+                        <form
+                            method="POST"
+                            action="{{ url_for('main.accounting_financial_year_close', financial_year_id=year.id) }}"
+                        >
+                            <input
+                                type="hidden"
+                                name="csrf_token"
+                                value="{{ csrf_token() }}"
+                            >
+                            <label for="close-year-reason-{{ year.id }}">
+                                Reason for closing financial year
+                            </label>
+                            <input
+                                type="text"
+                                id="close-year-reason-{{ year.id }}"
+                                name="reason"
+                                maxlength="500"
+                                required
+                            >
+                            <button type="submit" class="btn btn-primary">
+                                Close Financial Year
+                            </button>
+                        </form>
+                    {% elif year.status == 'closed' %}
+                        <form
+                            method="POST"
+                            action="{{ url_for('main.accounting_financial_year_reopen', financial_year_id=year.id) }}"
+                        >
+                            <input
+                                type="hidden"
+                                name="csrf_token"
+                                value="{{ csrf_token() }}"
+                            >
+                            <label for="reopen-year-reason-{{ year.id }}">
+                                Reason for reopening financial year
+                            </label>
+                            <input
+                                type="text"
+                                id="reopen-year-reason-{{ year.id }}"
+                                name="reason"
+                                maxlength="500"
+                                required
+                            >
+                            <button type="submit" class="btn secondary">
+                                Reopen Financial Year
+                            </button>
+                        </form>
+                    {% elif year.status == 'open' %}
+                        <p>
+                            Close all accounting periods before closing
+                            this financial year.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <h3>Accounting Periods</h3>
+
+            {% if periods %}
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Period</th>
+                                <th>Start Date</th>
+                                <th>End Date</th>
+                                <th>Status</th>
+                                <th>Closure</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for period in periods|sort(attribute='period_number') %}
+                                <tr>
+                                    <td>
+                                        {{ period.period_number }}.
+                                        {{ period.name }}
+                                    </td>
+                                    <td>
+                                        {{ period.start_date.strftime('%d %b %Y') }}
+                                    </td>
+                                    <td>
+                                        {{ period.end_date.strftime('%d %b %Y') }}
+                                    </td>
+                                    <td>{{ period.status|capitalize }}</td>
+                                    <td>
+                                        {% if period.closed_at %}
+                                            {{ period.closed_at.strftime('%d %b %Y %H:%M') }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if year.status == 'open' and period.status == 'open' %}
+                                            <form
+                                                method="POST"
+                                                action="{{ url_for('main.accounting_period_close', period_id=period.id) }}"
+                                            >
+                                                <input
+                                                    type="hidden"
+                                                    name="csrf_token"
+                                                    value="{{ csrf_token() }}"
+                                                >
+                                                <label for="close-period-reason-{{ period.id }}">
+                                                    Closure reason
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    id="close-period-reason-{{ period.id }}"
+                                                    name="reason"
+                                                    maxlength="500"
+                                                    required
+                                                >
+                                                <button type="submit" class="btn btn-primary">
+                                                    Close Period
+                                                </button>
+                                            </form>
+                                        {% elif year.status == 'open' and period.status == 'closed' %}
+                                            <form
+                                                method="POST"
+                                                action="{{ url_for('main.accounting_period_reopen', period_id=period.id) }}"
+                                            >
+                                                <input
+                                                    type="hidden"
+                                                    name="csrf_token"
+                                                    value="{{ csrf_token() }}"
+                                                >
+                                                <label for="reopen-period-reason-{{ period.id }}">
+                                                    Reopening reason
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    id="reopen-period-reason-{{ period.id }}"
+                                                    name="reason"
+                                                    maxlength="500"
+                                                    required
+                                                >
+                                                <button type="submit" class="btn secondary">
+                                                    Reopen Period
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            <span>Financial year closed</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p>No accounting periods are configured for this financial year.</p>
+            {% endif %}
+        </div>
+    {% endfor %}
+
+{% else %}
+    <div class="card">
+        <h2>No Financial Years Configured</h2>
+        <p>
+            Configure your company's accounting setup before managing
+            financial years and accounting periods.
+        </p>
+        <a class="btn btn-primary" href="{{ url_for('main.accounting_setup') }}">
+            Configure Accounting
+        </a>
+    </div>
+{% endif %}
+
+{% endblock %}

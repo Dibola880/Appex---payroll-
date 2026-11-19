@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <h1>{{ page_title }}</h1>
+    <p>Feature configuration changes apply to companies currently subscribed to this plan.</p>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <p>
+            <label for="code">Plan code</label><br>
+            <input id="code" name="code" maxlength="64" required
+                   value="{{ request.form.get('code', plan.code if plan else '') }}">
+        </p>
+        <p>
+            <label for="name">Plan name</label><br>
+            <input id="name" name="name" maxlength="120" required
+                   value="{{ request.form.get('name', plan.name if plan else '') }}">
+        </p>
+        <p>
+            <label for="description">Description</label><br>
+            <textarea id="description" name="description" rows="3">{{ request.form.get('description', plan.description if plan and plan.description else '') }}</textarea>
+        </p>
+        <p>
+            <label for="currency">Currency</label><br>
+            <input id="currency" name="currency" value="ZAR" readonly>
+        </p>
+        <p>
+            <label for="monthly_price">Monthly price (ZAR; blank if not offered)</label><br>
+            <input id="monthly_price" name="monthly_price" inputmode="decimal"
+                   value="{{ request.form.get('monthly_price', plan.monthly_price if plan and plan.monthly_price is not none else '') }}">
+        </p>
+        <p>
+            <label for="annual_price">Annual price (ZAR; blank if not offered)</label><br>
+            <input id="annual_price" name="annual_price" inputmode="decimal"
+                   value="{{ request.form.get('annual_price', plan.annual_price if plan and plan.annual_price is not none else '') }}">
+        </p>
+
+        {% set selected_intervals = request.form.getlist('billing_intervals') if request.method == 'POST' else (plan.billing_intervals if plan else ['monthly', 'annually']) %}
+        <fieldset>
+            <legend>Available billing intervals</legend>
+            <label><input type="checkbox" name="billing_intervals" value="monthly" {% if 'monthly' in selected_intervals %}checked{% endif %}> Monthly</label>
+            <label><input type="checkbox" name="billing_intervals" value="annually" {% if 'annually' in selected_intervals %}checked{% endif %}> Annually</label>
+        </fieldset>
+
+        <p>
+            <label for="employee_limit">Employee limit (blank means unlimited)</label><br>
+            <input id="employee_limit" name="employee_limit" type="number" min="1"
+                   value="{{ request.form.get('employee_limit', plan.employee_limit if plan and plan.employee_limit is not none else '') }}">
+        </p>
+        <p>
+            <label for="feature_config">Feature configuration (JSON)</label><br>
+            <textarea id="feature_config" name="feature_config" rows="8" required>{{ request.form.get('feature_config', (plan.feature_config if plan else {'features': {}})|tojson(indent=2)) }}</textarea>
+        </p>
+
+        {% if plan %}
+        <p>
+            <label for="is_active">Plan status</label><br>
+            <select id="is_active" name="is_active">
+                <option value="true" {% if request.form.get('is_active', 'true' if plan.is_active else 'false') == 'true' %}selected{% endif %}>Active</option>
+                <option value="false" {% if request.form.get('is_active', 'true' if plan.is_active else 'false') == 'false' %}selected{% endif %}>Inactive</option>
+            </select>
+        </p>
+        {% endif %}
+
+        <button type="submit">Save plan</button>
+        <a href="{{ url_for('main.platform_subscription_plans') }}">Cancel</a>
+    </form>
+</div>
+{% endblock %}

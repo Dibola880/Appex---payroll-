@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Partner Consent - Appex Payroll{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Partner Consent Management</h2>
+    <p>
+        Manage which approved partner operations your company authorises.
+        Consent is specific to your company, integration, purpose and data categories.
+    </p>
+
+    <div class="alert alert-info">
+        Creating a consent does not authorise sharing. A company administrator
+        must activate it separately. Only sandbox integrations are available here.
+        Employee-level personal information, bank details and credentials are not
+        included in these approved sharing categories.
+    </div>
+
+    <section class="card mb-4">
+        <div class="card-body">
+            <h3>Create pending consent</h3>
+
+            {% if integrations %}
+            <form method="POST" action="{{ url_for('main.company_partner_consent_create') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="mb-3">
+                    <label for="integration_id">Sandbox integration</label>
+                    <select class="form-control" id="integration_id" name="integration_id" required>
+                        <option value="">Select an integration</option>
+                        {% for integration in integrations %}
+                        <option value="{{ integration.id }}">
+                            {{ integration.provider.display_name }}
+                            — {{ integration.ownership_scope }}
+                            — {{ integration.status }}
+                            — #{{ integration.id }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="operation">Approved operation</label>
+                    <select class="form-control" id="operation" name="operation" required>
+                        <option value="">Select an operation</option>
+                        {% for operation in operations %}
+                        <option value="{{ operation }}">{{ operation }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="purpose_code">Purpose code</label>
+                    <input
+                        class="form-control"
+                        id="purpose_code"
+                        name="purpose_code"
+                        maxlength="80"
+                        pattern="[a-z][a-z0-9_.-]{1,79}"
+                        placeholder="Required for company offer requests"
+                    >
+                    <small class="form-text text-muted">
+                        Payroll compliance summaries use payroll_compliance_reporting.
+                        Product catalogue requests use product_discovery.
+                        For company offer requests, enter the specific purpose code.
+                    </small>
+                </div>
+
+                <div class="mb-3">
+                    <strong>Data categories determined by the selected operation</strong>
+                    <ul>
+                        <li>Payroll compliance summary: payroll.aggregate_summary</li>
+                        <li>Product catalogue: no company data categories</li>
+                        <li>Company offer request: company.reference and financial_services.company_financing_request</li>
+                    </ul>
+                    <small class="form-text text-muted">
+                        These categories are enforced by the server and cannot be expanded in this form.
+                    </small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="expires_at">Expiry date and time (UTC)</label>
+                    <input
+                        class="form-control"
+                        type="datetime-local"
+                        id="expires_at"
+                        name="expires_at"
+                        required
+                    >
+                </div>
+
+                <button class="btn btn-primary" type="submit">
+                    Create pending consent
+                </button>
+            </form>
+            {% else %}
+            <p>No enabled sandbox integrations are available for consent.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="card mb-4">
+        <div class="card-body">
+            <h3>Company consent records</h3>
+
+            {% if consents %}
+            {% for consent in consents %}
+            <div class="border rounded p-3 mb-3">
+                <h4>{{ consent.provider_code }} — {{ consent.operation }}</h4>
+                <p><strong>Status:</strong> {{ consent.status }}</p>
+                <p><strong>Purpose:</strong> {{ consent.purpose_code }}</p>
+                <p>
+                    <strong>Data categories:</strong>
+                    {% if consent.data_categories %}
+                        {{ consent.data_categories | join(", ") }}
+                    {% else %}
+                        No company data categories (operation-only consent)
+                    {% endif %}
+                </p>
+                <p><strong>Integration ID:</strong> {{ consent.integration_id }}</p>
+                <p><strong>Consent version:</strong> {{ consent.consent_version }}</p>
+                <p><strong>Expires (UTC):</strong> {{ consent.expires_at }}</p>
+                <p><strong>Created (UTC):</strong> {{ consent.created_at }}</p>
+
+                {% if consent.status == "pending" %}
+                <form
+                    method="POST"
+                    action="{{ url_for('main.company_partner_consent_activate', consent_id=consent.id) }}"
+                    class="mb-2"
+                >
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-success" type="submit">
+                        Activate consent
+                    </button>
+                </form>
+                {% endif %}
+
+                {% if consent.status in ["pending", "active"] %}
+                <form
+                    method="POST"
+                    action="{{ url_for('main.company_partner_consent_revoke', consent_id=consent.id) }}"
+                >
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label for="reason-{{ consent.id }}">Revocation reason</label>
+                    <select
+                        class="form-control mb-2"
+                        id="reason-{{ consent.id }}"
+                        name="reason_code"
+                        required
+                    >
+                        <option value="company_request">Company request</option>
+                        <option value="scope_changed">Scope changed</option>
+                        <option value="provider_change">Provider change</option>
+                        <option value="no_longer_required">No longer required</option>
+                    </select>
+                    <button class="btn btn-danger" type="submit">
+                        Revoke consent
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% else %}
+            <p>No partner consent records exist for this company.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="card mb-4">
+        <div class="card-body">
+            <h3>Consent lifecycle history</h3>
+            {% if consent_events %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Date (UTC)</th>
+                            <th>Consent ID</th>
+                            <th>Event</th>
+                            <th>Status transition</th>
+                            <th>Reason code</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in consent_events %}
+                        <tr>
+                            <td>{{ event.created_at }}</td>
+                            <td>{{ event.consent_id }}</td>
+                            <td>{{ event.event_type }}</td>
+                            <td>
+                                {{ event.from_status or "—" }}
+                                →
+                                {{ event.to_status }}
+                            </td>
+                            <td>{{ event.reason_code or "—" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p>No consent lifecycle events recorded.</p>
+            {% endif %}
+        </div>
+    </section>
+</div>
+{% endblock %}

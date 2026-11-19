@@ -87,6 +87,7 @@ try:
 
         employee_normal = make(
             Employee,
+            employee_number="P5-LEDGER-001",
             company_id=company_a.id,
             first_name="Normal",
             last_name="Employee",
@@ -96,6 +97,7 @@ try:
 
         employee_loan = make(
             Employee,
+            employee_number="P5-LEDGER-002",
             company_id=company_a.id,
             first_name="Loan",
             last_name="Employee",
@@ -105,6 +107,7 @@ try:
 
         employee_duplicate = make(
             Employee,
+            employee_number="P5-LEDGER-003",
             company_id=company_a.id,
             first_name="Duplicate",
             last_name="Employee",
@@ -114,6 +117,7 @@ try:
 
         employee_rollback = make(
             Employee,
+            employee_number="P5-LEDGER-004",
             company_id=company_a.id,
             first_name="Rollback",
             last_name="Employee",
@@ -123,6 +127,7 @@ try:
 
         employee_foreign = make(
             Employee,
+            employee_number="P5-LEDGER-005",
             company_id=company_b.id,
             first_name="Foreign",
             last_name="Employee",
@@ -171,7 +176,7 @@ try:
             status="Disbursed",
             principal_amount=1000,
             interest_amount=200,
-            service_fee=0,
+            service_fee_amount=0,
             total_repayable=1200,
             scheduled_installment=600,
             total_paid=200,
@@ -210,7 +215,7 @@ try:
             status="Disbursed",
             principal_amount=1000,
             interest_amount=200,
-            service_fee=0,
+            service_fee_amount=0,
             total_repayable=1200,
             scheduled_installment=600,
             total_paid=200,
@@ -310,6 +315,11 @@ try:
                 round(float(entry.amount or 0), 2) == 600
                 and round(float(slip.loan_repayment or 0), 2) == 600,
                 f"ledger={entry.amount}; payslip={slip.loan_repayment}",
+            )
+            record(
+                "Payroll repayment records its source",
+                entry.source == "Payroll",
+                f"source={entry.source}",
             )
             record(
                 "Loan balance reconciles with historical repayment",
@@ -619,7 +629,7 @@ try:
             status="Disbursed",
             principal_amount=500,
             interest_amount=0,
-            service_fee=0,
+            service_fee_amount=0,
             total_repayable=500,
             scheduled_installment=100,
             total_paid=20,

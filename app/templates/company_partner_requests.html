@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Partner Requests - Appex Payroll{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Partner Service Requests</h2>
+
+    <p>
+        Submit a sandbox partner request for review by a different active
+        company administrator. Approval does not bypass active consent or
+        the integration's safety checks.
+    </p>
+
+    <div class="alert alert-info">
+        Requests are reviewed independently. The person who submits a request
+        cannot approve or reject that same request. If your company has only
+        one active administrator, the request remains pending until another
+        eligible administrator reviews it.
+    </div>
+
+    <section class="card mb-4">
+        <div class="card-body">
+            <h3>Submit a request for review</h3>
+
+            {% if integrations %}
+            <form method="POST"
+                  action="{{ url_for('main.company_partner_request_submit') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="mb-3">
+                    <label for="integration_id">Connected sandbox integration</label>
+                    <select class="form-control" id="integration_id"
+                            name="integration_id" required>
+                        <option value="">Select an integration</option>
+                        {% for integration in integrations %}
+                        <option value="{{ integration.id }}">
+                            {{ integration.provider.display_name }}
+                            — {{ integration.ownership_scope }}
+                            — #{{ integration.id }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="operation">Operation</label>
+                    <select class="form-control" id="operation"
+                            name="operation" required>
+                        <option value="">Select an operation</option>
+                        {% for operation in operations %}
+                        <option value="{{ operation }}">{{ operation }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="request_id">Unique request ID</label>
+                    <input class="form-control" id="request_id"
+                           name="request_id" maxlength="120" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="payload_json">Request payload (JSON)</label>
+                    <textarea class="form-control" id="payload_json"
+                              name="payload_json" rows="8"
+                              required placeholder='{"example": "value"}'></textarea>
+                    <small>
+                        Only fields approved for the selected operation are
+                        accepted. Do not include credentials, bank details,
+                        employee-level personal information, or secrets.
+                    </small>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    Submit for independent review
+                </button>
+            </form>
+            {% else %}
+            <p>
+                No connected, enabled sandbox integrations are currently
+                available to this company.
+            </p>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-body">
+            <h3>Request review history</h3>
+
+            {% if reviews %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Request</th>
+                            <th>Provider</th>
+                            <th>Operation</th>
+                            <th>Status</th>
+                            <th>Submitted</th>
+                            <th>Expires</th>
+                            <th>Review action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for review in reviews %}
+                        <tr>
+                            <td>
+                                {{ review.request_id }}
+                                <br>
+                                <small>Integration #{{ review.integration_id }}</small>
+                            </td>
+                            <td>{{ review.provider_code }}</td>
+                            <td>{{ review.operation }}</td>
+                            <td>{{ review.status }}</td>
+                            <td>{{ review.submitted_at }}</td>
+                            <td>{{ review.expires_at }}</td>
+                            <td>
+                                {% if review.status == "pending"
+                                      and review.requested_by_user_id != current_user.id %}
+                                <form method="POST"
+                                      action="{{ url_for('main.company_partner_request_approve', review_id=review.id) }}"
+                                      class="mb-2">
+                                    <input type="hidden" name="csrf_token"
+                                           value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-success btn-sm">
+                                        Approve
+                                    </button>
+                                </form>
+
+                                <form method="POST"
+                                      action="{{ url_for('main.company_partner_request_reject', review_id=review.id) }}">
+                                    <input type="hidden" name="csrf_token"
+                                           value="{{ csrf_token() }}">
+                                    <select name="reason_code" required>
+                                        <option value="">Rejection reason</option>
+                                        <option value="insufficient_information">Insufficient information</option>
+                                        <option value="outside_company_policy">Outside company policy</option>
+                                        <option value="incorrect_request">Incorrect request</option>
+                                        <option value="not_authorised">Not authorised</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                    <button type="submit" class="btn btn-danger btn-sm">
+                                        Reject
+                                    </button>
+                                </form>
+                                {% elif review.status == "pending" %}
+                                <small>Awaiting another administrator</small>
+                                {% elif review.status == "approved" %}
+                                <form method="POST"
+                                      action="{{ url_for('main.company_partner_request_prepare', review_id=review.id) }}">
+                                    <input type="hidden" name="csrf_token"
+                                           value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-primary btn-sm">
+                                        Prepare
+                                    </button>
+                                </form>
+                                <small>Preparation is not execution or payment.</small>
+                                {% else %}
+                                <small>No action available</small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p>No partner requests have been submitted.</p>
+            {% endif %}
+        </div>
+    </section>
+</div>
+{% endblock %}

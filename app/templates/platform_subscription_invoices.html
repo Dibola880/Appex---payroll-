@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Platform subscription billing</h2>
+    <p class="text-muted">Platform-wide invoice and payment register</p>
+
+    <h4 class="mt-4">Invoices</h4>
+    {% if invoices %}
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>Company</th>
+                    <th>Invoice</th>
+                    <th>Status</th>
+                    <th>Issued</th>
+                    <th>Due</th>
+                    <th>Total</th>
+                    <th>Paid</th>
+                    <th>Balance</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for invoice in invoices %}
+                <tr>
+                    <td>{{ invoice.company.name }}</td>
+                    <td>{{ invoice.invoice_number }}</td>
+                    <td>{{ invoice.status }}</td>
+                    <td>{{ invoice.issued_at.strftime("%Y-%m-%d") if invoice.issued_at else "—" }}</td>
+                    <td>{{ invoice.due_at.strftime("%Y-%m-%d") if invoice.due_at else "—" }}</td>
+                    <td>{{ invoice.currency }} {{ "%.2f"|format(invoice.total) }}</td>
+                    <td>{{ invoice.currency }} {{ "%.2f"|format(invoice.amount_paid) }}</td>
+                    <td>{{ invoice.currency }} {{ "%.2f"|format(invoice.balance_due) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>No subscription invoices have been recorded.</p>
+    {% endif %}
+
+    <h4 class="mt-4">Payment register</h4>
+    {% if payments %}
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>Company</th>
+                    <th>Invoice</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Provider</th>
+                    <th>Provider reference</th>
+                    <th>Verified</th>
+                    <th>Recorded</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in payments %}
+                <tr>
+                    <td>{{ payment.company.name }}</td>
+                    <td>{{ payment.invoice.invoice_number }}</td>
+                    <td>{{ payment.currency }} {{ "%.2f"|format(payment.amount) }}</td>
+                    <td>{{ payment.status }}</td>
+                    <td>{{ payment.payment_provider or "—" }}</td>
+                    <td>{{ payment.provider_payment_id or "—" }}</td>
+                    <td>{{ payment.verified_at.strftime("%Y-%m-%d %H:%M") if payment.verified_at else "Not verified" }}</td>
+                    <td>{{ payment.created_at.strftime("%Y-%m-%d %H:%M") if payment.created_at else "—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>No payments have been recorded.</p>
+    {% endif %}
+
+    <a class="btn btn-secondary mt-3" href="{{ url_for('main.platform_subscription_plans') }}">
+        Back to subscription plans
+    </a>
+</div>
+{% endblock %}

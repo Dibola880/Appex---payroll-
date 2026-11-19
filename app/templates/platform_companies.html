@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>Company Directory</h1>
+    <p>Read-only directory of companies registered on Appex Payroll.</p>
+
+    <form method="GET" action="{{ url_for('main.platform_companies') }}">
+        <label for="company-search">Search companies</label>
+        <input id="company-search"
+               type="search"
+               name="q"
+               value="{{ search_term }}"
+               placeholder="Company, registration number, email or referral code">
+        <button type="submit">Search</button>
+        {% if search_term %}
+            <a href="{{ url_for('main.platform_companies') }}">Clear</a>
+        {% endif %}
+    </form>
+
+    <p>
+        {{ companies|length }} result(s) shown
+        {% if companies|length == result_limit %}
+            (maximum {{ result_limit }} results)
+        {% endif %}.
+    </p>
+
+    {% if companies %}
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Company</th>
+                    <th>Registration number</th>
+                    <th>Contact email</th>
+                    <th>Subscription</th>
+                    <th>Onboarding</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for company in companies %}
+                <tr>
+                    <td>{{ company.name }}</td>
+                    <td>{{ company.registration_number or "—" }}</td>
+                    <td>{{ company.contact_email or "—" }}</td>
+                    <td>{{ company.subscription_plan or "—" }} / {{ company.subscription_status or "—" }}</td>
+                    <td>{{ "Complete" if company.onboarding_completed else "Incomplete" }}</td>
+                    <td>
+                        <a href="{{ url_for('main.platform_company_detail', company_id=company.id) }}">
+                            View company
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <p>No matching companies found.</p>
+    {% endif %}
+</div>
+{% endblock %}

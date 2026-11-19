@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <p>
+        <a href="{{ url_for('main.platform_companies') }}">
+            Back to company directory
+        </a>
+    </p>
+
+    <h1>{{ company.name }}</h1>
+    <p>Company ID: {{ company.id }}</p>
+
+    <section>
+        <h2>Company profile</h2>
+        <table class="table">
+            <tr><th>Registration number</th><td>{{ company.registration_number or "—" }}</td></tr>
+            <tr><th>Contact person</th><td>{{ company.contact_person or "—" }}</td></tr>
+            <tr><th>Contact email</th><td>{{ company.contact_email or "—" }}</td></tr>
+            <tr><th>Contact phone</th><td>{{ company.contact_phone or "—" }}</td></tr>
+            <tr><th>Payroll provider</th><td>{{ company.payroll_provider or "—" }}</td></tr>
+            <tr><th>Referral code</th><td>{{ company.referral_code or "—" }}</td></tr>
+            <tr>
+                <th>Registered</th>
+                <td>{{ company.created_at.strftime("%Y-%m-%d %H:%M") if company.created_at else "—" }}</td>
+            </tr>
+            <tr>
+                <th>Onboarding</th>
+                <td>{{ "Complete" if company.onboarding_completed else "Incomplete" }}</td>
+            </tr>
+        </table>
+    </section>
+
+    <section>
+        <h2>Subscription overview</h2>
+        <table class="table">
+            <tr><th>Legacy plan</th><td>{{ company.subscription_plan or "—" }}</td></tr>
+            <tr><th>Legacy status</th><td>{{ company.subscription_status or "—" }}</td></tr>
+            <tr><th>Client status</th><td>{{ company.client_status or "—" }}</td></tr>
+            <tr><th>Subscription records</th><td>{{ subscriptions|length }}</td></tr>
+            <tr><th>Subscription invoices</th><td>{{ invoice_count }}</td></tr>
+        </table>
+
+        {% if subscriptions %}
+        <h3>Subscription history</h3>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Plan</th>
+                        <th>Status</th>
+                        <th>Interval</th>
+                        <th>Amount snapshot</th>
+                        <th>Current</th>
+                        <th>Period end</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for subscription in subscriptions %}
+                    <tr>
+                        <td>{{ subscription.plan.name if subscription.plan else "—" }}</td>
+                        <td>{{ subscription.status }}</td>
+                        <td>{{ subscription.billing_interval }}</td>
+                        <td>
+                            {{ subscription.currency }}
+                            {{ "%.2f"|format(subscription.amount) if subscription.amount is not none else "—" }}
+                        </td>
+                        <td>{{ "Yes" if subscription.is_current else "No" }}</td>
+                        <td>
+                            {{ subscription.current_period_end.strftime("%Y-%m-%d") if subscription.current_period_end else "—" }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            <p>No subscription history records.</p>
+        {% endif %}
+    </section>
+
+
+    <section>
+        <h2>Platform company controls</h2>
+        <p>
+            These controls affect company operational status and onboarding
+            only. They do not change subscription status, payment records,
+            employee accounts or payroll records.
+        </p>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h3>Operational status</h3>
+                <p>
+                    Current status:
+                    <strong>{{ company.client_status or "Not set" }}</strong>
+                </p>
+                <form method="POST"
+                      action="{{ url_for('main.platform_company_update_status', company_id=company.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label for="client_status">New operational status</label>
+                        <select class="form-select" id="client_status" name="client_status" required>
+                            <option value="">Select status</option>
+                            <option value="Active">Active</option>
+                            <option value="Suspended">Suspended</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="status_reason">Reason for this change</label>
+                        <textarea class="form-control" id="status_reason"
+                                  name="reason" rows="2" maxlength="2000"
+                                  required></textarea>
+                    </div>
+                    <button class="btn btn-primary" type="submit">
+                        Update operational status
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h3>Onboarding status</h3>
+                <p>
+                    Current status:
+                    <strong>{{ "Complete" if company.onboarding_completed else "Incomplete" }}</strong>
+                </p>
+                <form method="POST"
+                      action="{{ url_for('main.platform_company_update_onboarding', company_id=company.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label for="onboarding_status">New onboarding status</label>
+                        <select class="form-select" id="onboarding_status"
+                                name="onboarding_status" required>
+                            <option value="">Select status</option>
+                            <option value="complete">Complete</option>
+                            <option value="incomplete">Incomplete</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="onboarding_reason">Reason for this change</label>
+                        <textarea class="form-control" id="onboarding_reason"
+                                  name="reason" rows="2" maxlength="2000"
+                                  required></textarea>
+                    </div>
+                    <button class="btn btn-primary" type="submit">
+                        Update onboarding status
+                    </button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2>Operational overview</h2>
+        <table class="table">
+            <tr><th>Total employees</th><td>{{ employee_count }}</td></tr>
+            <tr><th>Active employees</th><td>{{ active_employee_count }}</td></tr>
+            <tr><th>Payroll runs</th><td>{{ payroll_run_count }}</td></tr>
+        </table>
+    </section>
+
+    <section>
+        <h2>Company administrators</h2>
+        {% if administrators %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Account status</th>
+                        <th>Account controls</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for administrator in administrators %}
+                    <tr>
+                        <td>{{ administrator.name }}</td>
+                        <td>{{ administrator.email }}</td>
+                        <td>{{ administrator.role }}</td>
+                        <td>{{ "Active" if administrator.is_active else "Inactive" }}</td>
+                        <td>
+                            {% if administrator.role in ["company_admin", "employer", "admin"] %}
+                            <form method="POST"
+                                  action="{{ url_for(
+                                      'main.platform_company_update_administrator_status',
+                                      company_id=company.id,
+                                      admin_user_id=administrator.id
+                                  ) }}"
+                                  class="border rounded p-2 mb-2">
+                                <input type="hidden"
+                                       name="csrf_token"
+                                       value="{{ csrf_token() }}">
+
+                                <div class="mb-2">
+                                    <label class="form-label">
+                                        Set account status
+                                    </label>
+                                    <select name="account_status"
+                                            class="form-select"
+                                            required>
+                                        {% if administrator.is_active %}
+                                        <option value="inactive">
+                                            Deactivate account
+                                        </option>
+                                        {% else %}
+                                        <option value="active">
+                                            Activate account
+                                        </option>
+                                        {% endif %}
+                                    </select>
+                                </div>
+
+                                <div class="mb-2">
+                                    <label class="form-label">
+                                        Reason (required)
+                                    </label>
+                                    <textarea name="reason"
+                                              class="form-control"
+                                              rows="2"
+                                              maxlength="2000"
+                                              required></textarea>
+                                </div>
+
+                                <button type="submit"
+                                        class="btn btn-sm btn-outline-primary">
+                                    Save account status
+                                </button>
+                            </form>
+                            {% else %}
+                                No account controls
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            <p>No company administrator accounts found.</p>
+        {% endif %}
+    </section>
+
+    <p>
+        Platform company status and onboarding changes are recorded in the
+        platform audit log. Subscription, payment, employee and payroll
+        records remain outside these controls.
+    </p>
+</div>
+{% endblock %}

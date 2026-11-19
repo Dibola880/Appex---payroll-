@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Reverse {{ original.journal_number }} | Appex Accounting{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>Create Journal Reversal</h1>
+    <p>
+        <a href="{{ url_for('main.journal_detail', journal_id=original.id) }}">
+            Return to original journal
+        </a>
+    </p>
+</div>
+
+<div class="card">
+    <h2>Original Journal</h2>
+    <p><strong>Journal number:</strong> {{ original.journal_number }}</p>
+    <p><strong>Date:</strong> {{ original.journal_date.strftime("%d %b %Y") }}</p>
+    <p><strong>Description:</strong> {{ original.description }}</p>
+    <p><strong>Currency:</strong> {{ original.currency }}</p>
+    <p><strong>Status:</strong> {{ original.status }}</p>
+</div>
+
+<div class="card">
+    <h2>Reversal Details</h2>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <label for="reversal_journal_number">Reversal journal number</label>
+        <input
+            type="text"
+            id="reversal_journal_number"
+            name="reversal_journal_number"
+            maxlength="40"
+            value="{{ form_values.get('reversal_journal_number', '') }}"
+            required
+        >
+
+        <label for="reversal_date">Reversal date</label>
+        <input
+            type="date"
+            id="reversal_date"
+            name="reversal_date"
+            value="{{ form_values.get('reversal_date', '') }}"
+            required
+        >
+
+        <label for="reason">Reason for reversal</label>
+        <textarea
+            id="reason"
+            name="reason"
+            maxlength="500"
+            required
+        >{{ form_values.get('reason', '') }}</textarea>
+
+        <label for="description">Reversal description (optional)</label>
+        <textarea
+            id="description"
+            name="description"
+            maxlength="500"
+        >{{ form_values.get('description', '') }}</textarea>
+
+        <button type="submit">Create Reversal Draft</button>
+    </form>
+</div>
+{% endblock %}

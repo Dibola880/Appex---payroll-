@@ -1,147 +1,137 @@
 {% extends "base.html" %}
 
-{% block title %}Deel Integration - Appex Payroll{% endblock %}
-
-{% block heading %}Deel Local Payroll Integration{% endblock %}
+{% block title %}Provider Integrations - Appex Payroll{% endblock %}
+{% block heading %}Provider Integrations{% endblock %}
 
 {% block content %}
-
 <div class="card">
-
-    <h2>Deel Local Payroll API</h2>
-
-    <p>
-        Connect Appex Payroll to Deel Local Payroll to synchronize
-        employee and payroll information.
-    </p>
-
+    <h2>Payroll and Business Integrations</h2>
+    <p>Manage provider connections associated with {{ company.name }}.</p>
     <div class="notice">
-        <strong>Security:</strong>
-        Deel API credentials must be stored in your Render environment
-        variables. Do not place client secrets directly in GitHub code.
+        <strong>Security:</strong> Credentials are encrypted before storage.
+        They are never displayed or returned to this page.
     </div>
-
+    <div class="notice">
+        <strong>Foundation only:</strong> Live authentication, synchronization,
+        payments and transfers are not enabled.
+    </div>
 </div>
 
-
 <div class="card">
+    <h2>Add Company Connection</h2>
+    {% if providers %}
+    <form method="post" action="{{ url_for('main.company_integration_create') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-    <h2>Integration Status</h2>
+        <label for="company-provider">Enabled provider</label>
+        <select id="company-provider" name="provider_code" required>
+            {% for provider in providers %}
+            <option value="{{ provider.code }}">{{ provider.display_name }} ({{ provider.code }})</option>
+            {% endfor %}
+        </select>
 
-    {% if configured %}
+        <label for="company-environment">Environment</label>
+        <select id="company-environment" name="environment" required>
+            <option value="sandbox">Sandbox</option>
+            <option value="production">Production</option>
+        </select>
 
-        <div class="status-active">
-            Configuration detected
-        </div>
+        <label for="company-configuration">Non-secret configuration (JSON object)</label>
+        <textarea id="company-configuration" name="configuration"
+                  rows="5" placeholder='{"api_url": "https://example.invalid"}'></textarea>
 
-        <p>
-            The required Deel integration settings have been configured.
-        </p>
+        <label for="company-credentials">Credentials (JSON object)</label>
+        <textarea id="company-credentials" name="credentials" rows="5"
+                  autocomplete="off" placeholder='{"client_id": "...", "client_secret": "..."}'></textarea>
+        <p>Credentials are encrypted before storage. Never paste production secrets until the encryption key has been configured securely.</p>
 
+        <button type="submit">Create Company Connection</button>
+    </form>
     {% else %}
-
-        <div class="status-inactive">
-            Configuration incomplete
-        </div>
-
-        <p>
-            Add the required Deel API settings to your Render environment
-            variables before connecting Appex Payroll to Deel.
-        </p>
-
+    <p>No enabled providers are currently available. Ask a platform administrator to enable a provider.</p>
     {% endif %}
-
 </div>
 
-
 <div class="card">
-
-    <h2>Required Environment Variables</h2>
-
+    <h2>Company Integration Status</h2>
+    {% if integrations %}
     <table>
-
         <thead>
             <tr>
-                <th>Variable</th>
-                <th>Purpose</th>
+                <th>Provider</th>
+                <th>Environment</th>
+                <th>Status</th>
+                <th>Credentials</th>
+                <th>Last Connected</th>
+                <th>Last Error</th>
             </tr>
         </thead>
-
         <tbody>
-
+            {% for integration in integrations %}
             <tr>
+                <td><strong>{{ integration.provider_name or integration.provider_code or "Unknown provider" }}</strong></td>
+                <td>{{ integration.environment|capitalize }}</td>
+                <td>{{ integration.status|replace("_", " ")|capitalize }}</td>
                 <td>
-                    <code>DEEL_AUTH_URL</code>
+                    {% if integration.has_credentials %}
+                        Encrypted credentials stored
+                    {% else %}
+                        Not configured
+                    {% endif %}
                 </td>
                 <td>
-                    Deel authentication endpoint
+                    {% if integration.last_connected_at %}
+                        {{ integration.last_connected_at.strftime("%Y-%m-%d %H:%M UTC") }}
+                    {% else %}Never{% endif %}
+                </td>
+                <td>
+                    {% if integration.last_error_at %}
+                        {{ integration.last_error_at.strftime("%Y-%m-%d %H:%M UTC") }}
+                        {% if integration.last_error_code %}({{ integration.last_error_code }}){% endif %}
+                    {% else %}None recorded{% endif %}
                 </td>
             </tr>
-
             <tr>
-                <td>
-                    <code>DEEL_API_URL</code>
-                </td>
-                <td>
-                    Deel Local Payroll API endpoint
+                <td colspan="6">
+                    <details>
+                        <summary>Update {{ integration.provider_name or integration.provider_code }} connection</summary>
+                        <form method="post"
+                              action="{{ url_for('main.company_integration_update', integration_id=integration.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                            <label>Non-secret configuration (JSON object; blank keeps existing configuration)</label>
+                            <textarea name="configuration" rows="5"
+                                      placeholder='{{ integration.configuration|tojson }}'></textarea>
+
+                            <label>Replace credentials (JSON object; blank keeps existing credentials)</label>
+                            <textarea name="credentials" rows="5" autocomplete="off"
+                                      placeholder="Leave blank to keep the current encrypted credentials."></textarea>
+
+                            <button type="submit">Update Connection</button>
+                        </form>
+                    </details>
                 </td>
             </tr>
-
-            <tr>
-                <td>
-                    <code>DEEL_CLIENT_ID</code>
-                </td>
-                <td>
-                    Appex API client ID
-                </td>
-            </tr>
-
-            <tr>
-                <td>
-                    <code>DEEL_CLIENT_SECRET</code>
-                </td>
-                <td>
-                    Private Deel API client secret
-                </td>
-            </tr>
-
+            {% endfor %}
         </tbody>
-
     </table>
-
+    {% else %}
+    <p>No company-owned provider integrations have been configured.</p>
+    {% endif %}
 </div>
-
 
 <div class="card">
-
-    <h2>Planned Synchronization</h2>
-
+    <h2>Integration Safety</h2>
     <ul>
-
-        <li>Employee information</li>
-
-        <li>Company and payroll groups</li>
-
-        <li>Payroll inputs</li>
-
-        <li>Payroll results</li>
-
-        <li>Employee payslips</li>
-
+        <li>Company connections are scoped to your company.</li>
+        <li>Platform-owned connections are not displayed here.</li>
+        <li>Credentials are never returned in status information.</li>
+        <li>Provider outages must not interrupt payroll processing.</li>
+        <li>Payment references alone do not establish payment verification.</li>
     </ul>
-
 </div>
-
 
 <div class="form-actions">
-
-    <a
-        href="{{ url_for('main.dashboard') }}"
-        class="button"
-    >
-        Back to Dashboard
-    </a>
-
+    <a href="{{ url_for('main.dashboard') }}" class="button">Back to Dashboard</a>
 </div>
-
 {% endblock %}

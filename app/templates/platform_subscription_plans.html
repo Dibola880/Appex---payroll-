@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <h1>Subscription plans</h1>
+    <p>Manage the plans offered by Appex. Pricing is configured here; no payment is collected by this page.</p>
+    <p><a href="{{ url_for('main.platform_subscription_plan_new') }}">Create plan</a></p>
+
+    <section class="subscription-expiry-actions">
+        <h2>Subscription lifecycle</h2>
+        <p>Process subscriptions whose recorded trial or billing period has ended.
+           This does not verify payments or activate renewals.</p>
+        <form method="post"
+              action="{{ url_for('main.platform_process_subscription_expirations') }}"
+              onsubmit="return confirm('Process all due subscription expirations now?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-warning">
+                Process due expirations
+            </button>
+        </form>
+    </section>
+
+    {% if plans %}
+    <table>
+        <thead>
+            <tr>
+                <th>Plan</th><th>Code</th><th>Monthly</th><th>Annual</th>
+                <th>Employee limit</th><th>Status</th><th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for plan in plans %}
+            <tr>
+                <td>{{ plan.name }}</td>
+                <td>{{ plan.code }}</td>
+                <td>{{ plan.currency }} {{ plan.monthly_price if plan.monthly_price is not none else "—" }}</td>
+                <td>{{ plan.currency }} {{ plan.annual_price if plan.annual_price is not none else "—" }}</td>
+                <td>{{ plan.employee_limit if plan.employee_limit is not none else "Unlimited" }}</td>
+                <td>{{ "Active" if plan.is_active else "Inactive" }}</td>
+                <td><a href="{{ url_for('main.platform_subscription_plan_edit', plan_id=plan.id) }}">Edit</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>No subscription plans have been created yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

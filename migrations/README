@@ -1,0 +1,186 @@
+# Appex Payroll Database Migrations
+
+## 1. Purpose and scope
+
+This directory contains the Alembic migration environment and versioned
+database schema changes for Appex Payroll.
+
+Migrations are controlled schema changes. They must be reviewed against the
+current application models, existing database structures, historical data,
+and the complete migration revision chain before execution.
+
+A migration being present in this directory does not mean it has been
+approved, executed, or applied to any database.
+
+## 2. Directory structure
+
+- `env.py` — Flask-Migrate/Alembic environment configuration and the
+  online production migration guard.
+- `alembic.ini` — Alembic configuration and logging.
+- `script.py.mako` — migration revision template.
+- `versions/` — versioned migration scripts.
+- `PRODUCTION_BASELINE_SCHEMA.md` — historical production schema
+  specification and reconciliation notes.
+
+Backup files are historical review material. They are not migration
+revisions and must not be treated as part of the active revision chain.
+
+## 3. Historical production baseline
+
+The root revision `p6_prod_base_01` represents the inspected Appex Payroll
+production schema snapshot dated 2026-11-13.
+
+The baseline is intended for a fresh database and isolated rehearsal.
+It describes the historical production schema, not necessarily the current
+SQLAlchemy model metadata.
+
+Important historical differences must not be silently corrected in the
+baseline. For example, `payslip.pay_period` was nullable in the inspected
+production schema. Any later reconciliation of that definition requires a
+separately reviewed migration and appropriate data checks.
+
+The baseline migration's `downgrade()` drops all 12 baseline tables,
+including company, user, employee, payroll, and loan tables. It is destructive
+and is suitable only for disposable databases where all affected data may
+be discarded.
+
+Never use the baseline downgrade against a database containing production
+or other data that must be retained.
+
+## 4. Production adoption and stamping
+
+The historical baseline must not be run as an ordinary upgrade against the
+existing production database.
+
+Production adoption, baseline stamping, or any other reconciliation of
+the production database's Alembic revision state is a separate operation.
+It requires:
+
+1. A complete comparison of the live production schema with the historical
+   baseline and all subsequent intended revisions.
+2. Verification of tables, columns, types, nullability, defaults, indexes,
+   unique constraints, foreign keys, sequences, and relevant data.
+3. A reviewed migration and revision-state plan.
+4. An explicit approval for the specific production operation.
+
+A successful isolated rehearsal does not establish that production has
+been migrated, stamped, or reconciled.
+
+Do not stamp a database merely because its schema appears similar to a
+migration revision. Verify the complete schema and revision history first.
+
+## 5. Production online migration guard
+
+The online migration environment in `env.py` checks the connected PostgreSQL
+database identity before running online migrations.
+
+The guard recognises the production database identity
+`appex_payroll_db_zgdz` and also considers `APP_ENV=production`.
+
+For an online production migration, the guard requires all of the following:
+
+- `APPEX_ALLOW_PRODUCTION_MIGRATIONS` set to an accepted truthy value:
+  `1`, `true`, `yes`, or `on`.
+- `APPEX_EXPECTED_PRODUCTION_DATABASE` set to the exact expected production
+  database name: `appex_payroll_db_zgdz`.
+- The connected database identity to match the expected production database.
+- If `APP_ENV=production`, the connected database must also match the
+  recognised production database identity.
+
+These checks are safeguards, not approval to perform a migration.
+The required environment variables must never be set casually or merely
+to bypass a blocked migration.
+
+The guard is invoked for online migrations. Offline SQL generation does not
+connect to the database and does not execute migrations. Generated SQL must
+therefore be treated as unexecuted output, not evidence that a database
+operation is safe or authorised.
+
+Do not remove, weaken, or bypass the production guard without a separate
+security and migration-safety review.
+
+## 6. Revision-chain discipline
+
+Every new migration must have a unique revision identifier and a correct
+`down_revision` pointing to its intended parent.
+
+Before adding or changing a revision:
+
+- Inspect the complete current revision graph.
+- Confirm that every referenced parent exists.
+- Check for duplicate revision identifiers, cycles, unintended branches,
+  and missing merge revisions.
+- Confirm that the migration's docstring and executable revision metadata
+  agree.
+- Do not rewrite the operations of an already-applied migration to represent
+  a new schema change. Create a new revision instead.
+- Treat changes to the parent of an existing revision as a migration-graph
+  change requiring explicit review.
+
+Do not assume that filenames determine execution order. Alembic uses revision
+metadata to determine the migration graph.
+
+## 7. Requirements before executing a migration
+
+Each migration must receive a source review before execution.
+
+The review should cover:
+
+- Exact schema objects created, altered, or removed.
+- Existing-table and existing-index collision handling.
+- Data preconditions and postconditions.
+- Tenant isolation and company ownership implications.
+- Foreign-key and unique-constraint correctness.
+- Index definitions, predicates, and PostgreSQL-specific behaviour.
+- Transaction and rollback behaviour.
+- Upgrade and downgrade safety.
+- Compatibility with the current application code and supported database
+  versions.
+
+Where practical, test the migration against an isolated PostgreSQL rehearsal
+database representative of the intended starting schema.
+
+Verify the resulting schema after the rehearsal. A successful migration
+command alone is not sufficient verification.
+
+Migrations that cannot safely reverse accounting or other important business
+history must fail closed rather than automatically destroy that history.
+Any recovery procedure must be separately designed and reviewed.
+
+## 8. Approval and execution controls
+
+Schema inspection, source review, syntax checks, and isolated rehearsal
+planning do not authorise production execution.
+
+Before any database migration, stamping, downgrade, or other schema-changing
+operation:
+
+1. Identify the exact target database and its current revision.
+2. Review the exact migration or revision-state operation.
+3. Confirm backup and recovery arrangements.
+4. Review the expected schema and data impact.
+5. Obtain explicit approval for that specific operation.
+
+Do not infer approval for production from approval to author migration files
+or test them in an isolated environment.
+
+Do not run destructive downgrade commands against production.
+
+## 9. Verification and status reporting
+
+Keep these states distinct:
+
+- **Authored:** migration source exists.
+- **Reviewed:** migration source and intended effects have been inspected.
+- **Rehearsed:** migration has been applied and verified in an isolated
+  rehearsal database.
+- **Applied:** migration has been applied to the specifically identified
+  database and its resulting schema verified.
+- **Stamped:** Alembic revision state was explicitly changed without
+  representing an ordinary schema upgrade.
+
+Always identify the database to which a verification result applies.
+
+A rehearsal result must never be reported as production verification.
+A migration file's existence must never be reported as proof that it has
+been applied.

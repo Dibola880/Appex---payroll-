@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Platform Integrations - Appex Payroll{% endblock %}
+{% block heading %}Platform Integrations{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Provider Catalogue</h2>
+    <h3>Register Provider</h3>
+    <form method="post" action="{{ url_for('main.platform_provider_create') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="provider-code">Provider code</label>
+        <input id="provider-code" name="code" maxlength="80" required>
+        <label for="provider-name">Display name</label>
+        <input id="provider-name" name="display_name" maxlength="160" required>
+        <label for="provider-category">Category</label>
+        <input id="provider-category" name="category" maxlength="40" required>
+        <label for="provider-description">Description</label>
+        <textarea id="provider-description" name="description" maxlength="2000"></textarea>
+        <label for="provider-capabilities">Capabilities (comma-separated)</label>
+        <input id="provider-capabilities" name="capabilities">
+        <label for="provider-reason">Reason for registration</label>
+        <textarea id="provider-reason" name="reason" maxlength="2000" required></textarea>
+        <button type="submit">Register Disabled Provider</button>
+    </form>
+    <p>Enabling a provider does not establish a live connection.</p>
+
+    {% if providers %}
+    <table>
+        <thead>
+            <tr>
+                <th>Provider</th><th>Code</th><th>Category</th>
+                <th>Availability</th><th>Capabilities</th><th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for provider in providers %}
+            <tr>
+                <td>{{ provider.display_name }}</td>
+                <td><code>{{ provider.code }}</code></td>
+                <td>{{ provider.category }}</td>
+                <td>{{ "Enabled" if provider.is_enabled else "Disabled" }}</td>
+                <td>{{ provider.capabilities|join(", ") if provider.capabilities else "Not specified" }}</td>
+                <td>
+                    <form method="post" action="{{ url_for('main.platform_provider_status', provider_id=provider.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="enabled" value="{{ 'false' if provider.is_enabled else 'true' }}">
+                        <label>Reason <input name="reason" maxlength="2000" required></label>
+                        <button type="submit">{{ "Disable" if provider.is_enabled else "Enable" }}</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No integration providers have been registered.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Create Platform-Owned Connection</h2>
+    <p>These connections belong to Appex, not to an individual employer company.</p>
+    {% if providers|selectattr("is_enabled")|list %}
+    <form method="post" action="{{ url_for('main.platform_integration_create') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="platform-provider">Enabled provider</label>
+        <select id="platform-provider" name="provider_code" required>
+            {% for provider in providers if provider.is_enabled %}
+            <option value="{{ provider.code }}">{{ provider.display_name }} ({{ provider.code }})</option>
+            {% endfor %}
+        </select>
+        <label for="platform-environment">Environment</label>
+        <select id="platform-environment" name="environment" required>
+            <option value="sandbox">Sandbox</option>
+            <option value="production">Production</option>
+        </select>
+        <label for="platform-configuration">Non-secret configuration (JSON object)</label>
+        <textarea id="platform-configuration" name="configuration" rows="5"></textarea>
+        <label for="platform-credentials">Credentials (JSON object)</label>
+        <textarea id="platform-credentials" name="credentials" rows="5"
+                  autocomplete="off" placeholder='{"client_id": "...", "client_secret": "..."}'></textarea>
+        <label for="platform-create-reason">Audit reason</label>
+        <textarea id="platform-create-reason" name="reason" maxlength="2000" required></textarea>
+        <button type="submit">Create Platform Connection</button>
+    </form>
+    {% else %}
+    <p>Enable a provider before creating a platform connection.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Platform-Owned Connections</h2>
+    {% if integrations %}
+    <table>
+        <thead>
+            <tr>
+                <th>Provider</th><th>Environment</th><th>Status</th>
+                <th>Credentials</th><th>Last Connected</th><th>Last Error</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for integration in integrations %}
+            <tr>
+                <td>{{ integration.provider_name or integration.provider_code or "Unknown provider" }}</td>
+                <td>{{ integration.environment|capitalize }}</td>
+                <td>{{ integration.status|replace("_", " ")|capitalize }}</td>
+                <td>{{ "Encrypted credentials stored" if integration.has_credentials else "Not configured" }}</td>
+                <td>
+                    {% if integration.last_connected_at %}
+                    {{ integration.last_connected_at.strftime("%Y-%m-%d %H:%M UTC") }}
+                    {% else %}Never{% endif %}
+                </td>
+                <td>
+                    {% if integration.last_error_at %}
+                    {{ integration.last_error_at.strftime("%Y-%m-%d %H:%M UTC") }}
+                    {% if integration.last_error_code %}({{ integration.last_error_code }}){% endif %}
+                    {% else %}None recorded{% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td colspan="6">
+                    <details>
+                        <summary>Update {{ integration.provider_name or integration.provider_code }} connection</summary>
+                        <form method="post"
+                              action="{{ url_for('main.platform_integration_update', integration_id=integration.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <label>Non-secret configuration (JSON object; blank keeps existing configuration)</label>
+                            <textarea name="configuration" rows="5"
+                                      placeholder='{{ integration.configuration|tojson }}'></textarea>
+                            <label>Replace credentials (JSON object; blank keeps existing credentials)</label>
+                            <textarea name="credentials" rows="5" autocomplete="off"
+                                      placeholder="Leave blank to keep current encrypted credentials."></textarea>
+                            <label>Audit reason</label>
+                            <textarea name="reason" maxlength="2000" required></textarea>
+                            <button type="submit">Update Platform Connection</button>
+                        </form>
+                    </details>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No platform-owned provider connections have been configured.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Administration Boundaries</h2>
+    <ul>
+        <li>This page is restricted to platform super administrators.</li>
+        <li>Only platform-owned connections appear in this list.</li>
+        <li>Company-owned connections remain isolated.</li>
+        <li>Credentials are never decrypted or displayed here.</li>
+        <li>Platform connection changes require an audit reason.</li>
+        <li>Live provider operations are not enabled by this page.</li>
+    </ul>
+</div>
+
+<div class="form-actions">
+    <a href="{{ url_for('main.platform_companies') }}" class="button">Back to Companies</a>
+</div>
+{% endblock %}
