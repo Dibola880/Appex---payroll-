@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
 from io import BytesIO
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, text
 
 from flask import (
     Blueprint,
@@ -289,6 +289,131 @@ def platform_super_admin_required(view):
         return view(*args, **kwargs)
 
     return wrapped_view
+
+
+
+@bp.route("/platform/diagnostics/loan-schema", methods=["GET"])
+@platform_super_admin_required
+def platform_loan_schema_diagnostic():
+    """Temporary, platform-admin-only, read-only PostgreSQL schema diagnostic."""
+
+    def diagnostic_response(payload, status):
+        response = jsonify(payload)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Pragma"] = "no-cache"
+        return response, status
+
+    if db.engine.dialect.name != "postgresql":
+        return diagnostic_response({
+            "status": "unavailable",
+            "message": "This diagnostic requires PostgreSQL.",
+        }, 503)
+
+    expected_columns = {
+        "loan_product": [
+            "service_fee",
+            "max_deduction_percent",
+            "minimum_employment_months",
+        ],
+        "loan_application": [
+            "repayment_frequency",
+            "approved_at",
+            "principal_amount",
+            "interest_amount",
+            "service_fee_amount",
+            "scheduled_installment",
+            "number_of_payments",
+            "last_payment_date",
+        ],
+        "loan_repayment": [
+            "balance_before",
+            "balance_after",
+            "payment_number",
+            "source",
+        ],
+    }
+
+    connection = None
+    transaction = None
+
+    try:
+        connection = db.engine.connect()
+        transaction = connection.begin()
+
+        # This must be the first SQL statement in the transaction.
+        connection.exec_driver_sql("SET TRANSACTION READ ONLY")
+
+        revision_table_present = connection.execute(
+            text("SELECT to_regclass('alembic_version') IS NOT NULL")
+        ).scalar_one()
+
+        revisions = []
+        if revision_table_present:
+            revisions = connection.execute(
+                text(
+                    "SELECT version_num "
+                    "FROM alembic_version "
+                    "ORDER BY version_num"
+                )
+            ).scalars().all()
+
+        table_names = list(expected_columns)
+        column_names = sorted({
+            column
+            for columns in expected_columns.values()
+            for column in columns
+        })
+
+        rows = connection.execute(
+            text("""
+                SELECT table_name, column_name
+                FROM information_schema.columns
+                WHERE table_schema = current_schema()
+                  AND table_name = ANY(:table_names)
+                  AND column_name = ANY(:column_names)
+            """),
+            {
+                "table_names": table_names,
+                "column_names": column_names,
+            },
+        ).all()
+
+        present = {}
+        for table_name, column_name in rows:
+            present.setdefault(table_name, set()).add(column_name)
+
+        column_report = {}
+        for table_name, columns in expected_columns.items():
+            existing = present.get(table_name, set())
+            column_report[table_name] = {
+                "present": sorted(existing.intersection(columns)),
+                "missing": sorted(set(columns) - existing),
+            }
+
+        result = {
+            "status": "ok",
+            "database_dialect": "postgresql",
+            "alembic_version_table_present": bool(revision_table_present),
+            "alembic_revisions": revisions,
+            "loan_columns": column_report,
+        }
+
+        return diagnostic_response(result, 200)
+
+    except Exception:
+        current_app.logger.exception(
+            "Temporary loan schema diagnostic failed."
+        )
+        return diagnostic_response({
+            "status": "error",
+            "message": "Diagnostic unavailable. Check application logs.",
+        }, 503)
+
+    finally:
+        if transaction is not None and transaction.is_active:
+            transaction.rollback()
+        if connection is not None:
+            connection.close()
 
 
 def safe_float(value, default=0.0):
