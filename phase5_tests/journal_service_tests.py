@@ -208,6 +208,51 @@ try:
                 accounting_period_id=(period or period_a).id,
             )
 
+        # 0. Unbalanced journal rejection and no persistence.
+        unbalanced_lines = journal_lines(debit_a, credit_a, "100.00")
+        unbalanced_lines[1]["credit"] = Decimal("90.00")
+
+        unbalanced_ok, unbalanced_details = expect_error(
+            lambda: create_a_draft(
+                "JT-UNBALANCED",
+                lines=unbalanced_lines,
+            )
+        )
+
+        unbalanced_error_is_clear = (
+            "not balanced" in unbalanced_details.lower()
+            or "debits=" in unbalanced_details.lower()
+        )
+
+        unbalanced_journal_count = JournalEntry.query.filter_by(
+            company_id=company_a.id,
+            journal_number="JT-UNBALANCED",
+        ).count()
+
+        unbalanced_audit_count = JournalAuditEvent.query.filter_by(
+            company_id=company_a.id,
+            event_type="created",
+        ).join(
+            JournalEntry,
+            JournalAuditEvent.journal_entry_id == JournalEntry.id,
+        ).filter(
+            JournalEntry.company_id == company_a.id,
+            JournalEntry.journal_number == "JT-UNBALANCED",
+        ).count()
+
+        record(
+            "Unbalanced journal is rejected without journal or audit persistence",
+            unbalanced_ok
+            and unbalanced_error_is_clear
+            and unbalanced_journal_count == 0
+            and unbalanced_audit_count == 0,
+            (
+                f"error={unbalanced_details}; "
+                f"journals={unbalanced_journal_count}; "
+                f"audit_events={unbalanced_audit_count}"
+            ),
+        )
+
         # 1. Draft creation and audit attribution.
         draft = create_a_draft("JT-001")
         db.session.flush()
