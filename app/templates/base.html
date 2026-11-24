@@ -54,6 +54,7 @@
                 ================================================= -->
 
                 {% if current_user.role == "platform_super_admin" %}
+                <a href="{{ url_for('main.platform_dashboard') }}">Platform Dashboard</a>
                 <a href="{{ url_for('main.platform_companies') }}">Companies</a>
                 <a href="{{ url_for('main.platform_integrations') }}">Platform Integrations</a>
                 <a href="{{ url_for('main.platform_subscription_plans') }}">Subscription Plans</a>

@@ -58,7 +58,7 @@ try:
     from flask import url_for
 
     from app import create_app, db as app_db
-    from app.models import Company, Employee, User
+    from app.models import Company, Employee, User, SubscriptionPlan
 
     db = app_db
     routes_module = importlib.import_module("app.routes")
@@ -82,6 +82,23 @@ try:
                 "Safety stop: application is not connected to the expected "
                 "temporary SQLite database."
             )
+
+        # Seed the centrally managed Free Trial plan in this disposable
+        # SQLite database so registration tests exercise the real route.
+        free_trial_plan = SubscriptionPlan(
+            code="free_trial",
+            name="Free Trial",
+            description="Test-only Free Trial plan",
+            monthly_price=0,
+            annual_price=0,
+            currency="ZAR",
+            billing_intervals=["monthly", "annually"],
+            employee_limit=None,
+            feature_config={},
+            is_active=True,
+        )
+        db.session.add(free_trial_plan)
+        db.session.flush()
 
         # Fixtures used by the repayment-route and login checks.
         company = Company(name="Auth Entrypoint Test Company")
@@ -120,6 +137,7 @@ try:
         employee = Employee(
             company_id=company.id,
             user_id=employee_user.id,
+            employee_number="AUTH-TEST-EMP-001",
             first_name="Repayment",
             last_name="Employee",
             email=employee_user.email,

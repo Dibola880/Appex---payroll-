@@ -1715,6 +1715,17 @@ def health():
 
 
 # ============================================================
+# PLATFORM ADMINISTRATION HOME
+# ============================================================
+
+@bp.route("/platform")
+@platform_super_admin_required
+def platform_dashboard():
+    """Landing page for platform-wide administration."""
+    return render_template("platform_dashboard.html")
+
+
+# ============================================================
 # HOME / EMPLOYER DASHBOARD
 # ============================================================
 
@@ -1723,6 +1734,12 @@ def health():
 def dashboard():
 
     user = current_user()
+
+    if user.role == PLATFORM_SUPER_ADMIN:
+        return redirect(
+            url_for("main.platform_dashboard")
+        )
+
 
     if user.role == EMPLOYEE:
 
@@ -2034,6 +2051,11 @@ def login():
                 url_for(
                     "main.employee_dashboard"
                 )
+            )
+
+        if user.role == PLATFORM_SUPER_ADMIN:
+            return redirect(
+                url_for("main.platform_dashboard")
             )
 
         return redirect(
